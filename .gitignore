@@ -1,0 +1,18 @@
+# 비밀 값
+.env
+.env.*
+!.env.example
+
+# 의존성 · 빌드
+node_modules/
+.next/
+out/
+dist/
+build/
+.vercel/
+
+# 개인 설정
+.claude/settings.local.json
+.DS_Store
+Thumbs.db
+*.log

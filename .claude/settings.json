@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-delegation-log.mjs\"",
+            "timeout": 15,
+            "statusMessage": "위임 로그 확인 중..."
+          }
+        ]
+      }
+    ]
+  }
+}
