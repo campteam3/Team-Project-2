@@ -18,7 +18,9 @@ import SnowGlobeModel, {
   NAMEPLATE_WIDTH,
   ornamentPosition,
 } from "./SnowGlobeModel";
+import { NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
 import VillageBackdrop from "./VillageBackdrop";
+import { toShape } from "@/lib/snowglobe";
 
 export type GlobeLayout = {
   height: number; // 스노우볼(구+받침대)이 차지할 화면 높이 비율
@@ -161,6 +163,8 @@ function Globe(props: StageSceneProps) {
     reducedMotion,
   } = props;
   const focusIndex = focusId ? ornaments.findIndex((o) => o.id === focusId) : -1;
+  // n 번째 오너먼트의 자리. 아직 달리지 않은 오너먼트(미리보기)는 모양에 따라 자리가 달라서 모양을 함께 넘깁니다.
+  const spotOf = (i: number) => ornamentPosition(i, toShape(ornaments[i]?.shape ?? "ball"));
   const holdRotation = lockFront || focusIndex >= 0; // 정해진 방향으로 돌리는 동안에는 드래그로 돌리지 않습니다
   const group = useRef<THREE.Group>(null);
   const { camera, size, gl } = useThree();
@@ -213,7 +217,7 @@ function Globe(props: StageSceneProps) {
     const vh = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * dist;
     const vw = vh * (size.width / size.height);
     const modelH = MODEL.top - MODEL.bottom;
-    let scale = Math.min((layout.height * vh) / modelH, (vw * 0.88) / 1.95);
+    let scale = Math.min((layout.height * vh) / modelH, (vw * 0.88) / MODEL.width);
     const mid = (MODEL.top + MODEL.bottom) / 2;
     let y = vh * (0.5 - layout.centerFromTop) - mid * scale;
 
@@ -265,7 +269,7 @@ function Globe(props: StageSceneProps) {
 
     if (focusIndex >= 0 && !lockFront) {
       // 고른 오너먼트가 정면에 오는 각도 중 지금과 가장 가까운 곳으로 돌아갑니다
-      const [ox, , oz] = ornamentPosition(focusIndex);
+      const [ox, , oz] = spotOf(focusIndex);
       const want = Math.atan2(-ox, oz);
       const target =
         want + Math.round((g.rotation.y - want) / (Math.PI * 2)) * Math.PI * 2;
@@ -301,7 +305,7 @@ function Globe(props: StageSceneProps) {
     if (onPinMove && ornaments.length) {
       const n = ornaments.length;
       const facingOf = (i: number) => {
-        const [x, , z] = ornamentPosition(i);
+        const [x, , z] = spotOf(i);
         const r = Math.hypot(x, z) || 1;
         return (-x * Math.sin(g.rotation.y) + z * Math.cos(g.rotation.y)) / r; // 1 이면 정면
       };
@@ -316,7 +320,7 @@ function Globe(props: StageSceneProps) {
           const score =
             facingOf(i) +
             (i === pin.current.index ? -1 : 0) +
-            (ornamentPosition(i)[1] > -0.1 ? 0.3 : 0);
+            (spotOf(i)[1] > -0.1 ? 0.3 : 0);
           if (score > bestScore) {
             bestScore = score;
             best = i;
@@ -324,7 +328,7 @@ function Globe(props: StageSceneProps) {
         }
         pin.current = { key: pinKey, index: best };
       }
-      const [x, y, z] = ornamentPosition(pin.current.index);
+      const [x, y, z] = spotOf(pin.current.index);
       g.updateMatrixWorld();
       const p = platePoint.current.set(x, y + 0.07, z);
       g.localToWorld(p).project(camera);
@@ -366,17 +370,11 @@ export default function StageScene(props: StageSceneProps) {
       style={{ touchAction: "pan-y" }}
       aria-hidden="true"
     >
-      <fog attach="fog" args={["#141c38", 9, 30]} />
-      <ambientLight intensity={0.55} color="#c9d3ff" />
-      <directionalLight position={[3, 4, 5]} intensity={1.3} />
-      <pointLight
-        position={[0, 0.4, 2.2]}
-        intensity={1.2}
-        color="#F2C46D"
-        distance={6}
-      />
+      {/* 겨울밤 조명과 빛 번짐은 배경(SnowGlobeAtmosphere)에 맞춘 값입니다. (이민정) */}
+      <NightLights />
       <VillageBackdrop />
       <Globe {...props} />
+      <NightBloom />
     </Canvas>
   );
 }

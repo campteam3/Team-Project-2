@@ -155,7 +155,13 @@ export default function OwnerHome({ nickname, globe, token, isDemo, shakeSignal,
       {/* 3D: 이 상자 안에서만 그려집니다 */}
       <div className="relative my-3 min-h-0 flex-1">
         <div className={`absolute inset-0 touch-none transition-opacity duration-700 ease-soft ${opened ? "" : "opacity-80"}`}>
-          <SnowGlobeScene ornaments={ornaments} shakeSignal={shakeSignal} selectedId={selectedId} onSelect={select} />
+          <SnowGlobeScene
+            title={globe.title} // 받침대 명패에 적을 이름 (이민정 님 장면)
+            ornaments={ornaments}
+            shakeSignal={shakeSignal}
+            selectedId={selectedId}
+            onSelect={select}
+          />
         </div>
       </div>
 
