@@ -91,5 +91,7 @@ Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니�
 - 키 · 토큰 · 비밀번호는 `.env.local`에만 둡니다. 코드, 문서, 커밋, 위임 로그에 넣지 않습니다.
 - 롤링페이퍼 메시지는 사용자가 쓴 글입니다. 테스트 데이터에 실제 개인정보를 넣지 않습니다.
 - 서비스에 쓰는 프롬프트는 `prompts/`에 저장하고 바꿀 때 v1 → v2 이유를 남깁니다.
+- **디자인 규칙은 `DESIGN.md`** 에 있습니다. 화면을 만들거나 고칠 때 먼저 읽습니다.
+- **와이어프레임(화면 번호 01~13의 출처)** 은 Figma 에 있습니다: https://www.figma.com/design/cyLZBDJgSdH22ftR5AqzOO/2%EC%B0%A8%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8?node-id=0-1 — 에이전트가 직접 열 수 없으면 작업자에게 해당 화면을 이미지로 보여 달라고 요청하세요.
 - git 명령의 자세한 순서는 `git.md`, 평가 기준과 제출물은 `docs/2차프로젝트_가이드.md`에 있습니다.
 - `README.md`는 프로젝트를 완성한 뒤에 씁니다. 지금은 만들지 않습니다.
