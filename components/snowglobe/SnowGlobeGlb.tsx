@@ -310,8 +310,9 @@ function colorBulbs(source: THREE.BufferGeometry) {
 
 // 받침대 명패에 들어갈 글자 그림. 스노우볼 이름이 길면 글자를 줄여서 한 줄에 맞춥니다.
 function createNameplateTexture(title: string) {
-  const width = 1024;
-  const height = 322;
+  // 명패 모양(가로 0.84, 세로 0.17)과 같은 비율입니다.
+  const width = 1536;
+  const height = 312;
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -326,13 +327,13 @@ function createNameplateTexture(title: string) {
     context.strokeStyle = "#c79a3e";
     context.lineWidth = 5;
     context.beginPath();
-    context.roundRect(26, 26, width - 52, height - 52, 110);
+    context.roundRect(24, 24, width - 48, height - 48, 70);
     context.stroke();
 
     const text = title.trim();
     if (text) {
       const family = getComputedStyle(document.body).fontFamily || "sans-serif";
-      let size = 150;
+      let size = 156;
       do {
         context.font = `700 ${size}px ${family}`;
         size -= 6;
