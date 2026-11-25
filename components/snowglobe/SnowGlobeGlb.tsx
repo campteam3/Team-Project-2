@@ -361,6 +361,16 @@ export type GlobeLook = {
   showSnowman?: boolean;
 };
 
+// 유리 안의 따뜻한 불빛: 트리 아래 눈을 비추는 빛과 꼭대기 별의 빛. 모델과 같은 자리에 둡니다.
+export function GlobeInnerLights() {
+  return (
+    <>
+      <pointLight position={[0.25, 0.42, 0.75]} intensity={0.55} distance={2.4} color="#ffb265" />
+      <pointLight position={[0, 1.44, 0.22]} intensity={0.3} distance={1.3} color="#ffc777" />
+    </>
+  );
+}
+
 // 꾸미기 색을 입힙니다. 가장자리에 스며드는 빛도 그 색에 맞춥니다.
 function recolor(material: THREE.MeshStandardMaterial, color: string, rimStrength: number) {
   material.color.set(color);

@@ -3,16 +3,14 @@
 // 스노우볼 3D 장면입니다. 모델은 Blender 에서 만들어 public/models 에 내보낸 파일을 씁니다.
 // 드래그로 돌려 보기, 흔들면 눈 내리기, 오너먼트 누르면 메시지 보기.
 
-import { Environment, Lightformer, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Bloom, EffectComposer, ToneMapping } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Ornament } from "@/lib/api";
 import { GLASS } from "@/lib/snowglobe";
-import SnowGlobeAtmosphere, { GlowDust, createDotTexture } from "./SnowGlobeAtmosphere";
-import { GlobeModel, Ornaments } from "./snowglobe/SnowGlobeGlb";
+import SnowGlobeAtmosphere, { GlowDust, NightBloom, NightLights, createDotTexture } from "./SnowGlobeAtmosphere";
+import { GlobeInnerLights, GlobeModel, Ornaments } from "./snowglobe/SnowGlobeGlb";
 
 const SNOW_COUNT = 600;
 const SNOW_RADIUS = GLASS.radius - 0.05;
@@ -167,31 +165,14 @@ export default function SnowGlobeScene({ title = "", ornaments, shakeSignal, sel
     >
       <FitCamera />
 
-      {/* 겨울밤: 푸른 달빛 + 따뜻한 불빛 */}
-      <ambientLight intensity={0.55} color="#5a6aa8" />
-      <directionalLight position={[3, 5, -2]} intensity={1.1} color="#a9c2ff" />
-      <directionalLight position={[-2.5, 2.5, 4]} intensity={1.5} color="#ffd7a3" />
-      <pointLight position={[0.25, 0.42, 0.75]} intensity={0.55} distance={2.4} color="#ffb265" />
-      <pointLight position={[0, 1.44, 0.22]} intensity={0.3} distance={1.3} color="#ffc777" />
-
-      {/* 금색과 유약에 비치는 주변 빛. 외부 이미지를 받지 않고 장면 안에서 만듭니다. */}
-      <Environment resolution={256} environmentIntensity={0.7}>
-        <mesh scale={30}>
-          <sphereGeometry args={[1, 16, 16]} />
-          <meshBasicMaterial color="#1b2444" side={THREE.BackSide} />
-        </mesh>
-        <Lightformer form="rect" intensity={1.4} color="#b8ccff" position={[0, 7, 0]} scale={[7, 7, 1]} />
-        <Lightformer form="rect" intensity={2.6} color="#ffd9a8" position={[-6, 2, 3]} scale={[1.4, 7, 1]} />
-        <Lightformer form="rect" intensity={1.8} color="#ffc98a" position={[6, 1.5, 2]} scale={[1, 4, 1]} />
-        <Lightformer form="ring" intensity={1.5} color="#ffe6c4" position={[0, 2, 7]} scale={2.5} />
-      </Environment>
-
+      <NightLights />
       <SnowGlobeAtmosphere />
 
       <Suspense fallback={null}>
         <GlobeModel title={title} />
         <Ornaments ornaments={ornaments} selectedId={selectedId} onSelect={onSelect} />
       </Suspense>
+      <GlobeInnerLights />
 
       {/* 유리 안에서 은은하게 깜빡이는 여러 색의 작은 빛 */}
       <GlowDust still={reducedMotion} />
@@ -199,11 +180,7 @@ export default function SnowGlobeScene({ title = "", ornaments, shakeSignal, sel
 
       <OrbitControls target={[VIEW_TARGET.x, VIEW_TARGET.y, VIEW_TARGET.z]} enablePan={false} enableZoom={false} minPolarAngle={0.9} maxPolarAngle={1.75} />
 
-      {/* 밝은 불빛만 번지게 하고, 마지막에 화면 색으로 맞춥니다. */}
-      <EffectComposer multisampling={4}>
-        <Bloom mipmapBlur luminanceThreshold={0.8} luminanceSmoothing={0.25} intensity={0.75} radius={0.85} />
-        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      </EffectComposer>
+      <NightBloom />
     </Canvas>
   );
 }

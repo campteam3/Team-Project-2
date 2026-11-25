@@ -3,9 +3,44 @@
 // 스노우볼 뒤의 겨울밤 풍경입니다. 흐릿한 눈 덮인 나무와 뭉개진 불빛을 스노우볼 둘레에 세워서,
 // 스노우볼을 돌리면 배경도 함께 흘러갑니다. 그림 파일 없이 장면 안에서 만듭니다.
 
+import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import { Bloom, EffectComposer, ToneMapping } from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+
+// 겨울밤 조명: 푸른 달빛 + 따뜻한 불빛, 그리고 금색과 유약에 비치는 주변 빛.
+// 주변 빛은 외부 이미지를 받지 않고 장면 안에서 만듭니다.
+export function NightLights() {
+  return (
+    <>
+      <ambientLight intensity={0.55} color="#5a6aa8" />
+      <directionalLight position={[3, 5, -2]} intensity={1.1} color="#a9c2ff" />
+      <directionalLight position={[-2.5, 2.5, 4]} intensity={1.5} color="#ffd7a3" />
+      <Environment resolution={256} environmentIntensity={0.7}>
+        <mesh scale={30}>
+          <sphereGeometry args={[1, 16, 16]} />
+          <meshBasicMaterial color="#1b2444" side={THREE.BackSide} />
+        </mesh>
+        <Lightformer form="rect" intensity={1.4} color="#b8ccff" position={[0, 7, 0]} scale={[7, 7, 1]} />
+        <Lightformer form="rect" intensity={2.6} color="#ffd9a8" position={[-6, 2, 3]} scale={[1.4, 7, 1]} />
+        <Lightformer form="rect" intensity={1.8} color="#ffc98a" position={[6, 1.5, 2]} scale={[1, 4, 1]} />
+        <Lightformer form="ring" intensity={1.5} color="#ffe6c4" position={[0, 2, 7]} scale={2.5} />
+      </Environment>
+    </>
+  );
+}
+
+// 빛 번짐: 밝은 불빛만 번지게 하고, 마지막에 화면 색으로 맞춥니다. <Canvas> 의 맨 끝에 둡니다.
+export function NightBloom() {
+  return (
+    <EffectComposer multisampling={4}>
+      <Bloom mipmapBlur luminanceThreshold={0.8} luminanceSmoothing={0.25} intensity={0.75} radius={0.85} />
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+    </EffectComposer>
+  );
+}
 
 // 같은 화면이 매번 똑같이 나오도록 정해진 순서의 난수를 씁니다.
 function seededRandom(seed: number) {
@@ -188,7 +223,9 @@ export function GlowDust({ still = false }: { still?: boolean }) {
           void main() {
             vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
             gl_Position = projectionMatrix * viewPosition;
-            gl_PointSize = aSize * projectionMatrix[1][1] * uHeight / (-viewPosition.z);
+            // 스노우볼이 커지거나 작아지면 빛도 같은 비율로
+            float modelScale = length(modelViewMatrix[0].xyz);
+            gl_PointSize = aSize * modelScale * projectionMatrix[1][1] * uHeight / (-viewPosition.z);
             vColor = aColor;
             vGlow = 0.5 + 0.5 * sin(uTime * (0.5 + aPhase * 0.7) + aPhase * 6.2832);
           }
@@ -242,11 +279,12 @@ export default function SnowGlobeAtmosphere() {
             opacity,
             transparent: true,
             depthWrite: false,
+            fog: false,
             blending: THREE.AdditiveBlending,
           }),
       ),
     );
-    const pineMaterial = new THREE.SpriteMaterial({ map: pine, transparent: true, opacity: 0.9, depthWrite: false });
+    const pineMaterial = new THREE.SpriteMaterial({ map: pine, transparent: true, opacity: 0.9, depthWrite: false, fog: false });
     return { sky, bokehMaterials, pineMaterial };
   }, []);
 
