@@ -14,16 +14,28 @@ export const FORM_ID = "owner-form";
 // 03 은 가운데 한 줄 기둥으로 정렬합니다. 명판과 비밀번호 칸은 같은 너비를 씁니다.
 const COLUMN = "w-[232px] max-w-full sm:w-[264px]"; // 휴대폰에서는 받침대가 작아져 기둥도 좁힙니다
 
-export function NameplateInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+type InputProps = {
+  value: string;
+  onChange: (value: string) => void;
+  prompt?: string; // 넓은 화면에서 명판 왼쪽에 붙는 안내
+  srLabel?: string; // 화면 읽기 프로그램용 이름
+};
+
+export function NameplateInput({
+  value,
+  onChange,
+  prompt = "여기에 닉네임을 새겨 주세요",
+  srLabel = "닉네임 (친구에게 보낼 링크가 돼요)",
+}: InputProps) {
   return (
     <div className="relative flex items-center">
       <p className="absolute right-full mr-4 hidden items-center gap-2 whitespace-nowrap rounded-full bg-night-900/80 px-3 py-1.5 text-sm font-medium text-ink shadow-[0_4px_12px_rgba(0,0,0,0.35)] lg:flex" aria-hidden="true">
         {/* 받침대 장식 위에서도 읽히도록 어두운 바탕을 깝니다 */}
-        여기에 닉네임을 새겨 주세요
+        {prompt}
         <Icon name="arrow-right" size={18} />
       </p>
       <label className={`${COLUMN} flex h-[52px] items-center justify-center rounded-xl bg-glow px-5 shadow-[0_0_24px_rgba(242,196,109,0.45),0_6px_16px_rgba(0,0,0,0.35)] outline outline-2 outline-offset-2 outline-ink focus-within:outline-[3px]`}>
-        <span className="sr-only">닉네임 (친구에게 보낼 링크가 돼요)</span>
+        <span className="sr-only">{srLabel}</span>
         <input
           form={FORM_ID}
           value={value}
@@ -34,9 +46,9 @@ export function NameplateInput({ value, onChange }: { value: string; onChange: (
           autoCapitalize="none"
           spellCheck={false}
           placeholder="닉네임"
-          className="min-w-[3.5em] max-w-[9em] bg-transparent text-right text-lg font-bold text-night-900 caret-night-900 outline-none [field-sizing:content] placeholder:font-medium placeholder:text-night-700/55"
+          className="min-w-[3.5em] max-w-[9em] shrink bg-transparent text-right text-lg font-bold text-night-900 caret-night-900 outline-none [field-sizing:content] placeholder:font-medium placeholder:text-night-700/55"
         />
-        <span className="text-lg font-medium text-night-700" aria-hidden="true">
+        <span className="shrink-0 whitespace-nowrap text-lg font-medium text-night-700" aria-hidden="true">
           의 스노우볼
         </span>
       </label>
@@ -64,7 +76,8 @@ export default function NameplateForm({ password, onPassword, nickname, error, b
   return (
     <form id={FORM_ID} onSubmit={submit} noValidate className="pointer-events-auto flex w-full max-w-[480px] flex-col items-center gap-3">
       <label className={`${COLUMN} flex flex-col gap-2`}>
-        <span className="text-sm font-medium text-ink">
+        {/* 넓은 화면에서는 이 자리가 받침대 위라 글자가 묻혀서, 이름표는 휴대폰에서만 보이고 칸 안 안내로 대신합니다 */}
+        <span className="text-sm font-medium text-ink sm:sr-only">
           비밀번호 <span className="font-normal text-ink-sub">(4자 이상)</span>
         </span>
         <input
@@ -73,8 +86,9 @@ export default function NameplateForm({ password, onPassword, nickname, error, b
           onChange={(e) => onPassword(e.target.value)}
           maxLength={24}
           autoComplete="new-password"
-          placeholder="4자 이상"
-          className="glass h-12 w-full rounded-full px-5 text-base text-ink outline-none placeholder:text-ink-sub/70 focus:ring-2 focus:ring-ink"
+          placeholder="비밀번호 (4자 이상)"
+          // 받침대 위에 겹쳐도 잘 보이도록 진한 바탕 + 밝은 테두리 (08 로그인과 같은 모양)
+          className="h-12 w-full rounded-full border border-ink/45 bg-night-900/85 px-5 text-base text-ink shadow-[0_6px_20px_rgba(0,0,0,0.45)] outline-none backdrop-blur-md placeholder:text-ink-sub focus:border-ink focus:ring-2 focus:ring-ink"
         />
       </label>
 
