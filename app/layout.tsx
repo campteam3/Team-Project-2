@@ -1,9 +1,21 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
+// 링크를 붙여 넣었을 때 보이는 미리보기 정보. 이미지는 app/opengraph-image.png 를 자동으로 씁니다.
 export const metadata: Metadata = {
-  title: "스노우볼 롤링페이퍼",
-  description: "친구들이 메시지 오너먼트를 달아 주는 나만의 3D 스노우볼",
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "ko_KR",
+    title: SITE_TAGLINE,
+    description: SITE_DESCRIPTION,
+    url: "/",
+  },
+  twitter: { card: "summary_large_image", title: SITE_TAGLINE, description: SITE_DESCRIPTION },
 };
 
 export const viewport: Viewport = {
