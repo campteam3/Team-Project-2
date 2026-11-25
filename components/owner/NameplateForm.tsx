@@ -76,7 +76,8 @@ export default function NameplateForm({ password, onPassword, nickname, error, b
   return (
     <form id={FORM_ID} onSubmit={submit} noValidate className="pointer-events-auto flex w-full max-w-[480px] flex-col items-center gap-3">
       <label className={`${COLUMN} flex flex-col gap-2`}>
-        <span className="text-sm font-medium text-ink">
+        {/* 넓은 화면에서는 이 자리가 받침대 위라 글자가 묻혀서, 이름표는 휴대폰에서만 보이고 칸 안 안내로 대신합니다 */}
+        <span className="text-sm font-medium text-ink sm:sr-only">
           비밀번호 <span className="font-normal text-ink-sub">(4자 이상)</span>
         </span>
         <input
@@ -85,8 +86,9 @@ export default function NameplateForm({ password, onPassword, nickname, error, b
           onChange={(e) => onPassword(e.target.value)}
           maxLength={24}
           autoComplete="new-password"
-          placeholder="4자 이상"
-          className="glass h-12 w-full rounded-full px-5 text-base text-ink outline-none placeholder:text-ink-sub/70 focus:ring-2 focus:ring-ink"
+          placeholder="비밀번호 (4자 이상)"
+          // 받침대 위에 겹쳐도 잘 보이도록 진한 바탕 + 밝은 테두리 (08 로그인과 같은 모양)
+          className="h-12 w-full rounded-full border border-ink/45 bg-night-900/85 px-5 text-base text-ink shadow-[0_6px_20px_rgba(0,0,0,0.45)] outline-none backdrop-blur-md placeholder:text-ink-sub focus:border-ink focus:ring-2 focus:ring-ink"
         />
       </label>
 
