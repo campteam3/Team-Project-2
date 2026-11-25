@@ -74,11 +74,18 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<Resul
 export const isNicknameAvailable = (nickname: string) =>
   call<boolean>("is_nickname_available", { p_nickname: nickname });
 
-export const createGlobe = (nickname: string, password: string, title?: string) =>
+// theme: 꾸미기 값 (예: { tree: "green", prop: "star", base: "red", snow: "white" }). 값 목록은 lib/theme.ts
+export const createGlobe = (
+  nickname: string,
+  password: string,
+  title?: string,
+  theme?: Record<string, unknown>,
+) =>
   call<{ nickname: string; owner_token: string }>("create_globe", {
     p_nickname: nickname,
     p_password: password,
     p_title: title?.trim() || null,
+    p_theme: theme ?? null,
   });
 
 export const openGlobe = (nickname: string, password: string) =>
@@ -86,12 +93,20 @@ export const openGlobe = (nickname: string, password: string) =>
 
 export const getGlobe = (nickname: string) => call<Globe | null>("get_globe", { p_nickname: nickname });
 
-export const addOrnament = (nickname: string, senderName: string, message: string, color: string) =>
+// shape: 오너먼트 모양 ("ball" · "star" · "heart"). 값 목록은 lib/snowglobe.ts 의 ORNAMENT_SHAPES
+export const addOrnament = (
+  nickname: string,
+  senderName: string,
+  message: string,
+  color: string,
+  shape?: string,
+) =>
   call<Ornament>("add_ornament", {
     p_nickname: nickname,
     p_sender_name: senderName,
     p_message: message,
     p_color: color,
+    p_shape: shape ?? "ball",
   });
 
 export const getMessages = (nickname: string, ownerToken: string) =>
