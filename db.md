@@ -1,7 +1,7 @@
 # db.md — 데이터베이스 설계
 
 > 작성: 2026-11-25 · 상태: **실제 DB 에 적용 완료 (2026-11-25).** 앱에서 쓰려면 9번의 남은 설정 2가지가 필요합니다.
-> SQL: [supabase/migrations/20261125000000_snowglobe_schema.sql](supabase/migrations/20261125000000_snowglobe_schema.sql)
+> SQL: [supabase/migrations/20261125000000_snowglobe_schema.sql](supabase/migrations/20261125000000_snowglobe_schema.sql) · [20261125080000_ornament_limit_39.sql](supabase/migrations/20261125080000_ornament_limit_39.sql) (오너먼트 한도 39개)
 
 ## 1. 한눈에
 
@@ -127,14 +127,14 @@
 | `invalid_sender_name` | 보낸 사람 이름이 비었거나 20자 초과 |
 | `invalid_message` | 메시지가 비었거나 300자 초과 |
 | `invalid_shape` / `invalid_color` / `invalid_position` | 모양 · 색 · 위치 값이 틀림 |
-| `globe_full` | 오너먼트가 200개에 도달 |
+| `globe_full` | 오너먼트가 39개에 도달 (트리의 자리 수) |
 | `too_many_requests` | 한 스노우볼에 1분 동안 10개 넘게 달림 |
 | `invalid_owner_token` | 주인 토큰이 없거나, 틀렸거나, 만료됨 → 비밀번호 입력 화면으로 |
 
 ## 7. 막아 둔 것 (안정성)
 
 - **빈 입력 · 긴 입력**: 함수에서 앞뒤 공백을 지우고 길이를 검사합니다. 테이블에도 같은 제약이 있어 이중으로 막습니다.
-- **몰아서 달기**: 한 스노우볼에 1분에 10개, 전체 200개까지.
+- **몰아서 달기**: 한 스노우볼에 1분에 10개, 전체 39개까지. 39는 트리에 있는 오너먼트 자리 수(`lib/snowglobe-slots.json`)이고, 자리를 늘리면 함께 올립니다.
 - **메시지 엿보기**: 테이블 직접 접근 차단 + 주인 토큰 확인.
 - **비밀번호 찍어 맞히기**: 5번 틀리면 10분 잠금.
 - **닉네임 겹침**: 닉네임은 고유하고(영문 대소문자 구분 없음), 화면 경로와 겹치는 이름은 쓸 수 없습니다.
