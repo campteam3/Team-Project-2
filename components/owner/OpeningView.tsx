@@ -67,17 +67,18 @@ export default function OpeningView() {
       theme={DEFAULT_THEME}
       ornaments={EXAMPLE}
       display
-      title="친구들의 마음이 모여 내 스노우볼이 돼요"
-      subtitle="스노우볼을 만들어 링크를 보내면, 친구들이 메시지를 담은 오너먼트를 달아 줘요"
+      // 문구: Impeccable clarify 로 다듬음. 제목은 "무엇인지", 설명은 제목에 없는 "어떻게"만 (각각 한 줄)
+      title="친구 마음이 쌓이는 스노우볼"
+      subtitle="링크를 보내면 친구들이 오너먼트를 달아 줘요"
       hint="드래그로 돌리고, 흔들면 눈이 내려요"
       hintMobile="폰을 흔들거나 드래그해서 눈을 내려보세요"
       layout={{ desktop: { centerFromTop: 0.47 }, mobile: { centerFromTop: 0.48 } }}
       // 명판에 실제 이름처럼 보여 줘서 "여기에 내 이름이 새겨진다"를 처음부터 알게 합니다
-      plate={<span className="pointer-events-none whitespace-nowrap text-[15px] font-bold text-night-900">지수의 스노우볼</span>}
+      plate={<span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">지수의 스노우볼</span>}
       pinKey={turn}
       pin={shown ? <ExampleBubble key={turn} sender={current.sender} message={current.message} /> : undefined}
       below={
-        <Link href="/login" className="pointer-events-auto px-2 py-1 text-[13px] text-ink-sub underline underline-offset-4 hover:text-ink">
+        <Link href="/login" className="pointer-events-auto -my-1.5 inline-flex min-h-11 items-center px-3 text-[13px] text-ink-sub underline underline-offset-4 hover:text-ink">
           이미 스노우볼이 있어요
         </Link>
       }
