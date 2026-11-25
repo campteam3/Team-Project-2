@@ -7,33 +7,21 @@
 
 import Link from "next/link";
 
-// 빈 스노우볼 그림: 유리 구 + 얇은 눈 바닥 + 레드 받침대. 장식이라 화면 읽기 프로그램에서는 건너뜁니다.
+// 빈 스노우볼 그림: 그림자 · 그라데이션 없는 납작한(플랫) 도형 — 유리 원 + 눈 바닥 + 레드 받침대.
+// 장식이라 화면 읽기 프로그램에서는 건너뜁니다.
 function EmptySnowGlobe() {
   return (
-    <svg viewBox="0 0 200 240" className="h-auto w-[150px] animate-float motion-reduce:animate-none sm:w-[220px]" aria-hidden="true">
-      <defs>
-        <radialGradient id="nf-glass" cx="40%" cy="35%" r="70%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.04" />
-          <stop offset="75%" stopColor="#ffffff" stopOpacity="0.1" />
-          <stop offset="100%" stopColor="#ffffff" stopOpacity="0.24" />
-        </radialGradient>
-        <linearGradient id="nf-base" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#C8363D" />
-          <stop offset="100%" stopColor="#7A1F24" />
-        </linearGradient>
-      </defs>
-      {/* 눈 바닥 (유리 안 아래쪽) */}
-      <ellipse cx="100" cy="152" rx="62" ry="11" fill="#F5F1EA" opacity="0.85" />
-      {/* 유리 구 */}
-      <circle cx="100" cy="92" r="80" fill="url(#nf-glass)" stroke="#ffffff" strokeOpacity="0.35" strokeWidth="1.5" />
-      {/* 유리 반사광 */}
-      <path d="M52 62 A58 58 0 0 1 96 30" fill="none" stroke="#ffffff" strokeOpacity="0.55" strokeWidth="5" strokeLinecap="round" />
-      <circle cx="140" cy="54" r="3" fill="#ffffff" opacity="0.5" />
+    <svg viewBox="0 0 200 230" className="h-auto w-[200px] animate-float motion-reduce:animate-none sm:w-[320px]" aria-hidden="true">
+      {/* 유리 원 */}
+      <circle cx="100" cy="92" r="80" fill="#ffffff" fillOpacity="0.08" stroke="#ffffff" strokeOpacity="0.4" strokeWidth="2" />
+      {/* 유리 반사 (납작한 선 하나) */}
+      <path d="M54 64 A56 56 0 0 1 94 34" fill="none" stroke="#ffffff" strokeOpacity="0.5" strokeWidth="5" strokeLinecap="round" />
+      {/* 눈 바닥 */}
+      <path d="M40 150 Q100 136 160 150 Z" fill="#F5F1EA" />
       {/* 받침대 */}
-      <path d="M44 160 H156 L170 214 H30 Z" fill="url(#nf-base)" />
-      <rect x="40" y="156" width="120" height="8" rx="4" fill="#9E2A30" />
-      <path d="M37 186 H163" stroke="#F2C46D" strokeOpacity="0.8" strokeWidth="2" />
-      <ellipse cx="100" cy="214" rx="70" ry="7" fill="#5E171B" />
+      <rect x="36" y="150" width="128" height="12" rx="6" fill="#C8363D" />
+      <path d="M44 162 H156 L168 214 H32 Z" fill="#C8363D" />
+      <path d="M38 188 H162" stroke="#F2C46D" strokeWidth="3" />
     </svg>
   );
 }
@@ -53,8 +41,10 @@ export default function NotFoundView() {
             <br />
             스노우볼이 없어요
           </h1>
-          <p className="mt-4 max-w-[400px] text-pretty text-[15px] leading-[1.6] text-ink-sub sm:mt-6 sm:text-base">
-            주소가 바뀌었거나 잘못 적힌 것 같아요. 친구에게 받은 링크라면 다시 확인해 주세요.
+          <p className="mt-4 text-pretty text-[15px] leading-[1.6] text-ink-sub sm:mt-6 sm:text-base">
+            주소가 바뀌었거나 잘못 적힌 것 같아요.
+            <br />
+            친구에게 받은 링크라면 다시 확인해 주세요.
           </p>
           <Link
             href="/"
