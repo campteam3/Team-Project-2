@@ -18,6 +18,7 @@ import SnowGlobeModel, {
   NAMEPLATE_WIDTH,
   ornamentPosition,
 } from "./SnowGlobeModel";
+import { NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
 import VillageBackdrop from "./VillageBackdrop";
 
 export type GlobeLayout = {
@@ -213,7 +214,7 @@ function Globe(props: StageSceneProps) {
     const vh = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * dist;
     const vw = vh * (size.width / size.height);
     const modelH = MODEL.top - MODEL.bottom;
-    let scale = Math.min((layout.height * vh) / modelH, (vw * 0.88) / 1.95);
+    let scale = Math.min((layout.height * vh) / modelH, (vw * 0.88) / MODEL.width);
     const mid = (MODEL.top + MODEL.bottom) / 2;
     let y = vh * (0.5 - layout.centerFromTop) - mid * scale;
 
@@ -366,17 +367,11 @@ export default function StageScene(props: StageSceneProps) {
       style={{ touchAction: "pan-y" }}
       aria-hidden="true"
     >
-      <fog attach="fog" args={["#141c38", 9, 30]} />
-      <ambientLight intensity={0.55} color="#c9d3ff" />
-      <directionalLight position={[3, 4, 5]} intensity={1.3} />
-      <pointLight
-        position={[0, 0.4, 2.2]}
-        intensity={1.2}
-        color="#F2C46D"
-        distance={6}
-      />
+      {/* 겨울밤 조명과 빛 번짐은 배경(SnowGlobeAtmosphere)에 맞춘 값입니다. (이민정) */}
+      <NightLights />
       <VillageBackdrop />
       <Globe {...props} />
+      <NightBloom />
     </Canvas>
   );
 }
