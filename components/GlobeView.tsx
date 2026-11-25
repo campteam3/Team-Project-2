@@ -7,12 +7,14 @@
 // 친구 화면(10~13)과 상태 화면은 시안 C 로 바꿨습니다: components/friend/FriendFlow, components/stage/GlobeStatus (김미영)
 // 주인 화면(05~07)은 components/owner/OwnerHome 으로 옮겼습니다. 메시지 열기 · 지우기 · 나가기 호출은 그대로입니다 (김미영)
 // 개발용: /globe/demo?preview=friend 이면 샘플 스노우볼을 친구 입장에서 봅니다(저장하지 않음).
+// 개발용: /globe/demo?full=1 이면 샘플을 오너먼트 자리 수만큼 채워 "가득 찼어요" 화면을 봅니다(저장하지 않음, 김미영).
 
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { getGlobe, getMessages, type Globe } from "@/lib/api";
 import { clearOwnerToken, loadOwnerToken } from "@/lib/owner-token";
 import { SAMPLE_GLOBE } from "@/lib/sample-data";
+import { MAX_ORNAMENTS } from "@/lib/snowglobe";
 import FriendFlow from "./friend/FriendFlow";
 import OwnerHome from "./owner/OwnerHome";
 import GlobeStatus from "./stage/GlobeStatus";
@@ -36,8 +38,18 @@ function decode(value: string) {
   }
 }
 
-async function loadView(nickname: string, previewFriend = false): Promise<View> {
-  if (nickname === DEMO) return { status: "ready", globe: SAMPLE_GLOBE, isOwner: !previewFriend, token: null };
+// 샘플 오너먼트를 돌려 써서 자리 수만큼 채웁니다 (가득 찬 화면 확인용)
+function fillSample(globe: Globe): Globe {
+  const base = globe.ornaments;
+  const ornaments = Array.from({ length: MAX_ORNAMENTS }, (_, i) => ({ ...base[i % base.length], id: `full-${i}` }));
+  return { ...globe, ornaments };
+}
+
+async function loadView(nickname: string, previewFriend = false, previewFull = false): Promise<View> {
+  if (nickname === DEMO) {
+    const globe = previewFull ? fillSample(SAMPLE_GLOBE) : SAMPLE_GLOBE;
+    return { status: "ready", globe, isOwner: !previewFriend, token: null };
+  }
 
   const globe = await getGlobe(nickname);
   if (!globe.ok) return { status: "error", message: globe.message };
@@ -60,6 +72,7 @@ export default function GlobeView() {
   const isDemo = nickname === DEMO;
   const searchParams = useSearchParams();
   const previewFriend = isDemo && searchParams.get("preview") === "friend";
+  const previewFull = isDemo && searchParams.get("full") === "1";
 
   const [view, setView] = useState<View>({ status: "loading" });
   const [shakeSignal, setShakeSignal] = useState(0);
@@ -67,15 +80,15 @@ export default function GlobeView() {
 
   useEffect(() => {
     let cancelled = false;
-    loadView(nickname, previewFriend).then((next) => {
+    loadView(nickname, previewFriend, previewFull).then((next) => {
       if (!cancelled) setView(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [nickname, previewFriend]);
+  }, [nickname, previewFriend, previewFull]);
 
-  const refresh = async () => setView(await loadView(nickname, previewFriend));
+  const refresh = async () => setView(await loadView(nickname, previewFriend, previewFull));
 
   // 휴대폰을 흔들면 눈이 내립니다.
   useEffect(() => {

@@ -68,7 +68,7 @@ export default function OwnerFlow() {
         theme={theme}
         title="스노우볼을 꾸며 주세요"
         subtitle="1 / 2 단계"
-        hint="고르는 대로 바로 바뀌어요. 드래그해서 돌려 보세요"
+        hint="고르는 대로 바로 바뀌어요. 드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
         hintMobile="고르는 대로 바로 바뀌어요"
         plate={plateLabel("내 스노우볼")}
       >
