@@ -35,6 +35,7 @@ export type StageSceneProps = {
   pinKey?: number; // 값이 바뀔 때마다 앞쪽을 향한 오너먼트 하나를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때 (pinKey 보다 우선)
   highlightId?: string;
+  onSelectOrnament?: (id: string) => void; // 주인 화면: 오너먼트를 눌러 메시지 읽기
   arrivingId?: string;
   onPinMove?: (x: number, y: number, visibility: number) => void; // 고른 오너먼트 바로 위의 화면 좌표와 보이는 정도
   lockFront?: boolean; // 명판에 입력할 때는 앞면을 고정합니다
@@ -347,6 +348,8 @@ function Globe(props: StageSceneProps) {
           theme={theme}
           ornaments={ornaments}
           highlightId={props.highlightId}
+          selectedId={props.onSelectOrnament ? (props.highlightId ?? null) : undefined}
+          onSelect={props.onSelectOrnament}
           arrivingId={props.arrivingId}
           reducedMotion={reducedMotion}
         />

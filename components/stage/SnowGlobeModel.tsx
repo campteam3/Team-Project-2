@@ -66,11 +66,13 @@ type Props = ThreeElements["group"] & {
   theme: GlobeTheme;
   ornaments?: OrnamentLike[]; // DB 의 오너먼트를 그대로 넣으면 모양(shape)대로 그립니다. id 와 색만 있으면 볼입니다.
   highlightId?: string; // 빛나게 보여 줄 오너먼트 (친구가 고른 것)
+  selectedId?: string | null; // 주인이 눌러 읽고 있는 오너먼트 (김미영: 주인 화면용 전달)
+  onSelect?: (id: string) => void; // 오너먼트를 눌렀을 때 (김미영: 주인 화면용 전달)
   arrivingId?: string; // 지금 막 달리는 오너먼트
   reducedMotion?: boolean;
 };
 
-export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, arrivingId, reducedMotion = false, ...group }: Props) {
+export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, selectedId, onSelect, arrivingId, reducedMotion = false, ...group }: Props) {
   useEffect(() => {
     remember(ornaments);
   }, [ornaments]);
@@ -87,7 +89,7 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, a
       <group position={[0, LIFT, 0]}>
         <Suspense fallback={null}>
           <GlobeModel treeColor={treeColor} baseColor={baseColor} showGifts={showGifts} showSnowman={showSnowman} />
-          <Ornaments ornaments={ornaments} highlightId={highlightId} arrivingId={arrivingId} reducedMotion={reducedMotion} />
+          <Ornaments ornaments={ornaments} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} reducedMotion={reducedMotion} />
         </Suspense>
         <GlobeInnerLights />
         <GlowDust still={reducedMotion} />

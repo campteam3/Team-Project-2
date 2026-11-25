@@ -3,43 +3,39 @@
 // 주인 화면 (와이어프레임 05~07)
 //   05 내 스노우볼(열기 전): 도착한 오너먼트 수 + "스노우볼 열기"
 //   06 열고 난 뒤: 오너먼트를 눌러 읽기, 읽은 수, 링크 공유
-//   07 메시지 열람: 카드 + 이전 · 다음 · 닫기, 주인은 지울 수 있음
+//   07 메시지 열람: 카드 + 이전 · 다음 · 닫기, 주인은 지울 수 있음. 고른 오너먼트는 빛나고 정면으로 돌아옵니다
 //   빈 상태: 오너먼트가 0개면 링크 공유를 권합니다
-// 3D 는 이민정 님의 Blender 모델 장면(components/SnowGlobeScene)을 고치지 않고 그대로 씁니다.
-// 화면을 제목 / 3D 상자 / 아래쪽 UI 로 나눠 쌓아서, 3D 가 UI 와 겹치지 않습니다.
-// (모델을 components/stage 로 합치면 다른 화면처럼 Stage 위로 옮깁니다 · #14)
+// 다른 화면(오프닝 · 만들기 · 친구)과 같은 무대(Stage)를 써서, 겨울밤 배경이 화면 전체에 깔립니다.
 
-import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
-import { Button, IconButton } from "@/components/ui/Button";
+import Stage from "@/components/stage/Stage";
+import { Button } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { closeGlobe, deleteOrnament, type Globe } from "@/lib/api";
 import { clearOwnerToken, globePath } from "@/lib/owner-token";
 import { loadReadState, saveReadState, type ReadState } from "@/lib/read-state";
+import { parseTheme } from "@/lib/theme";
 import { globeName } from "@/components/friend/FriendFlow";
 import ShareDock from "./ShareDock";
 import MessageViewer from "./MessageViewer";
-
-const SnowGlobeScene = dynamic(() => import("@/components/SnowGlobeScene"), {
-  ssr: false,
-  loading: () => <p className="flex h-full items-center justify-center text-sm text-ink-sub">스노우볼을 불러오고 있어요</p>,
-});
 
 type Props = {
   nickname: string;
   globe: Globe; // 주인으로 열었으므로 메시지 내용이 들어 있습니다
   token: string | null;
   isDemo: boolean;
-  shakeSignal: number;
-  onShake: () => void;
   onRefresh: () => Promise<void>;
+  // 아래 두 값은 예전 화면용으로 GlobeView 가 넘겨 줍니다. 지금은 무대(Stage)가 흔들기를 직접 처리합니다.
+  shakeSignal?: number;
+  onShake?: () => void;
 };
 
-export default function OwnerHome({ nickname, globe, token, isDemo, shakeSignal, onShake, onRefresh }: Props) {
+export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }: Props) {
   const [state, setState] = useState<ReadState>(() => loadReadState(nickname));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [notice, setNotice] = useState("");
+  const [openShake, setOpenShake] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const ornaments = globe.ornaments;
@@ -62,10 +58,10 @@ export default function OwnerHome({ nickname, globe, token, isDemo, shakeSignal,
     saveReadState(nickname, next);
   };
 
-  // 05 → 06: 한 번 열면 이 브라우저에서는 계속 열린 상태입니다
+  // 05 → 06: 한 번 열면 이 브라우저에서는 계속 열린 상태입니다. 열 때 눈이 날립니다.
   const open = () => {
     update({ ...state, opened: true });
-    onShake();
+    setOpenShake((n) => n + 1);
   };
 
   const select = (id: string) => {
@@ -113,11 +109,6 @@ export default function OwnerHome({ nickname, globe, token, isDemo, shakeSignal,
     }
   };
 
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen?.().catch(() => {});
-  };
-
   const subtitle =
     total === 0
       ? "아직 오너먼트가 없어요"
@@ -137,84 +128,20 @@ export default function OwnerHome({ nickname, globe, token, isDemo, shakeSignal,
           : "오너먼트를 눌러 메시지를 읽어 보세요";
 
   return (
-    <main className="relative flex h-dvh w-full flex-col overflow-hidden px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 sm:px-8 sm:pb-8 sm:pt-8">
-      <div className="absolute left-4 top-4 z-10 sm:left-8 sm:top-8">
-        <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} />
-      </div>
-      <div className="absolute right-4 top-4 z-10 sm:right-8 sm:top-8">
-        <IconButton icon="snowflake" label="눈 내리기" onClick={onShake} />
-      </div>
-
-      <header className="mx-auto mt-14 max-w-[900px] text-center sm:mt-1.5">
-        <h1 className="text-balance text-[22px] font-bold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[28px]">{name}</h1>
-        <p key={subtitle} className="mt-2 animate-fade text-[15px] text-ink-sub">
-          {subtitle}
-        </p>
-      </header>
-
-      {/* 3D: 이 상자 안에서만 그려집니다 */}
-      <div className="relative my-3 min-h-0 flex-1">
-        <div className={`absolute inset-0 touch-none transition-opacity duration-700 ease-soft ${opened ? "" : "opacity-80"}`}>
-          <SnowGlobeScene
-            title={globe.title} // 받침대 명패에 적을 이름 (이민정 님 장면)
-            ornaments={ornaments}
-            shakeSignal={shakeSignal}
-            selectedId={selectedId}
-            onSelect={select}
-          />
-        </div>
-      </div>
-
-      <footer className="flex flex-col items-center gap-3">
-        {hint && <p className="text-center text-[15px] text-ink-sub">{hint}</p>}
-        <p role="status" className={`text-center text-sm text-ink transition-opacity duration-400 ${notice ? "opacity-100" : "opacity-0"}`}>
-          {notice || " "}
-        </p>
-
-        {selected ? (
-          <div key="viewer" className="flex w-full flex-col items-center gap-4">
-            <MessageViewer
-              ornament={selected}
-              index={index}
-              total={total}
-              canDelete={!isDemo && !!token}
-              deleting={deleting}
-              onDelete={remove}
-            />
-            <Dock label="메시지 넘기기">
-              <Button variant="secondary" icon="arrow-left" onClick={() => move(-1)} disabled={total < 2}>
-                이전
-              </Button>
-              <Button variant="secondary" onClick={() => setSelectedId(null)}>
-                닫기
-              </Button>
-              <Button onClick={() => move(1)} disabled={total < 2}>
-                다음
-              </Button>
-            </Dock>
-          </div>
-        ) : !opened ? (
-          <div key="closed" className="flex w-full animate-rise justify-center">
-            <Dock label="스노우볼 열기">
-              <Button onClick={open}>스노우볼 열기</Button>
-              <Button variant="secondary" icon="copy" onClick={copyLink}>
-                링크 복사
-              </Button>
-            </Dock>
-          </div>
-        ) : (
-          <div key="share" className="flex w-full animate-rise flex-col items-center gap-3">
-            {/* 휴대폰에서는 작은 오너먼트를 정확히 누르기 어려워, 버튼으로도 메시지를 열 수 있게 합니다 */}
-            {total > 0 && (
-              <Button variant="secondary" icon="message" onClick={readNext}>
-                {readCount < total ? "안 읽은 메시지 읽기" : "메시지 다시 읽기"}
-              </Button>
-            )}
-            <ShareDock url={url} title={name} />
-          </div>
-        )}
-
-        {!isDemo && token && !selected && (
+    <Stage
+      theme={parseTheme(globe.theme)}
+      ornaments={ornaments}
+      title={name}
+      subtitle={subtitle}
+      hint={hint}
+      hintMobile={hint}
+      plate={<span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{name}</span>}
+      highlightId={selected?.id}
+      focusId={selected?.id}
+      onSelectOrnament={select}
+      extraShake={openShake}
+      below={
+        !isDemo && token && !selected ? (
           <button
             type="button"
             onClick={leave}
@@ -222,8 +149,55 @@ export default function OwnerHome({ nickname, globe, token, isDemo, shakeSignal,
           >
             이 기기에서 나가기
           </button>
-        )}
-      </footer>
-    </main>
+        ) : undefined
+      }
+    >
+      <p role="status" className={`text-center text-sm text-ink transition-opacity duration-400 ${notice ? "opacity-100" : "opacity-0"}`}>
+        {notice || " "}
+      </p>
+
+      {selected ? (
+        <div key="viewer" className="flex w-full flex-col items-center gap-4">
+          <MessageViewer
+            ornament={selected}
+            index={index}
+            total={total}
+            canDelete={!isDemo && !!token}
+            deleting={deleting}
+            onDelete={remove}
+          />
+          <Dock label="메시지 넘기기">
+            <Button variant="secondary" icon="arrow-left" onClick={() => move(-1)} disabled={total < 2}>
+              이전
+            </Button>
+            <Button variant="secondary" onClick={() => setSelectedId(null)}>
+              닫기
+            </Button>
+            <Button onClick={() => move(1)} disabled={total < 2}>
+              다음
+            </Button>
+          </Dock>
+        </div>
+      ) : !opened ? (
+        <div key="closed" className="flex w-full animate-rise justify-center">
+          <Dock label="스노우볼 열기">
+            <Button onClick={open}>스노우볼 열기</Button>
+            <Button variant="secondary" icon="copy" onClick={copyLink}>
+              링크 복사
+            </Button>
+          </Dock>
+        </div>
+      ) : (
+        <div key="share" className="flex w-full animate-rise flex-col items-center gap-3">
+          {/* 휴대폰에서는 작은 오너먼트를 정확히 누르기 어려워, 버튼으로도 메시지를 열 수 있게 합니다 */}
+          {total > 0 && (
+            <Button variant="secondary" icon="message" onClick={readNext} className="pointer-events-auto">
+              {readCount < total ? "안 읽은 메시지 읽기" : "메시지 다시 읽기"}
+            </Button>
+          )}
+          <ShareDock url={url} title={name} />
+        </div>
+      )}
+    </Stage>
   );
 }
