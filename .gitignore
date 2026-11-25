@@ -33,3 +33,8 @@ next-env.d.ts
 # 개인 설정 (작업자 이름은 각자 PC 에만)
 .claude/me.json
 .claude/settings.local.json
+
+# Blender 작업 중간 산출물 (최종 렌더 한 장만 올립니다)
+*.blend1
+design/blender/render_*.png
+!design/blender/render_v23.png
