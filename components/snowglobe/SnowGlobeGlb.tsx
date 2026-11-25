@@ -56,35 +56,45 @@ function createGlassMaterial(back: boolean) {
         float fresnel = 0.04 + 0.96 * pow(1.0 - facing, 5.0);
         vec3 r = reflect(-v, n);
 
-        // 창 모양 반사광: 왼쪽 위 큰 창, 오른쪽 길쭉한 창, 아래쪽에 비친 바닥
-        float windows = softbox(r, -0.78, 0.66, 0.30, 0.30, 0.03) * 0.95
-          + softbox(r, 0.98, 0.42, 0.11, 0.44, 0.025) * 0.6
-          + softbox(r, -0.15, -0.8, 0.55, 0.1, 0.06) * 0.22;
+        // 선명한 반사광: 왼쪽 위 작은 창, 오른쪽 가는 창, 아래쪽에 비친 바닥. 가운데는 비워 안이 맑게 보입니다.
+        float windowA = softbox(r, -0.8, 0.7, 0.17, 0.2, 0.018) * 1.0;
+        float windowB = softbox(r, 0.98, 0.42, 0.055, 0.4, 0.016) * 0.62;
+        float windowC = softbox(r, -0.15, -0.8, 0.5, 0.07, 0.04) * 0.2;
+        float windows = windowA + windowB + windowC;
+        // 창마다 옅은 색: 왼쪽 위는 분홍 기운의 흰빛, 오른쪽은 하늘색, 아래는 노랑
+        vec3 windowTint = (vec3(1.0, 0.93, 0.97) * windowA + vec3(0.78, 0.91, 1.0) * windowB + vec3(1.0, 0.9, 0.62) * windowC)
+          / max(windows, 0.0001);
         // 창 위쪽이 더 밝고 아래로 갈수록 옅어지게
-        float reflection = windows * (0.3 + 0.7 * fresnel) * (0.75 + 0.5 * clamp(r.y, 0.0, 1.0));
+        float reflection = windows * (0.4 + 0.6 * fresnel) * (0.75 + 0.5 * clamp(r.y, 0.0, 1.0));
 
-        // 유리에 비친 주변 불빛 (따뜻한 색 위주로 몇 가지 색)
-        vec3 lights = vec3(1.0, 0.72, 0.36) * glint(r, vec3(-0.9, 0.15, -0.4), 0.16)
-          + vec3(1.0, 0.55, 0.45) * glint(r, vec3(0.85, 0.3, -0.45), 0.13) * 0.9
-          + vec3(1.0, 0.82, 0.5) * glint(r, vec3(0.45, -0.5, -0.75), 0.15) * 0.8
-          + vec3(0.6, 0.8, 1.0) * glint(r, vec3(-0.55, 0.62, -0.55), 0.1) * 0.7
-          + vec3(1.0, 0.7, 0.8) * glint(r, vec3(0.15, 0.85, -0.5), 0.09) * 0.6;
+        // 테두리 바로 안쪽을 따라 도는 가는 초승달 모양 반사광: 왼쪽은 분홍, 오른쪽 아래는 하늘색
+        vec2 side = normalize(n.xy + vec2(0.00001));
+        float crescentL = band(facing, 0.3, 0.02, 0.014) * smoothstep(0.6, 0.95, dot(side, normalize(vec2(-1.0, 0.15))));
+        float crescentR = band(facing, 0.26, 0.014, 0.012) * smoothstep(0.65, 0.95, dot(side, normalize(vec2(0.8, -0.6))));
+        vec3 crescents = (vec3(1.0, 0.62, 0.82) * crescentL * 0.4 + vec3(0.62, 0.84, 1.0) * crescentR * 0.35) * (1.0 - uBack);
+
+        // 유리에 비친 주변 불빛 (작고 또렷하게)
+        vec3 lights = vec3(1.0, 0.8, 0.4) * glint(r, vec3(-0.9, 0.15, -0.4), 0.13)
+          + vec3(1.0, 0.5, 0.72) * glint(r, vec3(0.85, 0.3, -0.45), 0.11) * 0.9
+          + vec3(1.0, 0.82, 0.5) * glint(r, vec3(0.45, -0.5, -0.75), 0.12) * 0.8
+          + vec3(0.6, 0.8, 1.0) * glint(r, vec3(-0.55, 0.62, -0.55), 0.08) * 0.7
+          + vec3(1.0, 0.7, 0.8) * glint(r, vec3(0.15, 0.85, -0.5), 0.075) * 0.6;
         lights *= 0.55 + 0.45 * fresnel;
 
         // 작고 날카로운 반짝임
         float sparkle = pow(max(dot(r, normalize(vec3(-0.5, 0.62, 0.6))), 0.0), 1400.0) * 2.2;
 
-        // 테두리: 가는 밝은 선, 그 안쪽은 두꺼운 유리처럼 살짝 어둡게
-        float edgeLine = pow(1.0 - facing, 7.0);
-        float edgeShade = smoothstep(0.42, 0.04, facing) * 0.14;
-        vec3 iris = 0.5 + 0.5 * cos(6.2832 * (edgeLine * 1.2 + vec3(0.0, 0.33, 0.67)));
-        vec3 edgeColor = mix(vec3(0.86, 0.93, 1.0), iris, 0.22);
+        // 테두리: 얇은 유리처럼 아주 가는 선만. 무지갯빛이 살짝 돌고, 뿌옇게 번지는 빛은 넣지 않습니다.
+        float edgeLine = pow(1.0 - facing, 20.0);
+        vec3 iris = 0.5 + 0.5 * cos(6.2832 * (side.y * 0.35 + 0.92 + vec3(0.0, 0.33, 0.67)));
+        vec3 edgeColor = mix(vec3(0.9, 0.95, 1.0), iris, 0.42);
 
         float strength = uBack > 0.5 ? 0.3 : 1.0;
-        vec3 color = (vec3(0.93, 0.97, 1.0) * reflection + lights + vec3(1.0) * sparkle) * strength
-          + edgeColor * edgeLine * (uBack > 0.5 ? 0.0 : 0.95);
+        float front = uBack > 0.5 ? 0.0 : 1.0;
+        vec3 color = (windowTint * reflection + lights + vec3(1.0) * sparkle) * strength
+          + crescents + edgeColor * edgeLine * 0.8 * front;
         float alpha = (reflection * 0.9 + dot(lights, vec3(0.33)) + sparkle) * strength
-          + (uBack > 0.5 ? 0.0 : edgeShade + edgeLine * 0.55 + 0.006);
+          + dot(crescents, vec3(0.33)) + (edgeLine * 0.45 + 0.003) * front;
         gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
         #include <colorspace_fragment>
       }
@@ -167,6 +177,35 @@ function makeMatte(material: THREE.MeshStandardMaterial, roughness: number, refl
   }
 }
 
+// 받침대와 빨간 선물 상자가 함께 쓰는 부드러운 빨강
+const SOFT_RED = "#dc4f45";
+
+// 아주 약한 유광: 클레이 느낌은 그대로 두고, 빛을 받는 곳에만 부드러운 윤기가 돕니다.
+function makeSoftGloss(material: THREE.MeshStandardMaterial) {
+  material.roughness = 0.5;
+  material.metalness = 0;
+  material.envMapIntensity = 0.4;
+  if (material instanceof THREE.MeshPhysicalMaterial) {
+    material.clearcoat = 0.3;
+    material.clearcoatRoughness = 0.35;
+    material.sheen = 0;
+  }
+}
+
+// 금속: 주변 빛을 또렷하게 비추는 밝은 금. 어두운 밤 배경이 비쳐 탁해지지 않도록 반사를 키웁니다.
+function makeGold(material: THREE.MeshStandardMaterial, roughness: number) {
+  material.color.set("#ffcc66");
+  material.metalness = 1;
+  material.roughness = roughness;
+  material.envMapIntensity = 2.6;
+  material.emissive.set("#5a3606");
+  material.emissiveIntensity = 0.35;
+  if (material instanceof THREE.MeshPhysicalMaterial) {
+    material.clearcoat = 0;
+    material.sheen = 0;
+  }
+}
+
 const TREE_MATERIAL = "W_Ceramic_Green";
 const BASE_MATERIAL = "W_Base_RedMat";
 
@@ -174,25 +213,31 @@ type Tune = (material: THREE.MeshStandardMaterial) => void;
 
 // 재질 이름별로 웹에서 다듬는 값. Blender 에서 넘어온 색 위에 덧입힙니다.
 const MATERIAL_TUNES: Record<string, Tune> = {
-  // 트리: 매끈하지만 광이 없는 부드러운 클레이
+  // 트리: 매끈하고 아주 약하게 윤이 나는 부드러운 클레이
   W_Ceramic_Green: (material) => {
-    material.color.set("#2a9c4a");
-    makeMatte(material, 0.8, 0.22);
-    material.emissive.set("#0b3d1b");
+    material.color.set("#38b562");
+    makeSoftGloss(material);
+    material.emissive.set("#0f4b47");
     material.emissiveIntensity = 0.3;
-    applyShaderExtras(material, { rim: { color: "#8ff0aa", strength: 0.2 } });
+    applyShaderExtras(material, { rim: { color: "#bdf2cf", strength: 0.22 } });
   },
   W_Ceramic_Trunk: (material) => {
-    material.color.set("#124526");
-    makeMatte(material, 0.82, 0.2);
+    material.color.set("#a8644e");
+    makeSoftGloss(material);
+    material.emissive.set("#3d1a12");
+    material.emissiveIntensity = 0.3;
   },
   // 받침대: 트리와 같은 질감
   W_Base_RedMat: (material) => {
-    material.color.set("#b5161f");
-    makeMatte(material, 0.78, 0.22);
-    material.emissive.set("#3a0508");
+    material.color.set(SOFT_RED);
+    makeSoftGloss(material);
+    material.emissive.set("#521512");
     material.emissiveIntensity = 0.3;
-    applyShaderExtras(material, { rim: { color: "#ff9a94", strength: 0.18 } });
+    applyShaderExtras(material, { rim: { color: "#ffb0a2", strength: 0.15 } });
+  },
+  // 빨간 선물 상자: 받침대와 같은 빨강
+  W_Gift_Red: (material) => {
+    material.color.set(SOFT_RED);
   },
   W_Base_Holly: (material) => {
     makeMatte(material, 0.8, 0.2);
@@ -201,6 +246,9 @@ const MATERIAL_TUNES: Record<string, Tune> = {
     applyShaderExtras(material, { rim: { color: "#8ff0aa", strength: 0.14 } });
   },
   W_Base_HollyVein: (material) => makeMatte(material, 0.8, 0.2),
+  // 받침대의 금색 테두리, 눈송이, 명패 테두리
+  W_Gold: (material) => makeGold(material, 0.16),
+  W_Base_ReliefGold: (material) => makeGold(material, 0.24),
   W_Base_HollyRed: (material) => makeMatte(material, 0.6, 0.35),
   // 눈: 광택 없이 포슬포슬하게
   W_Snow_Sparkle: (material) => {
@@ -210,13 +258,13 @@ const MATERIAL_TUNES: Record<string, Tune> = {
     material.emissiveIntensity = 0.14;
     applyShaderExtras(material, { grain: { scale: 75, strength: 0.5 } });
   },
-  // 눈사람: 눈과 같은 질감, 니트는 광택 없는 천
+  // 눈사람: 갓 뭉친 눈처럼 곱고 부드럽게, 니트는 광택 없는 천
   W_SM_Body: (material) => {
     material.color.set("#f6f8ff");
     makeMatte(material, 1, 0.12);
     material.emissive.set("#1c2c5c");
     material.emissiveIntensity = 0.12;
-    applyShaderExtras(material, { grain: { scale: 95, strength: 0.6 }, rim: { color: "#dfe9ff", strength: 0.12 } });
+    applyShaderExtras(material, { grain: { scale: 60, strength: 0.16 }, rim: { color: "#dfe9ff", strength: 0.2 } });
   },
   W_SM_KnitRed: (material) => {
     makeMatte(material, 0.95, 0.1);
@@ -446,8 +494,7 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
         mesh.material = bulbs;
         return;
       }
-      if (mesh.name.startsWith("w_Base_NameplateFrame")) return;
-      if (mesh.name.startsWith("w_Base_Nameplate")) {
+      if (mesh.name.startsWith("w_Base_Nameplate") && !mesh.name.startsWith("w_Base_NameplateFrame")) {
         mesh.material = nameplate.material;
         return;
       }
@@ -509,8 +556,22 @@ function useOrnamentTemplates() {
   }, [scene]);
 }
 
-const CREAM = "#efe6d0";
-const DARK_RED = "#8a1420";
+const CREAM = "#fff5e2";
+const ROSE = "#f2779b";
+
+// 메시지 오너먼트는 처음부터 달려 있던 기본 장식보다 크게 답니다.
+const MESSAGE_SCALE = 1.25;
+
+// 오너먼트 색을 맑고 화사한 파스텔 톤으로 바꿉니다. 흰색 · 크림색처럼 색기가 거의 없는 색은 그대로 둡니다.
+function pastel(color: string) {
+  const result = new THREE.Color(color);
+  const hsl = { h: 0, s: 0, l: 0 };
+  result.getHSL(hsl);
+  if (hsl.s < 0.18) return result;
+  const s = THREE.MathUtils.lerp(hsl.s, 1, 0.75);
+  const l = THREE.MathUtils.lerp(hsl.l, 0.62, 0.7);
+  return result.setHSL(hsl.h, s, l);
+}
 
 // 새 오너먼트가 달리는 움직임이 시작되는 곳 (유리 안 위쪽 가운데)
 const DROP_FROM: [number, number, number] = [0, 1.38, 0];
@@ -541,8 +602,14 @@ function OrnamentItem({
     const mainBase = parts.find((part) => part.role === "main")?.material;
     const accentBase = parts.find((part) => part.role === "accent")?.material;
     const main = mainBase?.clone();
+    const body = pastel(color);
     if (main) {
-      main.color.set(color);
+      main.color.copy(body);
+      // 어두운 밤 배경이 비쳐 칙칙해지지 않도록 제 색으로 은은하게 빛나게
+      main.metalness = 0;
+      main.roughness = 0.26;
+      main.emissive.copy(body);
+      main.emissiveIntensity = 0.2;
       if (metallic) {
         // 어두운 밤 배경이 비쳐 갈색으로 죽지 않도록 스스로 살짝 빛나게
         main.metalness = 0.8;
@@ -551,16 +618,18 @@ function OrnamentItem({
         main.emissiveIntensity = 0.28;
       }
       if (highlight) {
-        main.emissive.set(color);
-        main.emissiveIntensity = 0.5;
+        main.emissive.copy(body);
+        main.emissiveIntensity = 0.55;
       }
     }
     const accent = accentBase?.clone();
     if (accent) {
-      // 무늬는 본체 색과 구분되게: 밝은 본체에는 짙은 빨강, 어두운 본체에는 크림색
+      // 무늬는 본체 색과 구분되게: 흰색에 가까운 본체에는 분홍, 그 밖에는 크림색
       const hsl = { h: 0, s: 0, l: 0 };
-      new THREE.Color(color).getHSL(hsl);
-      accent.color.set(hsl.l > 0.6 ? DARK_RED : CREAM);
+      body.getHSL(hsl);
+      accent.color.set(hsl.l > 0.82 ? ROSE : CREAM);
+      accent.emissive.copy(accent.color);
+      accent.emissiveIntensity = 0.2;
     }
     return { main, accent };
   }, [parts, color, metallic, highlight]);
@@ -573,7 +642,7 @@ function OrnamentItem({
     [materials],
   );
 
-  const baseScale = placed.scale;
+  const baseScale = placed.scale * (ornament ? MESSAGE_SCALE : 1);
   const [homeX, homeY, homeZ] = placed.position;
 
   useFrame(({ clock }) => {
