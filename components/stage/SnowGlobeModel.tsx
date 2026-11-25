@@ -28,7 +28,7 @@ export const MODEL = {
 
 // 받침대 앞면 명판의 가운데 (이름 · 닉네임 입력칸이 붙는 곳)
 export const NAMEPLATE: [number, number, number] = [0, -0.88, 1.04];
-export const NAMEPLATE_WIDTH = 0.5; // 명판 가로 길이 (글자가 이보다 길면 "…"으로 자릅니다)
+export const NAMEPLATE_WIDTH = 0.76; // 명판 가로 길이 (글자가 이보다 길면 "…"으로 자릅니다)
 
 // 지금 그리고 있는 오너먼트들의 자리. 바깥에서 ornamentPosition 으로 물어볼 때 씁니다.
 const spots = {
