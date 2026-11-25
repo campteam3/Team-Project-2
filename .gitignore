@@ -1,19 +1,35 @@
-# 비밀 값
-.env
-.env.*
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+Thumbs.db
+*.pem
+*.log
+
+# 비밀 값 (.env.example 만 올립니다)
+.env*
 !.env.example
 
-# 의존성 · 빌드
-node_modules/
-.next/
-out/
-dist/
-build/
-.vercel/
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
 
 # 개인 설정 (작업자 이름은 각자 PC 에만)
 .claude/me.json
 .claude/settings.local.json
-.DS_Store
-Thumbs.db
-*.log
