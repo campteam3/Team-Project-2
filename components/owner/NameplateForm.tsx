@@ -11,6 +11,9 @@ import { Icon } from "@/components/ui/Icons";
 
 export const FORM_ID = "owner-form";
 
+// 03 은 가운데 한 줄 기둥으로 정렬합니다. 명판과 비밀번호 칸은 같은 너비를 씁니다.
+const COLUMN = "w-[232px] max-w-full sm:w-[264px]"; // 휴대폰에서는 받침대가 작아져 기둥도 좁힙니다
+
 export function NameplateInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <div className="relative flex items-center">
@@ -18,7 +21,7 @@ export function NameplateInput({ value, onChange }: { value: string; onChange: (
         여기에 닉네임을 새겨 주세요
         <Icon name="arrow-right" size={18} />
       </p>
-      <label className="flex h-[52px] items-center rounded-xl bg-glow px-5 shadow-[0_0_24px_rgba(242,196,109,0.45),0_6px_16px_rgba(0,0,0,0.35)] outline outline-2 outline-offset-2 outline-ink focus-within:outline-[3px]">
+      <label className={`${COLUMN} flex h-[52px] items-center justify-center rounded-xl bg-glow px-5 shadow-[0_0_24px_rgba(242,196,109,0.45),0_6px_16px_rgba(0,0,0,0.35)] outline outline-2 outline-offset-2 outline-ink focus-within:outline-[3px]`}>
         <span className="sr-only">닉네임 (친구에게 보낼 링크가 돼요)</span>
         <input
           form={FORM_ID}
@@ -59,8 +62,10 @@ export default function NameplateForm({ password, onPassword, nickname, error, b
 
   return (
     <form id={FORM_ID} onSubmit={submit} noValidate className="pointer-events-auto flex w-full max-w-[480px] flex-col items-center gap-3">
-      <label className="flex items-center gap-4">
-        <span className="text-sm font-medium text-ink">비밀번호</span>
+      <label className={`${COLUMN} flex flex-col gap-2`}>
+        <span className="text-sm font-medium text-ink">
+          비밀번호 <span className="font-normal text-ink-sub">(4자 이상)</span>
+        </span>
         <input
           type="password"
           value={password}
@@ -68,14 +73,14 @@ export default function NameplateForm({ password, onPassword, nickname, error, b
           maxLength={24}
           autoComplete="new-password"
           placeholder="4자 이상"
-          className="glass h-12 w-[200px] rounded-full px-5 text-base text-ink outline-none placeholder:text-ink-sub/70 focus:ring-2 focus:ring-ink"
+          className="glass h-12 w-full rounded-full px-5 text-base text-ink outline-none placeholder:text-ink-sub/70 focus:ring-2 focus:ring-ink"
         />
       </label>
 
-      <p className="text-center text-[13px] leading-[1.6] text-ink-sub">
+      <p className="text-balance text-center text-[13px] leading-[1.6] text-ink-sub">
         닉네임이 그대로 링크가 돼요 · …/globe/{shown}
         <br />
-        비밀번호는 4자 이상이에요. 잊으면 다시 찾을 수 없으니 꼭 기억해 주세요
+        비밀번호는 잊으면 다시 찾을 수 없으니 꼭 기억해 주세요
       </p>
 
       <p role="alert" className="min-h-5 text-center text-sm text-danger">

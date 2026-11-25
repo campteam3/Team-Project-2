@@ -55,6 +55,15 @@
   }
 }
 
+/* 받침대 명판 위 글자: 명판 너비(--plate-w, 3D 장면이 매 프레임 알려 줌)를 넘으면 "…"으로 자릅니다 */
+@utility plate-text {
+  display: block;
+  max-width: var(--plate-w, 160px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @utility glass-shadow {
   box-shadow: 0 8px 32px rgb(0 0 0 / 0.35);
 }

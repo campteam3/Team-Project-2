@@ -70,7 +70,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
   if (mine && !ornaments.some((o) => o.id === mine.id)) ornaments.push(mine);
   if (step === "pick" || step === "write") ornaments.push({ id: PENDING, color, sender_name: "", shape: "ball", position: null, created_at: "" });
 
-  const plate = <span className="pointer-events-none whitespace-nowrap text-[15px] font-bold text-night-900">{name}</span>;
+  const plate = <span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{name}</span>;
 
   const submit = async () => {
     if (busy) return;
@@ -105,7 +105,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         below={
           <Link
             href={`/login?nickname=${encodeURIComponent(nickname)}`}
-            className="pointer-events-auto px-2 py-1 text-[13px] text-ink-sub underline underline-offset-4 hover:text-ink"
+            className="pointer-events-auto -my-1.5 inline-flex min-h-11 items-center px-3 text-[13px] text-ink-sub underline underline-offset-4 hover:text-ink"
           >
             이 스노우볼의 주인이에요
           </Link>
@@ -151,7 +151,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         hintMobile={undefined}
         highlightId={PENDING}
         focusId={PENDING}
-        layout={{ desktop: { height: 0.36, centerFromTop: 0.3 }, mobile: { height: 0.24, centerFromTop: 0.25 } }}
+        layout={{ desktop: { centerFromTop: 0.3 }, mobile: { centerFromTop: 0.25 } }}
       >
         <div key={step} className="flex w-full animate-rise flex-col items-center gap-4">
           <MessageCard

@@ -6,7 +6,6 @@
 // 동작만 하는 최소 형태입니다. 모양은 DESIGN.md 에 맞춰 자유롭게 바꾸세요.
 // 친구 화면(10~13)과 상태 화면은 시안 C 로 바꿨습니다: components/friend/FriendFlow, components/stage/GlobeStatus (김미영)
 // 개발용: /globe/demo?preview=friend 이면 샘플 스노우볼을 친구 입장에서 봅니다(저장하지 않음).
-// ?flow=2 이면 친구 흐름 두 번째 버전(오너먼트에 집중)을 보여 줍니다. A/B 비교용.
 
 import dynamic from "next/dynamic";
 import { useParams, useSearchParams } from "next/navigation";
@@ -15,7 +14,6 @@ import { closeGlobe, deleteOrnament, getGlobe, getMessages, type Globe } from "@
 import { clearOwnerToken, globePath, loadOwnerToken } from "@/lib/owner-token";
 import { SAMPLE_GLOBE } from "@/lib/sample-data";
 import FriendFlow from "./friend/FriendFlow";
-import FriendFlowFocus from "./friend/FriendFlowFocus";
 import GlobeStatus from "./stage/GlobeStatus";
 
 // 3D 장면은 브라우저에서만 그립니다.
@@ -119,10 +117,7 @@ export default function GlobeView() {
   const { globe, isOwner, token } = view;
 
   // 친구 화면 (10~13)
-  if (!isOwner) {
-    const Flow = searchParams.get("flow") === "2" ? FriendFlowFocus : FriendFlow;
-    return <Flow nickname={nickname} globe={globe} preview={previewFriend} onAdded={refresh} />;
-  }
+  if (!isOwner) return <FriendFlow nickname={nickname} globe={globe} preview={previewFriend} onAdded={refresh} />;
   const selected = globe.ornaments.find((ornament) => ornament.id === selectedId) ?? null;
 
   const copyLink = async () => {
