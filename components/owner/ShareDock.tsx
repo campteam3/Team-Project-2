@@ -7,15 +7,16 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { Icon } from "@/components/ui/Icons";
+import { loadKakao, shareKakao } from "@/lib/kakao";
 
 // ─────────────────────────────────────────────────────────────
-// TODO(차명근): 카카오톡 공유 연결 자리
-// 카카오 SDK(https://developers.kakao.com)를 불러와 Kakao.Share.sendDefault(...) 로 바꿔 주세요.
-// 앱 키는 .env.local 의 NEXT_PUBLIC_KAKAO_JS_KEY 처럼 환경 변수로 두고 코드에 넣지 않습니다.
-// 연결 전에는 휴대폰 기본 공유 창(여기서 카카오톡을 고를 수 있음)을 열고,
-// 그것도 안 되면 링크를 복사합니다. true 를 돌려주면 공유 창을 연 것입니다.
+// 카카오톡 공유 (차명근 연결): lib/kakao.ts 의 shareKakao 가 카카오 공유 창을 엽니다.
+// 키가 없거나 등록되지 않은 주소(로컬 · PR 미리보기)에서는 false 가 돌아와서,
+// 휴대폰 기본 공유 창(여기서 카카오톡을 고를 수 있음)을 열고, 그것도 안 되면 링크를 복사합니다.
+// true 를 돌려주면 공유 창을 연 것입니다.
 // ─────────────────────────────────────────────────────────────
 async function shareToKakao(url: string, title: string): Promise<boolean> {
+  if (await shareKakao(url, title)) return true;
   if (typeof navigator !== "undefined" && "share" in navigator) {
     try {
       await navigator.share({ title, text: "내 스노우볼에 오너먼트를 달아 줘!", url });
@@ -54,6 +55,11 @@ export default function ShareDock({ url, title }: { url: string; title: string }
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => () => clearTimeout(timer.current), []);
+
+  // 카카오 SDK 를 미리 불러 둡니다. 버튼을 누른 뒤에 불러오면 브라우저가 공유 창을 막을 수 있습니다.
+  useEffect(() => {
+    void loadKakao();
+  }, []);
 
   const show = (message: string) => {
     setToast(message);
