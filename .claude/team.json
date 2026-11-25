@@ -1,0 +1,25 @@
+{
+  "members": [
+    {
+      "name": "차명근",
+      "role": "개발 · 팀장",
+      "focus": "백엔드 전반: DB(Supabase) · 서버 로직 · 배포 · 팀원 작업 취합과 연결 · PR 머지",
+      "branch": "myeonggeun",
+      "log": "docs/위임로그/차명근.md"
+    },
+    {
+      "name": "김미영",
+      "role": "디자인",
+      "focus": "디자인과 화면 구현 (담당 화면은 PRD.md 8번과 팀 회의에서 정한 대로)",
+      "branch": "miyoung",
+      "log": "docs/위임로그/김미영.md"
+    },
+    {
+      "name": "이민정",
+      "role": "디자인",
+      "focus": "디자인과 화면 구현 (담당 화면은 PRD.md 8번과 팀 회의에서 정한 대로)",
+      "branch": "minjeong",
+      "log": "docs/위임로그/이민정.md"
+    }
+  ]
+}
