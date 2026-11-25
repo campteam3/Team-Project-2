@@ -4,15 +4,19 @@
 //  - 친구: 스노우볼을 보고 오너먼트를 답니다. 메시지 내용은 볼 수 없습니다.
 //  - 주인: 메시지를 읽고, 오너먼트를 지우고, 공유 링크를 복사합니다.
 // 동작만 하는 최소 형태입니다. 모양은 DESIGN.md 에 맞춰 자유롭게 바꾸세요.
+// 친구 화면(10~13)과 상태 화면은 시안 C 로 바꿨습니다: components/friend/FriendFlow, components/stage/GlobeStatus (김미영)
+// 개발용: /globe/demo?preview=friend 이면 샘플 스노우볼을 친구 입장에서 봅니다(저장하지 않음).
+// ?flow=2 이면 친구 흐름 두 번째 버전(오너먼트에 집중)을 보여 줍니다. A/B 비교용.
 
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { closeGlobe, deleteOrnament, getGlobe, getMessages, type Globe } from "@/lib/api";
 import { clearOwnerToken, globePath, loadOwnerToken } from "@/lib/owner-token";
 import { SAMPLE_GLOBE } from "@/lib/sample-data";
-import OrnamentForm from "./OrnamentForm";
+import FriendFlow from "./friend/FriendFlow";
+import FriendFlowFocus from "./friend/FriendFlowFocus";
+import GlobeStatus from "./stage/GlobeStatus";
 
 // 3D 장면은 브라우저에서만 그립니다.
 const SnowGlobeScene = dynamic(() => import("./SnowGlobeScene"), {
@@ -38,8 +42,8 @@ function decode(value: string) {
   }
 }
 
-async function loadView(nickname: string): Promise<View> {
-  if (nickname === DEMO) return { status: "ready", globe: SAMPLE_GLOBE, isOwner: true, token: null };
+async function loadView(nickname: string, previewFriend = false): Promise<View> {
+  if (nickname === DEMO) return { status: "ready", globe: SAMPLE_GLOBE, isOwner: !previewFriend, token: null };
 
   const globe = await getGlobe(nickname);
   if (!globe.ok) return { status: "error", message: globe.message };
@@ -60,6 +64,8 @@ export default function GlobeView() {
   const { id } = useParams<{ id: string }>();
   const nickname = decode(id).trim().toLowerCase();
   const isDemo = nickname === DEMO;
+  const searchParams = useSearchParams();
+  const previewFriend = isDemo && searchParams.get("preview") === "friend";
 
   const [view, setView] = useState<View>({ status: "loading" });
   const [shakeSignal, setShakeSignal] = useState(0);
@@ -69,15 +75,15 @@ export default function GlobeView() {
 
   useEffect(() => {
     let cancelled = false;
-    loadView(nickname).then((next) => {
+    loadView(nickname, previewFriend).then((next) => {
       if (!cancelled) setView(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [nickname]);
+  }, [nickname, previewFriend]);
 
-  const refresh = async () => setView(await loadView(nickname));
+  const refresh = async () => setView(await loadView(nickname, previewFriend));
 
   // 휴대폰을 흔들면 눈이 내립니다.
   useEffect(() => {
@@ -106,31 +112,17 @@ export default function GlobeView() {
     }
   };
 
-  if (view.status === "loading") {
-    return <Screen>스노우볼을 불러오고 있어요</Screen>;
-  }
-  if (view.status === "missing") {
-    return (
-      <Screen>
-        <p>이 닉네임의 스노우볼을 찾지 못했어요.</p>
-        <Link href="/new" className="mt-4 inline-block underline">
-          내 스노우볼 만들기
-        </Link>
-      </Screen>
-    );
-  }
-  if (view.status === "error") {
-    return (
-      <Screen>
-        <p>{view.message}</p>
-        <button type="button" onClick={refresh} className="mt-4 underline">
-          다시 시도하기
-        </button>
-      </Screen>
-    );
-  }
+  if (view.status === "loading") return <GlobeStatus kind="loading" />;
+  if (view.status === "missing") return <GlobeStatus kind="missing" />;
+  if (view.status === "error") return <GlobeStatus kind="error" message={view.message} onRetry={refresh} />;
 
   const { globe, isOwner, token } = view;
+
+  // 친구 화면 (10~13)
+  if (!isOwner) {
+    const Flow = searchParams.get("flow") === "2" ? FriendFlowFocus : FriendFlow;
+    return <Flow nickname={nickname} globe={globe} preview={previewFriend} onAdded={refresh} />;
+  }
   const selected = globe.ornaments.find((ornament) => ornament.id === selectedId) ?? null;
 
   const copyLink = async () => {
@@ -240,31 +232,7 @@ export default function GlobeView() {
           </div>
         )}
 
-        {!isOwner && (
-          <>
-            <OrnamentForm
-              nickname={nickname}
-              onAdded={async () => {
-                setNotice("오너먼트를 달았어요");
-                await refresh();
-              }}
-            />
-            <p className="text-center text-sm text-slate-300">
-              <Link href={`/login?nickname=${encodeURIComponent(nickname)}`} className="underline">
-                이 스노우볼의 주인이에요
-              </Link>
-            </p>
-          </>
-        )}
       </section>
-    </main>
-  );
-}
-
-function Screen({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="flex min-h-dvh flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800 px-6 text-center text-white">
-      <div>{children}</div>
     </main>
   );
 }
