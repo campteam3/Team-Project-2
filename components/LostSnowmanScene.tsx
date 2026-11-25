@@ -87,7 +87,7 @@ function Snowman({ greeted }: { greeted: boolean }) {
     }
     const arm = rightArm.current;
     if (arm) {
-      const target = greeted ? 1.9 + Math.sin(t * 9) * 0.35 : 0.7; // 들어서 흔들기 / 내리기
+      const target = greeted ? 1.3 + Math.sin(t * 9) * 0.3 : 0.45; // 들어서 흔들기 / 내리기
       arm.rotation.z = THREE.MathUtils.lerp(arm.rotation.z, target, 1 - Math.exp(-delta * 8));
     }
   });
@@ -150,20 +150,16 @@ function Snowman({ greeted }: { greeted: boolean }) {
         </mesh>
       ))}
 
-      {/* 팔: 왼팔은 고정, 오른팔은 인사 */}
-      <group position={[-0.85, -0.35, 0]} rotation={[0, 0, -0.7]}>
-        <mesh position={[-0.45, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.9, 10]} />
+      {/* 팔: 몸 안쪽 어깨에서 곧게 뻗은 나뭇가지 한 개씩 (꺾인 마디 없음). 왼팔은 고정, 오른팔은 인사 */}
+      <group position={[-0.7, -0.3, 0]} rotation={[0, 0, -0.45]}>
+        <mesh position={[-0.55, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.045, 0.055, 1.1, 10]} />
           {clay(C.arm)}
         </mesh>
       </group>
-      <group ref={rightArm} position={[0.85, -0.35, 0]} rotation={[0, 0, 0.7]}>
-        <mesh position={[0.45, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.9, 10]} />
-          {clay(C.arm)}
-        </mesh>
-        <mesh position={[0.85, 0.12, 0]} rotation={[0, 0, 0.8]}>
-          <cylinderGeometry args={[0.035, 0.035, 0.3, 8]} />
+      <group ref={rightArm} position={[0.7, -0.3, 0]} rotation={[0, 0, 0.45]}>
+        <mesh position={[0.55, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.045, 0.055, 1.1, 10]} />
           {clay(C.arm)}
         </mesh>
       </group>
@@ -231,7 +227,7 @@ export default function LostSnowmanScene({ animate, greeted, fallback }: Props) 
 
   return (
     <Canvas
-      camera={{ position: [0, 0, 8], fov: 38 }}
+      camera={{ position: [0, 0, 9.6], fov: 38 }} // 캔버스를 사방 10% 넓힌 만큼 뒤로 물러나 크기는 그대로, 가장자리 여유만 생김
       dpr={[1, 2]}
       gl={{ alpha: true, antialias: true }}
       frameloop={animate ? "always" : "demand"}

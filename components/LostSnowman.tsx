@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Component, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Component, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 // 오류 안내와 홈 링크는 3D 다운로드를 기다리지 않습니다.
 const Scene = dynamic(() => import("./LostSnowmanScene"), {
@@ -56,38 +56,42 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
   render() { return this.state.failed ? <SnowmanFallback /> : this.props.children; }
 }
 
+// 눈사람을 누르면 말풍선이 차례로 저절로 넘어갑니다. 다 끝나면 처음 말로 돌아옵니다.
+const IDLE_LINE = "저도 길을 잃었어요…";
+const TALK_LINES = ["안녕하세요!", "저도 여기서 길을 잃었어요…", "그래도 만나서 반가워요.", "처음으로 가면 스노우볼을 만들 수 있어요!"];
+const LINE_MS = 2400;
+
 export default function LostSnowman() {
-  const [greeted, setGreeted] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [line, setLine] = useState(-1); // -1 = 처음 말, 0~ = 인사 중
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const reducedMotion = useSyncExternalStore(subscribeMotion, () => window.matchMedia("(prefers-reduced-motion: reduce)").matches, () => true);
   const visible = useSyncExternalStore(subscribeVisibility, () => document.visibilityState === "visible", () => false);
-  const animate = !reducedMotion && !paused && visible;
+  const animate = !reducedMotion && visible;
+  const talking = line >= 0;
+
+  const play = (index: number) => {
+    clearTimeout(timer.current);
+    setLine(index);
+    timer.current = setTimeout(() => play(index + 1 < TALK_LINES.length ? index + 1 : -1), LINE_MS);
+  };
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   return (
     <figure className="lost-figure">
-      <div className="lost-speech" role="status" aria-live="polite" aria-atomic="true">
-        {greeted ? "그래도 만나서 반가워요." : "저도 길을 잃었어요…"}
+      <div key={line} className="lost-speech animate-fade" role="status" aria-live="polite" aria-atomic="true">
+        {talking ? TALK_LINES[line] : IDLE_LINE}
       </div>
-      <button type="button" className="lost-illustration"
-        onClick={() => setGreeted(value => !value)}
-        aria-label={greeted ? "눈사람에게 다시 인사하기" : "눈사람에게 인사하기"}
-        aria-pressed={greeted}>
+      <button type="button" className="lost-illustration" onClick={() => play(0)} aria-label="눈사람에게 인사하기">
         <span className="lost-orbit" aria-hidden="true" />
         <span className="lost-canvas" aria-hidden="true">
           <SceneBoundary>
-            <Scene animate={animate} greeted={greeted} fallback={<SnowmanFallback />} />
+            <Scene animate={animate} greeted={talking} fallback={<SnowmanFallback />} />
           </SceneBoundary>
         </span>
-        <span className="lost-hint">{greeted ? "인사 한 번 더?" : "눈사람에게 인사해 보세요"}<span aria-hidden="true"> ↗</span></span>
+        <span className="lost-hint">
+          눈사람에게 인사해 보세요<span aria-hidden="true"> ↗</span>
+        </span>
       </button>
-      {!reducedMotion && (
-        <button type="button" className="lost-motion-button" onClick={() => setPaused(value => !value)} aria-pressed={paused}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
-            {paused ? <path d="m4 2 6 4-6 4z" /> : <path d="M3 2h2v8H3zm4 0h2v8H7z" />}
-          </svg>
-          {paused ? "움직임 재생" : "움직임 멈추기"}
-        </button>
-      )}
     </figure>
   );
 }
