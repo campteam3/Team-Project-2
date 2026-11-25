@@ -4,7 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, git, loadMe, nameSetupMessage } from './team.mjs';
+import { EMAIL_SETUP_MESSAGE, ROOT, emailIsPrivate, git, loadMe, nameSetupMessage } from './team.mjs';
 
 const runs = (cmd, args) => {
   try {
@@ -28,6 +28,10 @@ if (!runs('gh', ['--version'])) {
 }
 if (existsSync(join(ROOT, 'package.json')) && !existsSync(join(ROOT, 'node_modules', 'next'))) {
   setup.push('패키지가 설치되어 있지 않습니다. npm install 을 실행하세요.');
+}
+
+if (!emailIsPrivate()) {
+  setup.push(EMAIL_SETUP_MESSAGE.replace(/\n- /g, ' / '));
 }
 
 const me = loadMe();

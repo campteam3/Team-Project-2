@@ -15,8 +15,9 @@
 1. **Node.js**: `node -v` 를 실행합니다. 명령이 없거나 20 미만이면 사용자에게 알리고 LTS 버전을 설치합니다 (Windows: `winget install OpenJS.NodeJS.LTS` / Mac: `brew install node`). 설치 뒤에는 Claude Code 를 다시 열어야 훅이 동작합니다.
 2. **GitHub CLI 로그인**: `gh auth status` 를 실행합니다. 로그인이 안 되어 있으면 사용자에게 터미널에서 `gh auth login` 을 하도록 안내합니다. `gh` 가 없으면 먼저 설치합니다 (Windows: `winget install GitHub.cli` / Mac: `brew install gh`).
 3. **패키지**: `node_modules` 가 없으면 `npm install` 을 실행합니다.
+4. **커밋 이메일**: 이 저장소는 공개 저장소입니다. 커밋에 개인 이메일이 남지 않도록 `git config user.email` 이 `@users.noreply.github.com` 으로 끝나는지 확인합니다. 아니면 `gh api user` 로 id 와 login 을 확인해 `git config user.email "<id>+<login>@users.noreply.github.com"` 로 설정합니다 (`--global` 없이 이 저장소에만). 개인 이메일로는 훅이 커밋을 막습니다.
 
-훅이 돌았다면 2번과 3번은 훅이 대신 확인해서, 문제가 있을 때만 `[작업 준비 확인]` 으로 알려 줍니다.
+훅이 돌았다면 2~4번은 훅이 대신 확인해서, 문제가 있을 때만 `[작업 준비 확인]` 으로 알려 줍니다.
 
 ## 작업자 확인
 
@@ -51,6 +52,8 @@ Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니�
 - 실행: `npm run dev` · 확인: `npm run lint`, `npm run build`
 - **이 Next.js 는 16 버전이라 예전 방식과 다른 점이 있습니다.** 코드를 쓰기 전에 `AGENTS.md` 의 안내대로 `node_modules/next/dist/docs/` 의 해당 문서를 확인하세요.
 - push 하기 전에 `npm run build` 가 통과하는지 확인합니다.
+- **배포 주소**: https://snowglobe-rolling-paper.vercel.app (Vercel, 팀장 계정). 배포는 팀장이 합니다. 휴대폰에서 확인해야 하는 것(손가락으로 돌리기, 기기 흔들기)은 배포 주소에서 봅니다.
+- **공개 저장소입니다.** 키 · 토큰 · 개인정보 · 실제 사람의 메시지를 커밋하지 않습니다.
 
 다만 **아래 다섯 가지는 고정 규율**입니다. 누구든 반드시 지킵니다.
 

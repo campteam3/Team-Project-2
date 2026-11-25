@@ -43,6 +43,15 @@ export function git(args, timeout = 10000) {
 
 export const nfc = (s) => s.normalize('NFC');
 
+// 공개 저장소라서 커밋에 개인 이메일이 남지 않게 한다.
+export const NOREPLY_SUFFIX = '@users.noreply.github.com';
+export const emailIsPrivate = () => (git(['config', 'user.email']) ?? '').endsWith(NOREPLY_SUFFIX);
+export const EMAIL_SETUP_MESSAGE = [
+  '이 저장소는 공개 저장소라서 커밋에 개인 이메일이 남지 않게 해야 합니다.',
+  '- gh api user 로 본인의 id 와 login 을 확인하세요.',
+  `- git config user.email "<id>+<login>${NOREPLY_SUFFIX}" 를 실행하세요. (--global 없이, 이 저장소에만 적용)`,
+].join('\n');
+
 export function readHookInput() {
   try {
     return JSON.parse(readFileSync(0, 'utf8'));
