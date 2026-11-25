@@ -1,0 +1,254 @@
+"use client";
+
+// 화면 전체를 채우는 3D 무대: 마을(배경) + 스노우볼 + 눈.
+//  - 스노우볼만 드래그로 돌아가고, 마을은 움직이지 않습니다.
+//  - layout 값으로 스노우볼이 화면에서 차지하는 높이와 위치를 정합니다 (DESIGN.md 4-2: 60% 이상).
+//  - 매 프레임 받침대 명판의 화면 좌표를 onPlateMove 로 알려 줍니다.
+//    명판 위 글자 · 닉네임 입력칸은 Stage 가 일반 HTML 로 그 자리에 둡니다
+//    (drei 의 Html 은 React 19.3 과 충돌해 쓰지 않습니다).
+
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
+import type { Ornament } from "@/lib/api";
+import { themeColor, type GlobeTheme } from "@/lib/theme";
+import SnowGlobeModel, { MODEL, NAMEPLATE, ornamentPosition } from "./SnowGlobeModel";
+import VillageBackdrop from "./VillageBackdrop";
+
+export type GlobeLayout = {
+  height: number; // 스노우볼(구+받침대)이 차지할 화면 높이 비율
+  centerFromTop: number; // 스노우볼 가운데가 놓일 위치(화면 위에서부터 비율)
+};
+
+export type StageSceneProps = {
+  theme: GlobeTheme;
+  ornaments?: Pick<Ornament, "id" | "color">[];
+  layout: GlobeLayout;
+  onPlateMove?: (x: number, y: number, visibility: number) => void; // 명판 가운데의 화면 좌표(px)와 보이는 정도(0~1)
+  pinKey?: number; // 값이 바뀔 때마다 앞쪽을 향한 오너먼트 하나를 새로 고릅니다
+  onPinMove?: (x: number, y: number, visibility: number) => void; // 고른 오너먼트 바로 위의 화면 좌표와 보이는 정도
+  lockFront?: boolean; // 명판에 입력할 때는 앞면을 고정합니다
+  shakeSignal: number;
+  reducedMotion: boolean;
+};
+
+const SNOW_COUNT = 420;
+
+type SnowProps = {
+  color: string;
+  shakeSignal: number;
+  reducedMotion: boolean;
+  takeDragKick: () => number; // 빠르게 드래그하면 눈이 날립니다
+};
+
+function Snow({ color, shakeSignal, reducedMotion, takeDragKick }: SnowProps) {
+  const geometry = useRef<THREE.BufferGeometry>(null);
+  const velocities = useRef<Float32Array | null>(null);
+  const energy = useRef(0);
+
+  // 처음에는 눈이 구 안에 흩어져 있다가 천천히 내려앉습니다
+  useEffect(() => {
+    const pos = new Float32Array(SNOW_COUNT * 3);
+    for (let i = 0; i < SNOW_COUNT; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.sqrt(Math.random()) * 0.82;
+      pos[i * 3] = Math.cos(a) * r;
+      pos[i * 3 + 1] = MODEL.floorY + Math.random() * 1.4;
+      pos[i * 3 + 2] = Math.sin(a) * r;
+    }
+    geometry.current?.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    velocities.current = new Float32Array(SNOW_COUNT * 3);
+  }, []);
+
+  useEffect(() => {
+    energy.current = reducedMotion ? 0 : 0.35;
+  }, [reducedMotion]);
+
+  useEffect(() => {
+    if (shakeSignal > 0) energy.current = 1;
+  }, [shakeSignal]);
+
+  useFrame((_, delta) => {
+    const attribute = geometry.current?.getAttribute("position") as THREE.BufferAttribute | undefined;
+    const vel = velocities.current;
+    if (!attribute || !vel) return;
+    const pos = attribute.array as Float32Array;
+    const dt = Math.min(delta, 0.05);
+    energy.current = Math.max(energy.current, takeDragKick());
+    const kick = energy.current;
+    const R = MODEL.glassRadius * 0.94;
+    for (let i = 0; i < SNOW_COUNT; i++) {
+      const x = i * 3, y = x + 1, z = x + 2;
+      if (kick > 0.05) {
+        vel[x] += (Math.random() - 0.5) * kick * dt * 12;
+        vel[y] += Math.random() * kick * dt * 14;
+        vel[z] += (Math.random() - 0.5) * kick * dt * 12;
+      }
+      vel[y] -= (reducedMotion ? 2 : 0.18) * dt; // 눈은 천천히 내려앉습니다
+      vel[x] *= 0.98;
+      vel[y] *= 0.98;
+      vel[z] *= 0.98;
+      pos[x] += vel[x] * dt;
+      pos[y] += vel[y] * dt;
+      pos[z] += vel[z] * dt;
+      const len = Math.hypot(pos[x], pos[y], pos[z]);
+      if (len > R) {
+        const s = R / len;
+        pos[x] *= s;
+        pos[y] *= s;
+        pos[z] *= s;
+        vel[x] *= -0.2;
+        vel[y] *= -0.2;
+        vel[z] *= -0.2;
+      }
+      if (pos[y] < MODEL.floorY) {
+        pos[y] = MODEL.floorY;
+        vel[x] = vel[y] = vel[z] = 0;
+      }
+    }
+    energy.current = kick * Math.exp(-dt * 1.6);
+    attribute.needsUpdate = true;
+  });
+
+  return (
+    <points>
+      <bufferGeometry ref={geometry} />
+      <pointsMaterial color={color} size={0.024} sizeAttenuation transparent opacity={0.95} depthWrite={false} />
+    </points>
+  );
+}
+
+function Globe({ theme, ornaments = [], layout, onPlateMove, pinKey = 0, onPinMove, lockFront, shakeSignal, reducedMotion }: StageSceneProps) {
+  const group = useRef<THREE.Group>(null);
+  const { camera, size, gl } = useThree();
+  const drag = useRef({ active: false, x: 0, velocity: 0 });
+  const dragKick = useRef(0);
+  const platePoint = useRef(new THREE.Vector3());
+  const pin = useRef({ key: -1, index: 0 });
+  const takeDragKick = () => {
+    const k = dragKick.current;
+    dragKick.current = 0;
+    return k;
+  };
+
+  // 드래그로 돌리기 (마을은 그대로)
+  useEffect(() => {
+    const target = gl.domElement;
+    const down = (e: PointerEvent) => {
+      if (lockFront) return;
+      drag.current.active = true;
+      drag.current.x = e.clientX;
+      target.setPointerCapture(e.pointerId);
+    };
+    const move = (e: PointerEvent) => {
+      if (!drag.current.active || !group.current) return;
+      const dx = e.clientX - drag.current.x;
+      drag.current.x = e.clientX;
+      drag.current.velocity = dx * 0.008;
+      group.current.rotation.y += drag.current.velocity;
+      if (Math.abs(dx) > 14) dragKick.current = Math.min(1, Math.abs(dx) / 40);
+    };
+    const up = () => (drag.current.active = false);
+    target.addEventListener("pointerdown", down);
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", up);
+    target.addEventListener("pointercancel", up);
+    return () => {
+      target.removeEventListener("pointerdown", down);
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", up);
+      target.removeEventListener("pointercancel", up);
+    };
+  }, [gl, lockFront]);
+
+  useFrame((_, delta) => {
+    const g = group.current;
+    if (!g) return;
+    // 화면 높이 비율 → 3D 크기 · 위치
+    const cam = camera as THREE.PerspectiveCamera;
+    const dist = cam.position.z;
+    const vh = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * dist;
+    const vw = vh * (size.width / size.height);
+    const modelH = MODEL.top - MODEL.bottom;
+    const scale = Math.min((layout.height * vh) / modelH, (vw * 0.88) / 1.95);
+    const mid = (MODEL.top + MODEL.bottom) / 2;
+    const y = vh * (0.5 - layout.centerFromTop) - mid * scale;
+    const k = 1 - Math.exp(-delta * (reducedMotion ? 60 : 4)); // 부드럽게 따라가기
+    g.scale.setScalar(THREE.MathUtils.lerp(g.scale.x || scale, scale, k));
+    g.position.y = THREE.MathUtils.lerp(g.position.y, y, k);
+
+    if (lockFront) {
+      // 가장 가까운 앞면(0, 2π, …)으로 돌아옵니다
+      const front = Math.round(g.rotation.y / (Math.PI * 2)) * Math.PI * 2;
+      g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, front, k);
+      drag.current.velocity = 0;
+    } else if (!drag.current.active) {
+      g.rotation.y += drag.current.velocity;
+      drag.current.velocity *= Math.exp(-delta * 3);
+      if (!reducedMotion && Math.abs(drag.current.velocity) < 0.0005) g.rotation.y += delta * 0.08; // 천천히 저절로 돕니다
+    }
+
+    // 명판 위치를 화면 좌표로 알려 줍니다. 명판이 뒤로 돌아가면 보이는 정도가 0 이 됩니다.
+    if (onPlateMove) {
+      g.updateMatrixWorld();
+      const p = platePoint.current.set(...NAMEPLATE);
+      g.localToWorld(p).project(camera);
+      const facing = Math.cos(g.rotation.y);
+      onPlateMove(((p.x + 1) / 2) * size.width, ((1 - p.y) / 2) * size.height, THREE.MathUtils.clamp((facing - 0.7) / 0.2, 0, 1)); // 정면에 가까울 때만 글자를 보여 줍니다
+    }
+
+    // 예시 말풍선: 오너먼트 하나의 화면 위치를 알려 줍니다
+    if (onPinMove && ornaments.length) {
+      const n = ornaments.length;
+      const facingOf = (i: number) => {
+        const [x, , z] = ornamentPosition(i, n);
+        const r = Math.hypot(x, z) || 1;
+        return (-x * Math.sin(g.rotation.y) + z * Math.cos(g.rotation.y)) / r; // 1 이면 정면
+      };
+      if (pin.current.key !== pinKey) {
+        // 새 차례: 지금 가장 앞을 향한 오너먼트 중 위쪽 절반에 있는 것을 고릅니다 (바로 전 것은 피함)
+        let best = 0;
+        let bestScore = -Infinity;
+        for (let i = 0; i < n; i++) {
+          const score = facingOf(i) + (i === pin.current.index ? -1 : 0) + (ornamentPosition(i, n)[1] > -0.1 ? 0.3 : 0);
+          if (score > bestScore) {
+            bestScore = score;
+            best = i;
+          }
+        }
+        pin.current = { key: pinKey, index: best };
+      }
+      const [x, y, z] = ornamentPosition(pin.current.index, n);
+      g.updateMatrixWorld();
+      const p = platePoint.current.set(x, y + 0.07, z);
+      g.localToWorld(p).project(camera);
+      onPinMove(((p.x + 1) / 2) * size.width, ((1 - p.y) / 2) * size.height, THREE.MathUtils.clamp((facingOf(pin.current.index) - 0.1) / 0.5, 0, 1));
+    }
+  });
+
+  return (
+    <group ref={group}>
+      <SnowGlobeModel theme={theme} ornaments={ornaments} />
+      <Snow color={themeColor(theme, "snow")} shakeSignal={shakeSignal} reducedMotion={reducedMotion} takeDragKick={takeDragKick} />
+    </group>
+  );
+}
+
+export default function StageScene(props: StageSceneProps) {
+  return (
+    <Canvas
+      camera={{ position: [0, 0, 7], fov: 35 }}
+      dpr={[1, 2]}
+      gl={{ alpha: true, antialias: true }}
+      style={{ touchAction: "pan-y" }}
+      aria-hidden="true"
+    >
+      <fog attach="fog" args={["#141c38", 9, 30]} />
+      <ambientLight intensity={0.55} color="#c9d3ff" />
+      <directionalLight position={[3, 4, 5]} intensity={1.3} />
+      <pointLight position={[0, 0.4, 2.2]} intensity={1.2} color="#F2C46D" distance={6} />
+      <VillageBackdrop />
+      <Globe {...props} />
+    </Canvas>
+  );
+}
