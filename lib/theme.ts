@@ -66,3 +66,14 @@ export function parseTheme(value: unknown): GlobeTheme {
   }
   return theme;
 }
+
+// 친구가 다는 오너먼트 색 6가지 (와이어프레임 11 "모양 6개" 자리).
+// 모양은 3D 모델(이민정)과 api(addOrnament 의 shape)가 준비되면 추가합니다.
+export const ORNAMENT_OPTIONS: ThemeOption[] = [
+  { id: "red", label: "빨강", color: "#C8363D" },
+  { id: "gold", label: "금빛", color: "#F2C46D" },
+  { id: "snow", label: "눈빛", color: "#F5F1EA" },
+  { id: "sky", label: "하늘", color: "#8FB8E8" },
+  { id: "pine", label: "초록", color: "#3C8E63" },
+  { id: "rose", label: "분홍", color: "#E58FA8" },
+];
