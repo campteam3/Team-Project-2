@@ -1,13 +1,23 @@
 // 스노우볼 트리의 오너먼트 자리와, 메시지를 어느 자리에 달지 정하는 규칙입니다.
 // 자리 값은 Blender 원본(design/blender/snowglobe.blend)에서 내보낸 lib/snowglobe-slots.json 에 있습니다.
 
-import type { Ornament } from "@/lib/sample-data";
+import type { Ornament } from "@/lib/api";
 import slotData from "@/lib/snowglobe-slots.json";
 
-export type OrnamentShape = "ball" | "star" | "heart";
+// DB 의 shape 칸에 들어가는 이름. 모르는 이름이 오면 볼로 그립니다.
+export const ORNAMENT_SHAPES = ["ball", "star", "heart"] as const;
+export type OrnamentShape = (typeof ORNAMENT_SHAPES)[number];
 
-// 메시지 오너먼트. 모양과 자리는 아직 DB 에 없어서 선택 값으로 둡니다.
-export type GlobeOrnament = Ornament & { shape?: OrnamentShape; slot?: number };
+export function toShape(value: string): OrnamentShape {
+  return (ORNAMENT_SHAPES as readonly string[]).includes(value) ? (value as OrnamentShape) : "ball";
+}
+
+// DB 의 position 칸: 비어 있으면 자동 배치, { slot: 자리번호 } 가 있으면 그 자리를 먼저 씁니다.
+function wantedSlot(position: unknown): Slot | undefined {
+  const value =
+    typeof position === "number" ? position : position && typeof position === "object" ? (position as { slot?: unknown }).slot : undefined;
+  return typeof value === "number" && Number.isInteger(value) ? SLOTS[value] : undefined;
+}
 
 export type Slot = {
   id: number;
@@ -27,7 +37,7 @@ export type PlacedOrnament = {
   color: string;
   metallic: boolean;
   // 기본 장식이면 null
-  ornament: GlobeOrnament | null;
+  ornament: Ornament | null;
 };
 
 export const SLOTS = slotData.slots as unknown as Slot[];
@@ -46,14 +56,14 @@ function fits(shape: OrnamentShape, slot: Slot) {
 }
 
 // 메시지 오너먼트를 자리에 배치합니다. 자리가 모자라면 기본 장식 자리를 쓰고, 그래도 모자라면 남는 메시지는 달지 않습니다.
-export function placeOrnaments(ornaments: GlobeOrnament[]): PlacedOrnament[] {
+export function placeOrnaments(ornaments: Ornament[]): PlacedOrnament[] {
   const defaultSlots = new Map(DEFAULTS.map((item) => [item.slot, item]));
   const used = new Set<number>();
   const placed: PlacedOrnament[] = [];
 
   for (const ornament of ornaments) {
-    const shape = ornament.shape ?? "ball";
-    const wanted = ornament.slot === undefined ? undefined : SLOTS[ornament.slot];
+    const shape = toShape(ornament.shape);
+    const wanted = wantedSlot(ornament.position);
     // 별·하트는 얹는 자리를 먼저 써서, 볼만 달 수 있는 자리를 아낍니다.
     const order =
       shape === "ball" ? FILL_ORDER : [...FILL_ORDER].sort((a, b) => Number(a.kind === "hang") - Number(b.kind === "hang"));

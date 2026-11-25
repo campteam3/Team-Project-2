@@ -15,8 +15,9 @@
 1. **Node.js**: `node -v` 를 실행합니다. 명령이 없거나 20 미만이면 사용자에게 알리고 LTS 버전을 설치합니다 (Windows: `winget install OpenJS.NodeJS.LTS` / Mac: `brew install node`). 설치 뒤에는 Claude Code 를 다시 열어야 훅이 동작합니다.
 2. **GitHub CLI 로그인**: `gh auth status` 를 실행합니다. 로그인이 안 되어 있으면 사용자에게 터미널에서 `gh auth login` 을 하도록 안내합니다. `gh` 가 없으면 먼저 설치합니다 (Windows: `winget install GitHub.cli` / Mac: `brew install gh`).
 3. **패키지**: `node_modules` 가 없으면 `npm install` 을 실행합니다.
+4. **커밋 이메일**: 이 저장소는 공개 저장소입니다. 커밋에 개인 이메일이 남지 않도록 `git config user.email` 이 `@users.noreply.github.com` 으로 끝나는지 확인합니다. 아니면 `gh api user` 로 id 와 login 을 확인해 `git config user.email "<id>+<login>@users.noreply.github.com"` 로 설정합니다 (`--global` 없이 이 저장소에만). 개인 이메일로는 훅이 커밋을 막습니다.
 
-훅이 돌았다면 2번과 3번은 훅이 대신 확인해서, 문제가 있을 때만 `[작업 준비 확인]` 으로 알려 줍니다.
+훅이 돌았다면 2~4번은 훅이 대신 확인해서, 문제가 있을 때만 `[작업 준비 확인]` 으로 알려 줍니다.
 
 ## 작업자 확인
 
@@ -42,14 +43,23 @@ Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니�
 | 위치 | 내용 |
 | --- | --- |
 | `app/page.tsx` | 랜딩 자리 |
-| `app/globe/[id]/page.tsx` | 스노우볼 보기 (`/globe/demo` 로 확인) |
-| `components/GlobeView.tsx`, `components/SnowGlobeScene.tsx` | 3D 실험 화면: 돌려 보기, 흔들면 눈, 오너먼트 누르면 메시지. 자유롭게 바꾸거나 새로 만들어도 됩니다 |
-| `lib/sample-data.ts` | 샘플 오너먼트. DB 연결 전까지 화면 작업에 씁니다 |
+| `app/new/`, `app/login/`, `components/EntryForm.tsx` | 스노우볼 만들기, 닉네임 + 비밀번호로 내 홈에 들어가기 |
+| `app/globe/[id]/page.tsx` | 스노우볼 보기. `/globe/닉네임` 은 DB 에서 읽고, `/globe/demo` 는 샘플 데이터 |
+| `components/GlobeView.tsx` | 스노우볼 화면의 동작: 친구는 오너먼트 달기, 주인은 메시지 읽기 · 지우기 · 링크 복사 |
+| `components/OrnamentForm.tsx` | 오너먼트 달기 폼 |
+| `components/SnowGlobeScene.tsx` | 3D 장면: 돌려 보기, 흔들면 눈, 오너먼트 누르기 |
+| `lib/api.ts` | **DB 함수 호출 모음.** 화면에서는 `supabase` 를 직접 쓰지 말고 여기 함수를 씁니다. 오류 안내 문구도 여기 있습니다 |
+| `lib/owner-token.ts` | 주인 토큰을 브라우저에 저장 · 읽기 |
+| `lib/sample-data.ts` | `/globe/demo` 용 샘플 스노우볼 |
 | `lib/supabase.ts`, `.env.example` | Supabase 연결 자리. 키가 없어도 앱은 실행됩니다 |
+| `db.md`, `supabase/migrations/` | DB 설계와 SQL. 테이블은 직접 못 읽고 `supabase.rpc()` 로 함수만 부릅니다. 함수 목록과 오류 이름은 `db.md` 6번 |
 
+- 지금 화면들은 **동작만 하는 최소 형태**입니다. 모양과 배치는 `DESIGN.md` 에 맞춰 자유롭게 바꾸되, `lib/api.ts` 의 함수 호출과 결과 처리는 유지해 주세요.
 - 실행: `npm run dev` · 확인: `npm run lint`, `npm run build`
 - **이 Next.js 는 16 버전이라 예전 방식과 다른 점이 있습니다.** 코드를 쓰기 전에 `AGENTS.md` 의 안내대로 `node_modules/next/dist/docs/` 의 해당 문서를 확인하세요.
 - push 하기 전에 `npm run build` 가 통과하는지 확인합니다.
+- **배포 주소**: https://snowglobe-rolling-paper.vercel.app (Vercel, 팀장 계정). 배포는 팀장이 합니다. 휴대폰에서 확인해야 하는 것(손가락으로 돌리기, 기기 흔들기)은 배포 주소에서 봅니다.
+- **공개 저장소입니다.** 키 · 토큰 · 개인정보 · 실제 사람의 메시지를 커밋하지 않습니다.
 
 다만 **아래 다섯 가지는 고정 규율**입니다. 누구든 반드시 지킵니다.
 
@@ -87,5 +97,7 @@ Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니�
 - 키 · 토큰 · 비밀번호는 `.env.local`에만 둡니다. 코드, 문서, 커밋, 위임 로그에 넣지 않습니다.
 - 롤링페이퍼 메시지는 사용자가 쓴 글입니다. 테스트 데이터에 실제 개인정보를 넣지 않습니다.
 - 서비스에 쓰는 프롬프트는 `prompts/`에 저장하고 바꿀 때 v1 → v2 이유를 남깁니다.
+- **디자인 규칙은 `DESIGN.md`** 에 있습니다. 화면을 만들거나 고칠 때 먼저 읽습니다.
+- **와이어프레임(화면 번호 01~13의 출처)** 은 Figma 에 있습니다: https://www.figma.com/design/cyLZBDJgSdH22ftR5AqzOO/2%EC%B0%A8%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8?node-id=0-1 — 에이전트가 직접 열 수 없으면 작업자에게 해당 화면을 이미지로 보여 달라고 요청하세요.
 - git 명령의 자세한 순서는 `git.md`, 평가 기준과 제출물은 `docs/2차프로젝트_가이드.md`에 있습니다.
 - `README.md`는 프로젝트를 완성한 뒤에 씁니다. 지금은 만들지 않습니다.

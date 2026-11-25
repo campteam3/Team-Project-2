@@ -1,36 +1,83 @@
 "use client";
 
-// 스노우볼 보기 화면의 실험 버전입니다. 샘플 데이터를 씁니다.
+// 스노우볼 보기 화면. DB 에 연결되어 있습니다.
+//  - 친구: 스노우볼을 보고 오너먼트를 답니다. 메시지 내용은 볼 수 없습니다.
+//  - 주인: 메시지를 읽고, 오너먼트를 지우고, 공유 링크를 복사합니다.
+// 동작만 하는 최소 형태입니다. 모양은 DESIGN.md 에 맞춰 자유롭게 바꾸세요.
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { SAMPLE_ORNAMENTS } from "@/lib/sample-data";
-import type { GlobeOrnament, OrnamentShape } from "@/lib/snowglobe";
-
-// 샘플 메시지에는 아직 모양이 없어서, 화면 확인용으로 볼·별·하트를 번갈아 붙입니다.
-const DEMO_SHAPES: OrnamentShape[] = ["ball", "star", "heart", "ball", "ball"];
-const DEMO_ORNAMENTS: GlobeOrnament[] = SAMPLE_ORNAMENTS.map((ornament, index) => ({
-  ...ornament,
-  shape: DEMO_SHAPES[index % DEMO_SHAPES.length],
-}));
+import { closeGlobe, deleteOrnament, getGlobe, getMessages, type Globe } from "@/lib/api";
+import { clearOwnerToken, globePath, loadOwnerToken } from "@/lib/owner-token";
+import { SAMPLE_GLOBE } from "@/lib/sample-data";
+import OrnamentForm from "./OrnamentForm";
 
 // 3D 장면은 브라우저에서만 그립니다.
 const SnowGlobeScene = dynamic(() => import("./SnowGlobeScene"), {
   ssr: false,
-  loading: () => <p className="text-sm text-slate-300">스노우볼을 불러오는 중…</p>,
+  loading: () => <p className="text-sm text-slate-300">스노우볼을 불러오고 있어요</p>,
 });
 
 type MotionPermission = { requestPermission?: () => Promise<"granted" | "denied"> };
 
+type View =
+  | { status: "loading" }
+  | { status: "missing" }
+  | { status: "error"; message: string }
+  | { status: "ready"; globe: Globe; isOwner: boolean; token: string | null };
+
+const DEMO = "demo";
+
+function decode(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+async function loadView(nickname: string): Promise<View> {
+  if (nickname === DEMO) return { status: "ready", globe: SAMPLE_GLOBE, isOwner: true, token: null };
+
+  const globe = await getGlobe(nickname);
+  if (!globe.ok) return { status: "error", message: globe.message };
+  if (!globe.data) return { status: "missing" };
+
+  const token = loadOwnerToken(nickname);
+  if (token) {
+    const messages = await getMessages(nickname, token);
+    if (messages.ok) {
+      return { status: "ready", globe: { ...globe.data, ornaments: messages.data }, isOwner: true, token };
+    }
+    if (messages.code === "invalid_owner_token") clearOwnerToken(nickname);
+  }
+  return { status: "ready", globe: globe.data, isOwner: false, token: null };
+}
+
 export default function GlobeView() {
   const { id } = useParams<{ id: string }>();
+  const nickname = decode(id).trim().toLowerCase();
+  const isDemo = nickname === DEMO;
+
+  const [view, setView] = useState<View>({ status: "loading" });
   const [shakeSignal, setShakeSignal] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
   const lastShake = useRef(0);
 
-  const ornaments = DEMO_ORNAMENTS;
-  const selected = ornaments.find((ornament) => ornament.id === selectedId) ?? null;
+  useEffect(() => {
+    let cancelled = false;
+    loadView(nickname).then((next) => {
+      if (!cancelled) setView(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [nickname]);
+
+  const refresh = async () => setView(await loadView(nickname));
 
   // 휴대폰을 흔들면 눈이 내립니다.
   useEffect(() => {
@@ -59,14 +106,72 @@ export default function GlobeView() {
     }
   };
 
+  if (view.status === "loading") {
+    return <Screen>스노우볼을 불러오고 있어요</Screen>;
+  }
+  if (view.status === "missing") {
+    return (
+      <Screen>
+        <p>이 닉네임의 스노우볼을 찾지 못했어요.</p>
+        <Link href="/new" className="mt-4 inline-block underline">
+          내 스노우볼 만들기
+        </Link>
+      </Screen>
+    );
+  }
+  if (view.status === "error") {
+    return (
+      <Screen>
+        <p>{view.message}</p>
+        <button type="button" onClick={refresh} className="mt-4 underline">
+          다시 시도하기
+        </button>
+      </Screen>
+    );
+  }
+
+  const { globe, isOwner, token } = view;
+  const selected = globe.ornaments.find((ornament) => ornament.id === selectedId) ?? null;
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.origin + globePath(nickname));
+      setNotice("링크를 복사했어요");
+    } catch {
+      setNotice("링크를 복사하지 못했어요. 주소창의 주소를 직접 복사해 주세요");
+    }
+  };
+
+  const leave = async () => {
+    if (token) await closeGlobe(token);
+    clearOwnerToken(nickname);
+    setSelectedId(null);
+    setNotice("");
+    await refresh();
+  };
+
+  const remove = async () => {
+    if (!selected || !token) return;
+    if (!window.confirm("이 오너먼트를 지울까요? 지우면 되돌릴 수 없어요.")) return;
+    const result = await deleteOrnament(nickname, token, selected.id);
+    setNotice(result.ok ? "오너먼트를 지웠어요" : result.message);
+    setSelectedId(null);
+    await refresh();
+  };
+
   return (
     <main className="flex min-h-dvh flex-col items-center bg-gradient-to-b from-slate-900 to-slate-800 px-4 py-6 text-white">
-      <p className="text-xs text-slate-400">실험 화면 · 스노우볼 주소: {id}</p>
+      <header className="text-center">
+        <h1 className="text-xl font-bold">{globe.title}</h1>
+        <p className="mt-1 text-xs text-slate-400">
+          {isDemo ? "샘플 스노우볼이에요" : isOwner ? "내 홈 · 메시지를 읽을 수 있어요" : `오너먼트 ${globe.ornaments.length}개`}
+        </p>
+      </header>
 
-      <div className="flex w-full max-w-md flex-1 items-center justify-center" style={{ minHeight: 360 }}>
-        <div className="h-[60dvh] max-h-[520px] min-h-[320px] w-full touch-none">
+      <div className="flex w-full max-w-md items-center justify-center">
+        <div className="h-[55dvh] max-h-[520px] min-h-[300px] w-full touch-none">
           <SnowGlobeScene
-            ornaments={ornaments}
+            ornaments={globe.ornaments}
             shakeSignal={shakeSignal}
             selectedId={selectedId}
             onSelect={setSelectedId}
@@ -75,26 +180,90 @@ export default function GlobeView() {
       </div>
 
       <section className="w-full max-w-md space-y-3">
-        <div className="min-h-24 rounded-2xl bg-white/10 p-4" aria-live="polite">
+        <div className="min-h-24 rounded-3xl border border-white/15 bg-white/10 p-5" aria-live="polite">
           {selected ? (
             <>
-              <p className="text-sm text-slate-300">{selected.from} 님이 보낸 메시지</p>
-              <p className="mt-1 break-words text-base">{selected.message}</p>
+              <p className="text-sm text-slate-300">{selected.sender_name} 님이 달아 준 오너먼트</p>
+              {isOwner ? (
+                <p className="mt-1 whitespace-pre-wrap break-words text-base">{selected.message}</p>
+              ) : (
+                <p className="mt-1 text-base text-slate-300">메시지는 스노우볼 주인만 읽을 수 있어요.</p>
+              )}
+              {isOwner && !isDemo && (
+                <button type="button" onClick={remove} className="mt-3 text-sm text-red-300 underline">
+                  이 오너먼트 지우기
+                </button>
+              )}
             </>
+          ) : globe.ornaments.length === 0 ? (
+            <p className="text-sm text-slate-300">
+              {isOwner
+                ? "아직 오너먼트가 없어요. 링크를 보내 친구를 불러 보세요."
+                : "아직 오너먼트가 없어요. 첫 번째로 달아 보세요."}
+            </p>
           ) : (
             <p className="text-sm text-slate-300">
-              스노우볼을 드래그해서 돌려 보고, 오너먼트를 눌러 메시지를 읽어 보세요.
+              스노우볼을 드래그해서 돌려 보고, 오너먼트를 눌러 보세요.
             </p>
           )}
         </div>
+
         <button
           type="button"
           onClick={shake}
-          className="w-full rounded-2xl bg-white py-3 font-semibold text-slate-900 active:scale-[0.98]"
+          className="h-12 w-full rounded-full border border-white/20 bg-white/10 font-semibold active:scale-[0.97]"
         >
-          흔들기 ❄️
+          흔들기
         </button>
+
+        <p className="min-h-5 text-center text-sm text-slate-200" role="status">
+          {notice}
+        </p>
+
+        {isOwner && !isDemo && (
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={copyLink}
+              className="h-12 flex-1 rounded-full bg-white font-semibold text-slate-900"
+            >
+              링크 복사
+            </button>
+            <button
+              type="button"
+              onClick={leave}
+              className="h-12 rounded-full border border-white/20 bg-white/10 px-5 font-semibold"
+            >
+              나가기
+            </button>
+          </div>
+        )}
+
+        {!isOwner && (
+          <>
+            <OrnamentForm
+              nickname={nickname}
+              onAdded={async () => {
+                setNotice("오너먼트를 달았어요");
+                await refresh();
+              }}
+            />
+            <p className="text-center text-sm text-slate-300">
+              <Link href={`/login?nickname=${encodeURIComponent(nickname)}`} className="underline">
+                이 스노우볼의 주인이에요
+              </Link>
+            </p>
+          </>
+        )}
       </section>
+    </main>
+  );
+}
+
+function Screen({ children }: { children: React.ReactNode }) {
+  return (
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800 px-6 text-center text-white">
+      <div>{children}</div>
     </main>
   );
 }

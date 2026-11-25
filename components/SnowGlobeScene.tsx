@@ -7,7 +7,8 @@ import { Environment, Lightformer, OrbitControls, useGLTF } from "@react-three/d
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { GLASS, placeOrnaments, type GlobeOrnament, type OrnamentShape, type PlacedOrnament } from "@/lib/snowglobe";
+import type { Ornament } from "@/lib/api";
+import { GLASS, placeOrnaments, type OrnamentShape, type PlacedOrnament } from "@/lib/snowglobe";
 
 const MODEL_URL = "/models/snowglobe.glb";
 const ORNAMENT_URL = "/models/ornaments.glb";
@@ -303,7 +304,7 @@ function Ornaments({
   selectedId,
   onSelect,
 }: {
-  ornaments: GlobeOrnament[];
+  ornaments: Ornament[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -326,7 +327,7 @@ function Ornaments({
 }
 
 type SceneProps = {
-  ornaments: GlobeOrnament[];
+  ornaments: Ornament[];
   shakeSignal: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
