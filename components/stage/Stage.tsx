@@ -12,6 +12,7 @@ import type { Ornament } from "@/lib/api";
 import type { GlobeTheme } from "@/lib/theme";
 import { IconButton } from "@/components/ui/Button";
 import StageFallback from "./StageFallback";
+import type { ShowcaseState } from "./OrnamentShowcase";
 import type { GlobeLayout } from "./StageScene";
 
 // 음악 파일이 생기면 true 로 바꿉니다. 지금은 버튼을 숨겨 둡니다.
@@ -39,6 +40,11 @@ export type StageProps = {
   plate?: ReactNode; // 받침대 명판에 붙일 내용
   pin?: ReactNode; // 오너먼트 하나 위에 띄울 내용 (예시 말풍선)
   pinKey?: number; // 바뀔 때마다 앞쪽 오너먼트를 새로 고릅니다
+  pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때
+  highlightId?: string; // 빛나게 보여 줄 오너먼트
+  arrivingId?: string; // 지금 막 달리는 오너먼트
+  focusId?: string; // 이 오너먼트가 정면에 오도록 스노우볼을 돌립니다
+  showcase?: ShowcaseState; // 오너먼트 진열 장면 (친구 흐름 두 번째 버전)
   lockFront?: boolean;
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
@@ -55,7 +61,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, lockFront, children, below } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, pinId, highlightId, arrivingId, focusId, showcase, lockFront, children, below } = props;
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -150,6 +156,11 @@ export default function Stage(props: StageProps) {
             layout={layout}
             onPlateMove={plate ? movePlate : undefined}
             pinKey={pinKey}
+            pinId={pinId}
+            highlightId={highlightId}
+            arrivingId={arrivingId}
+            focusId={focusId}
+            showcase={showcase}
             onPinMove={pin ? movePin : undefined}
             lockFront={lockFront}
             shakeSignal={shakeSignal}

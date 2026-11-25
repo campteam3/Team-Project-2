@@ -11,9 +11,9 @@
 //      화면 크기와 위치를 계산하고, 명판 입력칸을 NAMEPLATE 위치에 붙입니다.
 // ─────────────────────────────────────────────────────────────
 
-import type { ThreeElements } from "@react-three/fiber";
+import { useFrame, type ThreeElements } from "@react-three/fiber";
 import * as THREE from "three";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { Ornament } from "@/lib/api";
 import { themeColor, type GlobeTheme } from "@/lib/theme";
 
@@ -28,20 +28,84 @@ export const MODEL = {
 export const NAMEPLATE: [number, number, number] = [0, -0.95, 0.86];
 
 // 오너먼트를 트리 표면에 나선으로 배치합니다.
-export function ornamentPosition(index: number, total: number): [number, number, number] {
-  const t = total > 1 ? index / (total - 1) : 0.5;
-  const height = 0.08 + t * 0.78;
+// 위치는 "몇 번째로 달렸는지"만으로 정해집니다. 새 오너먼트가 달려도 기존 오너먼트는 움직이지 않습니다.
+export function ornamentPosition(index: number): [number, number, number] {
+  const f = (index * 0.61803398875 + 0.21) % 1; // 고르게 흩어지는 수열
+  const height = 0.06 + 0.8 * (1 - Math.sqrt(1 - f)); // 넓은 아래쪽에 더 많이
   const radius = 0.42 * (1 - height) + 0.04;
-  const angle = index * 2.4;
+  const angle = index * 2.39996; // 황금각
   return [Math.cos(angle) * radius, -0.48 + height * 0.95, Math.sin(angle) * radius];
+}
+
+// 새 오너먼트가 달리는 움직임이 시작되는 곳 (구 위쪽 가운데)
+const DROP_FROM: [number, number, number] = [0, 0.86, 0];
+const DROP_SECONDS = 1.6;
+
+function OrnamentBall({
+  index,
+  color,
+  highlight,
+  arriving,
+  reducedMotion,
+}: {
+  index: number;
+  color: string;
+  highlight: boolean;
+  arriving: boolean;
+  reducedMotion: boolean;
+}) {
+  const ref = useRef<THREE.Group>(null);
+  const start = useRef<number | null>(null);
+  const target = ornamentPosition(index);
+
+  useFrame(({ clock }) => {
+    const g = ref.current;
+    if (!g) return;
+    if (arriving && !reducedMotion) {
+      start.current ??= clock.elapsedTime;
+      const t = Math.min(1, (clock.elapsedTime - start.current) / DROP_SECONDS);
+      const e = 1 - Math.pow(1 - t, 3); // 천천히 멈춤
+      g.position.set(
+        THREE.MathUtils.lerp(DROP_FROM[0], target[0], e),
+        THREE.MathUtils.lerp(DROP_FROM[1], target[1], e),
+        THREE.MathUtils.lerp(DROP_FROM[2], target[2], e),
+      );
+    }
+    const pulse = highlight && !reducedMotion ? 1 + Math.sin(clock.elapsedTime * 2.4) * 0.08 : 1;
+    g.scale.setScalar((highlight ? 1.3 : 1) * pulse);
+  });
+
+  return (
+    <group ref={ref} position={arriving && !reducedMotion ? DROP_FROM : target}>
+      <mesh>
+        <sphereGeometry args={[0.052, 24, 24]} />
+        <meshStandardMaterial
+          color={color}
+          metalness={0.45}
+          roughness={0.25}
+          emissive={highlight ? color : "#000000"}
+          emissiveIntensity={highlight ? 0.45 : 0}
+        />
+      </mesh>
+      {highlight && (
+        <mesh>
+          <sphereGeometry args={[0.085, 24, 24]} />
+          <meshBasicMaterial color="#F2C46D" transparent opacity={0.22} depthWrite={false} />
+        </mesh>
+      )}
+    </group>
+  );
 }
 
 type Props = ThreeElements["group"] & {
   theme: GlobeTheme;
   ornaments?: Pick<Ornament, "id" | "color">[];
+  highlightId?: string; // 빛나게 보여 줄 오너먼트 (친구가 고른 것)
+  arrivingId?: string; // 지금 막 달리는 오너먼트
+  reducedMotion?: boolean;
 };
 
-export default function SnowGlobeModel({ theme, ornaments = [], ...group }: Props) {
+export default function SnowGlobeModel({ theme, ornaments = [], highlightId, arrivingId, reducedMotion = false, ...group }: Props) {
   const tree = themeColor(theme, "tree");
   const base = themeColor(theme, "base");
   const baseDark = useMemo(() => new THREE.Color(base).multiplyScalar(0.62), [base]);
@@ -125,10 +189,14 @@ export default function SnowGlobeModel({ theme, ornaments = [], ...group }: Prop
 
       {/* 오너먼트 (친구 메시지 하나에 하나) */}
       {ornaments.map((o, i) => (
-        <mesh key={o.id} position={ornamentPosition(i, ornaments.length)}>
-          <sphereGeometry args={[0.052, 24, 24]} />
-          <meshStandardMaterial color={o.color} metalness={0.45} roughness={0.25} />
-        </mesh>
+        <OrnamentBall
+          key={o.id}
+          index={i}
+          color={o.color}
+          highlight={o.id === highlightId}
+          arriving={o.id === arrivingId}
+          reducedMotion={reducedMotion}
+        />
       ))}
 
       {/* 유리 구. 안쪽 면을 살짝 밝혀 테두리가 보이게 합니다 */}
