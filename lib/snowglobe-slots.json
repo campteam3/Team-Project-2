@@ -1,0 +1,752 @@
+{
+ "note": "Blender design/blender/snowglobe.blend 에서 내보낸 값. 단위 m, Y가 위.",
+ "glass": {
+  "center": [
+   0,
+   0.55,
+   0
+  ],
+  "radius": 1.0
+ },
+ "slots": [
+  {
+   "id": 0,
+   "kind": "hang",
+   "tier": 1,
+   "position": [
+    0.3799,
+    0.4883,
+    -0.1383
+   ],
+   "quaternion": [
+    0.0,
+    0.81915,
+    0.0,
+    0.57358
+   ],
+   "ballScale": 0.035,
+   "cookieScale": 0.0385
+  },
+  {
+   "id": 1,
+   "kind": "hang",
+   "tier": 1,
+   "position": [
+    0.1709,
+    0.4883,
+    -0.3664
+   ],
+   "quaternion": [
+    0.0,
+    0.9763,
+    0.0,
+    0.21644
+   ],
+   "ballScale": 0.035,
+   "cookieScale": 0.0385
+  },
+  {
+   "id": 2,
+   "kind": "hang",
+   "tier": 1,
+   "position": [
+    -0.1383,
+    0.4883,
+    -0.3799
+   ],
+   "quaternion": [
+    -0.0,
+    -0.98481,
+    -0.0,
+    0.17365
+   ],
+   "ballScale": 0.035,
+   "cookieScale": 0.0385
+  },
+  {
+   "id": 3,
+   "kind": "hang",
+   "tier": 1,
+   "position": [
+    -0.3664,
+    0.4883,
+    -0.1709
+   ],
+   "quaternion": [
+    -0.0,
+    -0.84339,
+    -0.0,
+    0.5373
+   ],
+   "ballScale": 0.035,
+   "cookieScale": 0.0385
+  },
+  {
+   "id": 4,
+   "kind": "hang",
+   "tier": 1,
+   "position": [
+    -0.3799,
+    0.4883,
+    0.1383
+   ],
+   "quaternion": [
+    0.0,
+    -0.57358,
+    0.0,
+    0.81915
+   ],
+   "ballScale": 0.035,
+   "cookieScale": 0.0385
+  },
+  {
+   "id": 5,
+   "kind": "hang",
+   "tier": 1,
+   "position": [
+    -0.1709,
+    0.4883,
+    0.3664
+   ],
+   "quaternion": [
+    0.0,
+    -0.21644,
+    0.0,
+    0.9763
+   ],
+   "ballScale": 0.035,
+   "cookieScale": 0.0385
+  },
+  {
+   "id": 6,
+   "kind": "hang",
+   "tier": 1,
+   "position": [
+    0.1383,
+    0.4883,
+    0.3799
+   ],
+   "quaternion": [
+    0.0,
+    0.17365,
+    0.0,
+    0.98481
+   ],
+   "ballScale": 0.035,
+   "cookieScale": 0.0385
+  },
+  {
+   "id": 7,
+   "kind": "hang",
+   "tier": 1,
+   "position": [
+    0.3664,
+    0.4883,
+    0.1709
+   ],
+   "quaternion": [
+    0.0,
+    0.5373,
+    0.0,
+    0.84339
+   ],
+   "ballScale": 0.035,
+   "cookieScale": 0.0385
+  },
+  {
+   "id": 8,
+   "kind": "hang",
+   "tier": 2,
+   "position": [
+    0.2473,
+    0.6721,
+    -0.2075
+   ],
+   "quaternion": [
+    0.0,
+    0.90631,
+    0.0,
+    0.42262
+   ],
+   "ballScale": 0.031,
+   "cookieScale": 0.0341
+  },
+  {
+   "id": 9,
+   "kind": "hang",
+   "tier": 2,
+   "position": [
+    0.0281,
+    0.6721,
+    -0.3217
+   ],
+   "quaternion": [
+    0.0,
+    0.99905,
+    0.0,
+    0.04362
+   ],
+   "ballScale": 0.031,
+   "cookieScale": 0.0341
+  },
+  {
+   "id": 10,
+   "kind": "hang",
+   "tier": 2,
+   "position": [
+    -0.2075,
+    0.6721,
+    -0.2473
+   ],
+   "quaternion": [
+    -0.0,
+    -0.93969,
+    -0.0,
+    0.34202
+   ],
+   "ballScale": 0.031,
+   "cookieScale": 0.0341
+  },
+  {
+   "id": 11,
+   "kind": "hang",
+   "tier": 2,
+   "position": [
+    -0.3217,
+    0.6721,
+    -0.0281
+   ],
+   "quaternion": [
+    -0.0,
+    -0.73728,
+    -0.0,
+    0.67559
+   ],
+   "ballScale": 0.031,
+   "cookieScale": 0.0341
+  },
+  {
+   "id": 12,
+   "kind": "hang",
+   "tier": 2,
+   "position": [
+    -0.2473,
+    0.6721,
+    0.2075
+   ],
+   "quaternion": [
+    0.0,
+    -0.42262,
+    0.0,
+    0.90631
+   ],
+   "ballScale": 0.031,
+   "cookieScale": 0.0341
+  },
+  {
+   "id": 13,
+   "kind": "hang",
+   "tier": 2,
+   "position": [
+    -0.0281,
+    0.6721,
+    0.3217
+   ],
+   "quaternion": [
+    0.0,
+    -0.04362,
+    0.0,
+    0.99905
+   ],
+   "ballScale": 0.031,
+   "cookieScale": 0.0341
+  },
+  {
+   "id": 14,
+   "kind": "hang",
+   "tier": 2,
+   "position": [
+    0.2075,
+    0.6721,
+    0.2473
+   ],
+   "quaternion": [
+    0.0,
+    0.34202,
+    0.0,
+    0.93969
+   ],
+   "ballScale": 0.031,
+   "cookieScale": 0.0341
+  },
+  {
+   "id": 15,
+   "kind": "hang",
+   "tier": 2,
+   "position": [
+    0.3217,
+    0.6721,
+    0.0281
+   ],
+   "quaternion": [
+    0.0,
+    0.67559,
+    0.0,
+    0.73728
+   ],
+   "ballScale": 0.031,
+   "cookieScale": 0.0341
+  },
+  {
+   "id": 16,
+   "kind": "hang",
+   "tier": 3,
+   "position": [
+    0.1237,
+    0.856,
+    -0.2143
+   ],
+   "quaternion": [
+    0.0,
+    0.96593,
+    0.0,
+    0.25882
+   ],
+   "ballScale": 0.027,
+   "cookieScale": 0.0297
+  },
+  {
+   "id": 17,
+   "kind": "hang",
+   "tier": 3,
+   "position": [
+    -0.0911,
+    0.856,
+    -0.2322
+   ],
+   "quaternion": [
+    -0.0,
+    -0.98257,
+    -0.0,
+    0.18591
+   ],
+   "ballScale": 0.027,
+   "cookieScale": 0.0297
+  },
+  {
+   "id": 18,
+   "kind": "hang",
+   "tier": 3,
+   "position": [
+    -0.2402,
+    0.856,
+    -0.0741
+   ],
+   "quaternion": [
+    -0.0,
+    -0.8046,
+    -0.0,
+    0.59382
+   ],
+   "ballScale": 0.027,
+   "cookieScale": 0.0297
+  },
+  {
+   "id": 19,
+   "kind": "hang",
+   "tier": 3,
+   "position": [
+    -0.2094,
+    0.856,
+    0.1427
+   ],
+   "quaternion": [
+    0.0,
+    -0.46727,
+    0.0,
+    0.88412
+   ],
+   "ballScale": 0.027,
+   "cookieScale": 0.0297
+  },
+  {
+   "id": 20,
+   "kind": "hang",
+   "tier": 3,
+   "position": [
+    -0.0191,
+    0.856,
+    0.2547
+   ],
+   "quaternion": [
+    0.0,
+    -0.03739,
+    0.0,
+    0.9993
+   ],
+   "ballScale": 0.027,
+   "cookieScale": 0.0297
+  },
+  {
+   "id": 21,
+   "kind": "hang",
+   "tier": 3,
+   "position": [
+    0.1872,
+    0.856,
+    0.1737
+   ],
+   "quaternion": [
+    0.0,
+    0.39989,
+    0.0,
+    0.91656
+   ],
+   "ballScale": 0.027,
+   "cookieScale": 0.0297
+  },
+  {
+   "id": 22,
+   "kind": "hang",
+   "tier": 3,
+   "position": [
+    0.2486,
+    0.856,
+    -0.0375
+   ],
+   "quaternion": [
+    0.0,
+    0.75797,
+    0.0,
+    0.65229
+   ],
+   "ballScale": 0.027,
+   "cookieScale": 0.0297
+  },
+  {
+   "id": 23,
+   "kind": "hang",
+   "tier": 4,
+   "position": [
+    0.0309,
+    1.0398,
+    -0.1752
+   ],
+   "quaternion": [
+    0.0,
+    0.99619,
+    0.0,
+    0.08716
+   ],
+   "ballScale": 0.022,
+   "cookieScale": 0.0242
+  },
+  {
+   "id": 24,
+   "kind": "hang",
+   "tier": 4,
+   "position": [
+    -0.1177,
+    1.0398,
+    -0.1334
+   ],
+   "quaternion": [
+    -0.0,
+    -0.93536,
+    -0.0,
+    0.35371
+   ],
+   "ballScale": 0.022,
+   "cookieScale": 0.0242
+  },
+  {
+   "id": 25,
+   "kind": "hang",
+   "tier": 4,
+   "position": [
+    -0.1777,
+    1.0398,
+    0.0089
+   ],
+   "quaternion": [
+    0.0,
+    -0.68926,
+    0.0,
+    0.72452
+   ],
+   "ballScale": 0.022,
+   "cookieScale": 0.0242
+  },
+  {
+   "id": 26,
+   "kind": "hang",
+   "tier": 4,
+   "position": [
+    -0.1039,
+    1.0398,
+    0.1445
+   ],
+   "quaternion": [
+    0.0,
+    -0.30664,
+    0.0,
+    0.95182
+   ],
+   "ballScale": 0.022,
+   "cookieScale": 0.0242
+  },
+  {
+   "id": 27,
+   "kind": "hang",
+   "tier": 4,
+   "position": [
+    0.0477,
+    1.0398,
+    0.1694
+   ],
+   "quaternion": [
+    0.0,
+    0.1367,
+    0.0,
+    0.99061
+   ],
+   "ballScale": 0.022,
+   "cookieScale": 0.0242
+  },
+  {
+   "id": 28,
+   "kind": "hang",
+   "tier": 4,
+   "position": [
+    0.1621,
+    1.0398,
+    0.0683
+   ],
+   "quaternion": [
+    0.0,
+    0.55298,
+    0.0,
+    0.8332
+   ],
+   "ballScale": 0.022,
+   "cookieScale": 0.0242
+  },
+  {
+   "id": 29,
+   "kind": "hang",
+   "tier": 4,
+   "position": [
+    0.1545,
+    1.0398,
+    -0.0841
+   ],
+   "quaternion": [
+    0.0,
+    0.85972,
+    0.0,
+    0.51076
+   ],
+   "ballScale": 0.022,
+   "cookieScale": 0.0242
+  },
+  {
+   "id": 30,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.2694,
+    0.4452,
+    -0.2467
+   ],
+   "quaternion": [
+    -0.17103,
+    0.81986,
+    0.40063,
+    0.37159
+   ],
+   "ballScale": null,
+   "cookieScale": 0.046
+  },
+  {
+   "id": 31,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.2467,
+    0.4452,
+    -0.2694
+   ],
+   "quaternion": [
+    -0.16235,
+    -0.84248,
+    -0.40423,
+    0.31697
+   ],
+   "ballScale": null,
+   "cookieScale": 0.046
+  },
+  {
+   "id": 32,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.2694,
+    0.4452,
+    0.2467
+   ],
+   "quaternion": [
+    -0.40063,
+    -0.37159,
+    -0.17103,
+    0.81986
+   ],
+   "ballScale": null,
+   "cookieScale": 0.046
+  },
+  {
+   "id": 33,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.2467,
+    0.4452,
+    0.2694
+   ],
+   "quaternion": [
+    -0.40423,
+    0.31697,
+    0.16235,
+    0.84248
+   ],
+   "ballScale": null,
+   "cookieScale": 0.046
+  },
+  {
+   "id": 34,
+   "kind": "slope",
+   "tier": 1,
+   "position": [
+    -0.2688,
+    0.6218,
+    -0.1401
+   ],
+   "quaternion": [
+    -0.21912,
+    -0.78463,
+    -0.35054,
+    0.46202
+   ],
+   "ballScale": null,
+   "cookieScale": 0.042
+  },
+  {
+   "id": 35,
+   "kind": "slope",
+   "tier": 1,
+   "position": [
+    0.2688,
+    0.6218,
+    0.1401
+   ],
+   "quaternion": [
+    -0.35054,
+    0.46202,
+    0.21912,
+    0.78463
+   ],
+   "ballScale": null,
+   "cookieScale": 0.042
+  },
+  {
+   "id": 36,
+   "kind": "slope",
+   "tier": 2,
+   "position": [
+    -0.1143,
+    0.8085,
+    0.2041
+   ],
+   "quaternion": [
+    -0.28807,
+    -0.15112,
+    -0.10977,
+    0.93922
+   ],
+   "ballScale": null,
+   "cookieScale": 0.038
+  },
+  {
+   "id": 37,
+   "kind": "slope",
+   "tier": 2,
+   "position": [
+    0.1976,
+    0.7979,
+    -0.1342
+   ],
+   "quaternion": [
+    -0.16941,
+    0.79739,
+    0.35166,
+    0.46022
+   ],
+   "ballScale": null,
+   "cookieScale": 0.038
+  },
+  {
+   "id": 38,
+   "kind": "slope",
+   "tier": 3,
+   "position": [
+    -0.0313,
+    0.9721,
+    0.1757
+   ],
+   "quaternion": [
+    -0.35779,
+    -0.11166,
+    -0.01957,
+    0.92689
+   ],
+   "ballScale": null,
+   "cookieScale": 0.032
+  }
+ ],
+ "defaults": [
+  {
+   "slot": 6,
+   "shape": "ball",
+   "color": "red"
+  },
+  {
+   "slot": 12,
+   "shape": "ball",
+   "color": "gold"
+  },
+  {
+   "slot": 20,
+   "shape": "ball",
+   "color": "red"
+  },
+  {
+   "slot": 27,
+   "shape": "ball",
+   "color": "gold"
+  },
+  {
+   "slot": 3,
+   "shape": "ball",
+   "color": "gold"
+  },
+  {
+   "slot": 33,
+   "shape": "star",
+   "color": "cream"
+  },
+  {
+   "slot": 36,
+   "shape": "heart",
+   "color": "red"
+  }
+ ]
+}
