@@ -43,12 +43,18 @@ Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니�
 | 위치 | 내용 |
 | --- | --- |
 | `app/page.tsx` | 랜딩 자리 |
-| `app/globe/[id]/page.tsx` | 스노우볼 보기 (`/globe/demo` 로 확인) |
-| `components/GlobeView.tsx`, `components/SnowGlobeScene.tsx` | 3D 실험 화면: 돌려 보기, 흔들면 눈, 오너먼트 누르면 메시지. 자유롭게 바꾸거나 새로 만들어도 됩니다 |
-| `lib/sample-data.ts` | 샘플 오너먼트. DB 연결 전까지 화면 작업에 씁니다 |
+| `app/new/`, `app/login/`, `components/EntryForm.tsx` | 스노우볼 만들기, 닉네임 + 비밀번호로 내 홈에 들어가기 |
+| `app/globe/[id]/page.tsx` | 스노우볼 보기. `/globe/닉네임` 은 DB 에서 읽고, `/globe/demo` 는 샘플 데이터 |
+| `components/GlobeView.tsx` | 스노우볼 화면의 동작: 친구는 오너먼트 달기, 주인은 메시지 읽기 · 지우기 · 링크 복사 |
+| `components/OrnamentForm.tsx` | 오너먼트 달기 폼 |
+| `components/SnowGlobeScene.tsx` | 3D 장면: 돌려 보기, 흔들면 눈, 오너먼트 누르기 |
+| `lib/api.ts` | **DB 함수 호출 모음.** 화면에서는 `supabase` 를 직접 쓰지 말고 여기 함수를 씁니다. 오류 안내 문구도 여기 있습니다 |
+| `lib/owner-token.ts` | 주인 토큰을 브라우저에 저장 · 읽기 |
+| `lib/sample-data.ts` | `/globe/demo` 용 샘플 스노우볼 |
 | `lib/supabase.ts`, `.env.example` | Supabase 연결 자리. 키가 없어도 앱은 실행됩니다 |
 | `db.md`, `supabase/migrations/` | DB 설계와 SQL. 테이블은 직접 못 읽고 `supabase.rpc()` 로 함수만 부릅니다. 함수 목록과 오류 이름은 `db.md` 6번 |
 
+- 지금 화면들은 **동작만 하는 최소 형태**입니다. 모양과 배치는 `DESIGN.md` 에 맞춰 자유롭게 바꾸되, `lib/api.ts` 의 함수 호출과 결과 처리는 유지해 주세요.
 - 실행: `npm run dev` · 확인: `npm run lint`, `npm run build`
 - **이 Next.js 는 16 버전이라 예전 방식과 다른 점이 있습니다.** 코드를 쓰기 전에 `AGENTS.md` 의 안내대로 `node_modules/next/dist/docs/` 의 해당 문서를 확인하세요.
 - push 하기 전에 `npm run build` 가 통과하는지 확인합니다.
