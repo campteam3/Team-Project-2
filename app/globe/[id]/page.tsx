@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import GlobeView from "@/components/GlobeView";
 import { OG_IMAGE, SITE_NAME } from "@/lib/site";
@@ -36,11 +37,30 @@ export async function generateMetadata({ params }: PageProps<"/globe/[id]">): Pr
   };
 }
 
+// 위의 미리보기 정보가 주소(닉네임)에 따라 달라진다는 것을 Next.js 에 알려 주는 표시입니다.
+// 화면에는 아무것도 그리지 않습니다. 지우면 개발 서버에서 오류 표시("Next.js encountered URL data
+// in generateMetadata()")가 뜹니다. (Next.js 문서: generateMetadata > With Cache Components)
+async function Connection() {
+  await connection();
+  return null;
+}
+
+function DynamicMarker() {
+  return (
+    <Suspense>
+      <Connection />
+    </Suspense>
+  );
+}
+
 // 스노우볼 보기: /globe/스노우볼주소
 export default function GlobePage() {
   return (
-    <Suspense fallback={null}>
-      <GlobeView />
-    </Suspense>
+    <>
+      <Suspense fallback={null}>
+        <GlobeView />
+      </Suspense>
+      <DynamicMarker />
+    </>
   );
 }
