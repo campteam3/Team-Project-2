@@ -12,7 +12,6 @@ import type { Ornament } from "@/lib/api";
 import type { GlobeTheme } from "@/lib/theme";
 import { IconButton } from "@/components/ui/Button";
 import StageFallback from "./StageFallback";
-import type { ShowcaseState } from "./OrnamentShowcase";
 import type { GlobeLayout } from "./StageScene";
 
 // 음악 파일이 생기면 true 로 바꿉니다. 지금은 버튼을 숨겨 둡니다.
@@ -23,9 +22,10 @@ const StageScene = dynamic(() => import("./StageScene"), {
   loading: () => <StageFallback message="스노우볼을 불러오고 있어요" />,
 });
 
-// 원근 때문에 받침대 앞쪽이 조금 더 아래로 보여서, 실제 화면에서는 약 62%를 차지합니다
-const DESKTOP: GlobeLayout = { height: 0.56, centerFromTop: 0.45 };
-const MOBILE: GlobeLayout = { height: 0.46, centerFromTop: 0.46 };
+// 스노우볼은 제목과 아래쪽 UI 사이 빈 공간(위아래 24px 여백)을 꽉 채울 만큼 크게 그립니다.
+// height 는 상한 역할만 하고, 실제 크기는 빈 공간과 화면 너비 중 좁은 쪽에 맞춰집니다 (StageScene 의 getSafeArea).
+const DESKTOP: GlobeLayout = { height: 0.9, centerFromTop: 0.45 };
+const MOBILE: GlobeLayout = { height: 0.9, centerFromTop: 0.46 };
 
 type MotionPermission = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -44,7 +44,6 @@ export type StageProps = {
   highlightId?: string; // 빛나게 보여 줄 오너먼트
   arrivingId?: string; // 지금 막 달리는 오너먼트
   focusId?: string; // 이 오너먼트가 정면에 오도록 스노우볼을 돌립니다
-  showcase?: ShowcaseState; // 오너먼트 진열 장면 (친구 흐름 두 번째 버전)
   lockFront?: boolean;
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
@@ -61,13 +60,23 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, pinId, highlightId, arrivingId, focusId, showcase, lockFront, children, below } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, children, below } = props;
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [shakeSignal, setShakeSignal] = useState(0);
   const lastShake = useRef(0);
   const plateEl = useRef<HTMLDivElement>(null);
+  const headerEl = useRef<HTMLElement>(null);
+  const footerEl = useRef<HTMLElement>(null);
+
+  // 3D 장면이 매 프레임 묻는 "UI 사이 빈 공간" (제목 아래 끝 ~ 아래쪽 UI 위 끝, px)
+  const getSafeArea = useCallback(() => {
+    const head = headerEl.current?.getBoundingClientRect();
+    const foot = footerEl.current?.getBoundingClientRect();
+    if (!head || !foot) return null;
+    return { top: head.bottom, bottom: foot.top, plateHalf: (plateEl.current?.offsetHeight ?? 0) / 2 };
+  }, []);
   const pinEl = useRef<HTMLDivElement>(null);
 
   const movePin = useCallback((x: number, y: number, visibility: number) => {
@@ -78,9 +87,11 @@ export default function Stage(props: StageProps) {
   }, []);
 
   // 3D 장면이 알려 주는 명판 좌표에 명판 글자 · 입력칸을 옮깁니다
-  const movePlate = useCallback((x: number, y: number, visibility: number) => {
+  const movePlate = useCallback((x: number, y: number, visibility: number, width: number) => {
     const el = plateEl.current;
     if (!el) return;
+    // 명판 글자는 명판 너비(좌우 여백 제외)를 넘으면 "…"으로 잘립니다 (.plate-text)
+    el.style.setProperty("--plate-w", `${Math.max(48, width - 16)}px`);
     el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
     el.style.opacity = String(visibility);
     el.style.pointerEvents = visibility > 0.6 ? "auto" : "none";
@@ -160,7 +171,7 @@ export default function Stage(props: StageProps) {
             highlightId={highlightId}
             arrivingId={arrivingId}
             focusId={focusId}
-            showcase={showcase}
+            getSafeArea={getSafeArea}
             onPinMove={pin ? movePin : undefined}
             lockFront={lockFront}
             shakeSignal={shakeSignal}
@@ -195,7 +206,7 @@ export default function Stage(props: StageProps) {
           <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />
         </div>
 
-        <header key={title} className="mx-auto mt-14 max-w-[900px] animate-fade text-center sm:mt-1.5">
+        <header ref={headerEl} key={title} className="mx-auto mt-14 max-w-[900px] animate-fade text-center sm:mt-1.5">
           <h1
             className={`text-balance font-bold tracking-[-0.02em] text-ink ${
               display ? "text-[28px] leading-[1.3] sm:text-[40px]" : "text-[22px] leading-[1.3] sm:text-[28px]"
@@ -212,7 +223,7 @@ export default function Stage(props: StageProps) {
 
         <div className="flex-1" />
 
-        <footer className="flex flex-col items-center gap-3">
+        <footer ref={footerEl} className="flex flex-col items-center gap-3">
           {(hintMobile ?? hint) && <p className="text-center text-[15px] text-ink-sub sm:hidden">{hintMobile ?? hint}</p>}
           {hint && <p className="hidden text-center text-[15px] text-ink-sub sm:block">{hint}</p>}
           {children}

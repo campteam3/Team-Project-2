@@ -24,7 +24,7 @@ type Step = "customize" | "info" | "share";
 const NICKNAME_PATTERN = /^[0-9A-Za-z가-힣_-]{2,20}$/;
 
 function plateLabel(text: string) {
-  return <span className="pointer-events-none whitespace-nowrap text-[15px] font-bold text-night-900">{text}</span>;
+  return <span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{text}</span>;
 }
 
 export default function OwnerFlow() {
@@ -52,8 +52,8 @@ export default function OwnerFlow() {
     }
 
     setBusy(true);
-    // TODO(#10): createGlobe 에 theme 인자가 생기면 theme 을 함께 넘깁니다.
-    const result = await createGlobe(name, password);
+    // 꾸민 값(트리 · 소품 · 받침대 · 눈)을 함께 저장합니다 (#10, PR #13). 이름은 비워서 닉네임이 이름이 됩니다.
+    const result = await createGlobe(name, password, undefined, theme);
     setBusy(false);
     if (!result.ok) return setError(result.message);
     saveOwnerToken(result.data.nickname, result.data.owner_token);
@@ -94,7 +94,7 @@ export default function OwnerFlow() {
         hintMobile="받침대 명판에 닉네임을 새겨 주세요"
         plate={<NameplateInput value={nickname} onChange={setNickname} />}
         lockFront
-        layout={{ desktop: { height: 0.54, centerFromTop: 0.4 }, mobile: { height: 0.4, centerFromTop: 0.4 } }}
+        layout={{ desktop: { centerFromTop: 0.4 }, mobile: { centerFromTop: 0.4 } }}
       >
         <div key={step} className="flex w-full animate-rise justify-center">
           <NameplateForm
@@ -124,7 +124,7 @@ export default function OwnerFlow() {
       below={
         <Link
           href={globePath(created)}
-          className="pointer-events-auto inline-flex items-center gap-1.5 px-2 py-1 text-[15px] font-medium text-ink-sub hover:text-ink"
+          className="pointer-events-auto -my-1.5 inline-flex min-h-11 items-center gap-1.5 px-3 text-[15px] font-medium text-ink-sub hover:text-ink"
         >
           내 스노우볼 보기
           <Icon name="arrow-right" size={16} />

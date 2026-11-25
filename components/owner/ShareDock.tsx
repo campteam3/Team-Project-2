@@ -78,7 +78,8 @@ export default function ShareDock({ url, title }: { url: string; title: string }
       >
         {toast}
       </p>
-      <Dock label="링크 공유">
+      {/* 아주 좁은 화면(400px 미만)에서는 두 버튼을 위아래로 쌓아 잘리지 않게 합니다 */}
+      <Dock label="링크 공유" className="max-[400px]:w-full max-[400px]:flex-col max-[400px]:items-stretch max-[400px]:rounded-[28px]">
         <div className="hidden h-12 max-w-[420px] items-center gap-2.5 rounded-full bg-night-900/70 pl-5 pr-6 text-base font-medium text-ink sm:flex sm:h-[52px]">
           <Icon name="link" size={18} className="shrink-0" />
           <ShareLinkText url={url} />

@@ -26,6 +26,7 @@ export const MODEL = {
 
 // 받침대 앞면 명판의 가운데 (이름 · 닉네임 입력칸이 붙는 곳)
 export const NAMEPLATE: [number, number, number] = [0, -0.95, 0.86];
+export const NAMEPLATE_WIDTH = 0.56; // 명판 가로 길이 (글자가 이보다 길면 "…"으로 자릅니다)
 
 // 오너먼트를 트리 표면에 나선으로 배치합니다.
 // 위치는 "몇 번째로 달렸는지"만으로 정해집니다. 새 오너먼트가 달려도 기존 오너먼트는 움직이지 않습니다.
@@ -123,7 +124,7 @@ export default function SnowGlobeModel({ theme, ornaments = [], highlightId, arr
       </mesh>
       {/* 명판(금빛 판). 글자는 바깥에서 HTML 로 붙입니다 */}
       <mesh name="Nameplate" position={[NAMEPLATE[0], NAMEPLATE[1], NAMEPLATE[2] - 0.02]} rotation={[-0.11, 0, 0]}>
-        <boxGeometry args={[0.56, 0.15, 0.03]} />
+        <boxGeometry args={[NAMEPLATE_WIDTH, 0.15, 0.03]} />
         <meshStandardMaterial color="#F2C46D" roughness={0.35} metalness={0.5} emissive="#F2C46D" emissiveIntensity={0.15} />
       </mesh>
 

@@ -15,9 +15,9 @@ import { themeColor, type GlobeTheme } from "@/lib/theme";
 import SnowGlobeModel, {
   MODEL,
   NAMEPLATE,
+  NAMEPLATE_WIDTH,
   ornamentPosition,
 } from "./SnowGlobeModel";
-import OrnamentShowcase, { type ShowcaseState } from "./OrnamentShowcase";
 import VillageBackdrop from "./VillageBackdrop";
 
 export type GlobeLayout = {
@@ -29,7 +29,7 @@ export type StageSceneProps = {
   theme: GlobeTheme;
   ornaments?: Pick<Ornament, "id" | "color">[];
   layout: GlobeLayout;
-  onPlateMove?: (x: number, y: number, visibility: number) => void; // 명판 가운데의 화면 좌표(px)와 보이는 정도(0~1)
+  onPlateMove?: (x: number, y: number, visibility: number, width: number) => void; // 명판 가운데의 화면 좌표(px)와 보이는 정도(0~1)
   pinKey?: number; // 값이 바뀔 때마다 앞쪽을 향한 오너먼트 하나를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때 (pinKey 보다 우선)
   highlightId?: string;
@@ -37,12 +37,17 @@ export type StageSceneProps = {
   onPinMove?: (x: number, y: number, visibility: number) => void; // 고른 오너먼트 바로 위의 화면 좌표와 보이는 정도
   lockFront?: boolean; // 명판에 입력할 때는 앞면을 고정합니다
   focusId?: string; // 이 오너먼트가 정면에 오도록 돌립니다 (친구가 고른 · 단 오너먼트)
-  showcase?: ShowcaseState; // 오너먼트 진열 장면 (친구 흐름 두 번째 버전)
+  // 화면 위 UI(제목) 아래 끝과 화면 아래 UI(안내 · 도크 · 입력) 위 끝의 px 좌표.
+  // 스노우볼은 이 사이의 빈 공간 안에서만 크기와 위치를 잡아, 어떤 화면 크기에서도 UI 와 겹치지 않습니다.
+  // plateHalf: 명판 위 글자 · 입력칸 높이의 절반(px). 명판은 아래쪽 UI 와 겹치지 않게 지킵니다.
+  getSafeArea?: () => { top: number; bottom: number; plateHalf: number } | null;
   shakeSignal: number;
   reducedMotion: boolean;
 };
 
 const SNOW_COUNT = 420;
+const UI_OVERLAP = 0.3; // 스노우볼 몸체가 아래쪽 UI 뒤로 들어가도 되는 비율
+const SAFE_GAP = 24; // UI 와 스노우볼 사이 최소 간격(px) · DESIGN.md 4-2
 
 type SnowProps = {
   color: string;
@@ -155,12 +160,7 @@ function Globe(props: StageSceneProps) {
     shakeSignal,
     reducedMotion,
   } = props;
-  const showcase = props.showcase;
-  const focusIndex = focusId
-    ? ornaments.findIndex((o) => o.id === focusId)
-    : showcase?.mode === "attach"
-      ? showcase.targetIndex // 날아올 오너먼트의 자리가 정면에 오도록
-      : -1;
+  const focusIndex = focusId ? ornaments.findIndex((o) => o.id === focusId) : -1;
   const holdRotation = lockFront || focusIndex >= 0; // 정해진 방향으로 돌리는 동안에는 드래그로 돌리지 않습니다
   const group = useRef<THREE.Group>(null);
   const { camera, size, gl } = useThree();
@@ -213,9 +213,52 @@ function Globe(props: StageSceneProps) {
     const vh = 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * dist;
     const vw = vh * (size.width / size.height);
     const modelH = MODEL.top - MODEL.bottom;
-    const scale = Math.min((layout.height * vh) / modelH, (vw * 0.88) / 1.95);
+    let scale = Math.min((layout.height * vh) / modelH, (vw * 0.88) / 1.95);
     const mid = (MODEL.top + MODEL.bottom) / 2;
-    const y = vh * (0.5 - layout.centerFromTop) - mid * scale;
+    let y = vh * (0.5 - layout.centerFromTop) - mid * scale;
+
+    // UI 사이 빈 공간에 맞추기 (스노우볼을 화면 밖으로 내린 단계는 제외)
+    const safe = layout.centerFromTop < 1 ? props.getSafeArea?.() : null;
+    if (safe) {
+      const toWorld = vh / size.height;
+      const bandTop = vh / 2 - (safe.top + SAFE_GAP) * toWorld;
+      const bandBottom = vh / 2 - (safe.bottom - SAFE_GAP) * toWorld;
+      // 원근 때문에 받침대 앞쪽이 모델 아래 끝보다 조금 더 내려와 보여서 여유를 둡니다
+      const visTop = MODEL.top + 0.02;
+      const visBottom = MODEL.bottom - 0.12;
+      const visH = visTop - visBottom;
+      // 스노우볼 몸체는 아래쪽 UI 뒤로 높이의 30% 까지 들어가도 됩니다.
+      // 단, 명판(이름 글자 · 닉네임 입력칸)은 아래쪽 UI 위에 남깁니다.
+      const behind = UI_OVERLAP * visH;
+      const [, plateY, plateZ] = NAMEPLATE;
+      const plateHalf = safe.plateHalf * toWorld;
+      // 크기 s 일 때 스노우볼을 둘 수 있는 높이 범위.
+      // 명판은 받침대 앞면(카메라 쪽)에 있어 원근 때문에 화면에서 더 아래로 보이므로 그만큼 보정합니다.
+      const range = (sc: number) => {
+        const yMax = bandTop - visTop * sc; // 맨 위는 제목 아래
+        let yMin = bandBottom - (visBottom + behind) * sc; // 몸체는 UI 뒤로 30% 까지
+        if (safe.plateHalf > 0) {
+          const persp = dist / (dist - plateZ * sc); // 명판이 화면에서 커 보이는 비율
+          yMin = Math.max(yMin, (bandBottom + plateHalf) / persp - plateY * sc); // 명판은 UI 위
+        }
+        return [yMin, yMax] as const;
+      };
+      // 겹치지 않는 가장 큰 크기를 찾습니다 (이분 탐색)
+      let lo = 0.05;
+      let hi = scale;
+      if (range(hi)[0] > range(hi)[1]) {
+        for (let i = 0; i < 18; i++) {
+          const midS = (lo + hi) / 2;
+          const [a, b] = range(midS);
+          if (a <= b) lo = midS;
+          else hi = midS;
+        }
+        scale = lo;
+      }
+      const [yMin, yMax] = range(scale);
+      y = vh * (0.5 - layout.centerFromTop) - mid * scale;
+      y = THREE.MathUtils.clamp(y, Math.min(yMin, yMax), yMax);
+    }
     const k = 1 - Math.exp(-delta * (reducedMotion ? 60 : 4)); // 부드럽게 따라가기
     g.scale.setScalar(THREE.MathUtils.lerp(g.scale.x || scale, scale, k));
     g.position.y = THREE.MathUtils.lerp(g.position.y, y, k);
@@ -249,8 +292,9 @@ function Globe(props: StageSceneProps) {
       onPlateMove(
         ((p.x + 1) / 2) * size.width,
         ((1 - p.y) / 2) * size.height,
-        THREE.MathUtils.clamp((facing - 0.7) / 0.2, 0, 1),
-      ); // 정면에 가까울 때만 글자를 보여 줍니다
+        THREE.MathUtils.clamp((facing - 0.7) / 0.2, 0, 1), // 정면에 가까울 때만 글자를 보여 줍니다
+        NAMEPLATE_WIDTH * g.scale.x * (size.height / vh), // 명판 너비(px)
+      );
     }
 
     // 예시 말풍선: 오너먼트 하나의 화면 위치를 알려 줍니다
@@ -294,13 +338,6 @@ function Globe(props: StageSceneProps) {
 
   return (
     <>
-      {showcase && (
-        <OrnamentShowcase
-          state={showcase}
-          globe={group}
-          reducedMotion={reducedMotion}
-        />
-      )}
       <group ref={group}>
         <SnowGlobeModel
           theme={theme}
