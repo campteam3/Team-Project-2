@@ -171,6 +171,7 @@ export default function GlobeView() {
       <div className="flex w-full max-w-md items-center justify-center">
         <div className="h-[55dvh] max-h-[520px] min-h-[300px] w-full touch-none">
           <SnowGlobeScene
+            title={globe.title}
             ornaments={globe.ornaments}
             shakeSignal={shakeSignal}
             selectedId={selectedId}
