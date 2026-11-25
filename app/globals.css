@@ -22,6 +22,7 @@
 
   --animate-rise: rise 400ms var(--ease-soft) both;
   --animate-fade: fade 400ms var(--ease-soft) both;
+  --animate-float: float 6s ease-in-out infinite; /* 둥둥 떠 있기 (404 의 빈 스노우볼) */
 
   @keyframes rise {
     from {
@@ -31,6 +32,15 @@
     to {
       opacity: 1;
       transform: none;
+    }
+  }
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0) rotate(-8deg);
+    }
+    50% {
+      transform: translateY(-14px) rotate(-4deg);
     }
   }
   @keyframes fade {
