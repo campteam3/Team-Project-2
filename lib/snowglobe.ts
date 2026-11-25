@@ -52,7 +52,15 @@ export const GLASS = slotData.glass as { center: [number, number, number]; radiu
 // 한 스노우볼에 달 수 있는 메시지 수. DB 의 제한(supabase/migrations 의 ornament_limit)과 같아야 합니다.
 export const MAX_ORNAMENTS = SLOTS.length;
 
-const DEFAULT_COLORS: Record<string, string> = { red: "#b3121f", gold: "#e9ad3f", cream: "#efe6d0" };
+const DEFAULT_COLORS: Record<string, string> = {
+  red: "#b3121f",
+  gold: "#e9ad3f",
+  cream: "#efe6d0",
+  pink: "#ff3f93",
+  blue: "#2fb0f5",
+  yellow: "#ffb81f",
+  mint: "#22cf8f",
+};
 
 type DefaultOrnament = { slot: number; shape: OrnamentShape; color: string };
 const DEFAULTS = slotData.defaults as DefaultOrnament[];

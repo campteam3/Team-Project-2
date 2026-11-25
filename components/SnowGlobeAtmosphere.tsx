@@ -17,16 +17,19 @@ export function NightLights() {
     <>
       <ambientLight intensity={0.55} color="#5a6aa8" />
       <directionalLight position={[3, 5, -2]} intensity={1.1} color="#a9c2ff" />
-      <directionalLight position={[-2.5, 2.5, 4]} intensity={1.5} color="#ffd7a3" />
+      <directionalLight position={[-2.5, 2.5, 4]} intensity={1.5} color="#ffd98f" />
+      {/* 옆에서 스며드는 은은한 색 조명: 왼쪽 분홍, 오른쪽 하늘색 */}
+      <directionalLight position={[-5, 1.2, 1.5]} intensity={1.6} color="#ff72b8" />
+      <directionalLight position={[5, 1.4, 1]} intensity={1.6} color="#62b4ff" />
       <Environment resolution={256} environmentIntensity={0.7}>
         <mesh scale={30}>
           <sphereGeometry args={[1, 16, 16]} />
           <meshBasicMaterial color="#1b2444" side={THREE.BackSide} />
         </mesh>
         <Lightformer form="rect" intensity={1.4} color="#b8ccff" position={[0, 7, 0]} scale={[7, 7, 1]} />
-        <Lightformer form="rect" intensity={2.6} color="#ffd9a8" position={[-6, 2, 3]} scale={[1.4, 7, 1]} />
-        <Lightformer form="rect" intensity={1.8} color="#ffc98a" position={[6, 1.5, 2]} scale={[1, 4, 1]} />
-        <Lightformer form="ring" intensity={1.5} color="#ffe6c4" position={[0, 2, 7]} scale={2.5} />
+        <Lightformer form="rect" intensity={3.4} color="#ff9fd0" position={[-6, 2, 3]} scale={[1.4, 7, 1]} />
+        <Lightformer form="rect" intensity={3.2} color="#86c6ff" position={[6, 1.5, 2]} scale={[1, 4, 1]} />
+        <Lightformer form="ring" intensity={1.6} color="#ffe9a8" position={[0, 2, 7]} scale={2.5} />
       </Environment>
     </>
   );
@@ -170,7 +173,8 @@ function createSkyMaterial() {
   });
 }
 
-// 유리 안에 떠 있는 작은 빛. 제자리에서 은은하게 밝아졌다 어두워지며, 여러 색이 섞여 있습니다.
+// 유리 안에 떠 있는 작은 빛. 트리 둘레를 천천히 돌며 떠다니고, 은은하게 밝아졌다 어두워집니다.
+// 깊이감: 앞쪽 빛은 크고 흐릿하게, 가운데는 또렷하게, 뒤쪽은 작고 옅게 그리고, 트리 뒤로 지나가면 가려집니다.
 // 가장자리가 완전히 사라지는 동그란 빛으로 그려서 네모난 테두리가 보이지 않습니다.
 const DUST_COLORS = ["#fff1cf", "#fff1cf", "#fff1cf", "#ffc766", "#ffc766", "#ff9d6b", "#ff8fa3", "#9fe8c0", "#9cc8ff"];
 
@@ -179,7 +183,7 @@ export function GlowDust({ still = false }: { still?: boolean }) {
 
   const { geometry, parameters } = useMemo(() => {
     const random = seededRandom(1225);
-    const count = 46;
+    const count = 60;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
@@ -196,7 +200,7 @@ export function GlowDust({ still = false }: { still?: boolean }) {
       positions.set([x, y, z], placed * 3);
       color.set(DUST_COLORS[Math.floor(random() * DUST_COLORS.length)]);
       colors.set([color.r, color.g, color.b], placed * 3);
-      sizes[placed] = 0.022 + random() * 0.03;
+      sizes[placed] = 0.018 + random() * 0.03;
       phases[placed] = random();
       placed++;
     }
@@ -220,12 +224,29 @@ export function GlowDust({ still = false }: { still?: boolean }) {
           uniform float uHeight;
           varying vec3 vColor;
           varying float vGlow;
+          varying float vNear;
           void main() {
-            vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+            // 빛마다 다른 빠르기와 방향으로 트리 둘레를 아주 천천히 돕니다.
+            float turn = uTime * (0.03 + fract(aPhase * 5.0) * 0.05) * (fract(aPhase * 3.0) > 0.5 ? 1.0 : -1.0);
+            float turnC = cos(turn);
+            float turnS = sin(turn);
+            vec3 home = vec3(position.x * turnC - position.z * turnS, position.y, position.x * turnS + position.z * turnC);
+            // 그러면서 제자리 근처를 천천히 떠다닙니다.
+            float seed = aPhase * 6.2832;
+            vec3 drift = vec3(
+              sin(uTime * (0.21 + aPhase * 0.17) + seed * 3.0),
+              sin(uTime * (0.16 + fract(aPhase * 7.0) * 0.15) + seed * 5.0),
+              cos(uTime * (0.19 + fract(aPhase * 13.0) * 0.16) + seed * 2.0)
+            ) * vec3(0.035, 0.05, 0.035);
+            vec4 viewPosition = modelViewMatrix * vec4(home + drift, 1.0);
             gl_Position = projectionMatrix * viewPosition;
             // 스노우볼이 커지거나 작아지면 빛도 같은 비율로
             float modelScale = length(modelViewMatrix[0].xyz);
-            gl_PointSize = aSize * modelScale * projectionMatrix[1][1] * uHeight / (-viewPosition.z);
+            // 유리 구 안에서 얼마나 앞쪽인지: 0 = 맨 뒤, 1 = 맨 앞
+            vec4 centerView = modelViewMatrix * vec4(0.0, 0.55, 0.0, 1.0);
+            vNear = clamp(0.5 + 0.5 * (viewPosition.z - centerView.z) / (0.86 * modelScale), 0.0, 1.0);
+            float depthSize = mix(0.5, 1.4, vNear * vNear);
+            gl_PointSize = aSize * depthSize * modelScale * projectionMatrix[1][1] * uHeight / (-viewPosition.z);
             vColor = aColor;
             vGlow = 0.5 + 0.5 * sin(uTime * (0.5 + aPhase * 0.7) + aPhase * 6.2832);
           }
@@ -233,10 +254,15 @@ export function GlowDust({ still = false }: { still?: boolean }) {
         fragmentShader: /* glsl */ `
           varying vec3 vColor;
           varying float vGlow;
+          varying float vNear;
           void main() {
             float d = length(gl_PointCoord - 0.5) * 2.0;
-            float soft = smoothstep(1.0, 0.0, d);
-            float alpha = soft * soft * (0.35 + 0.65 * vGlow);
+            // 앞쪽 빛은 초점이 나간 것처럼 넓고 고르게 퍼지고, 뒤쪽 빛은 가운데가 밝은 작은 점
+            float blur = smoothstep(0.55, 1.0, vNear);
+            float soft = smoothstep(1.0, mix(0.0, 0.55, blur), d);
+            float shape = mix(soft * soft, soft, blur);
+            float depthFade = mix(0.45, 1.0, smoothstep(0.0, 0.5, vNear)) * mix(1.0, 0.45, blur);
+            float alpha = shape * (0.35 + 0.65 * vGlow) * depthFade;
             gl_FragColor = vec4(vColor * (0.9 + 0.7 * vGlow), alpha);
             #include <colorspace_fragment>
           }

@@ -716,27 +716,27 @@
   {
    "slot": 6,
    "shape": "ball",
-   "color": "red"
+   "color": "pink"
   },
   {
    "slot": 12,
    "shape": "ball",
-   "color": "gold"
+   "color": "yellow"
   },
   {
    "slot": 20,
    "shape": "ball",
-   "color": "red"
+   "color": "blue"
   },
   {
    "slot": 27,
    "shape": "ball",
-   "color": "gold"
+   "color": "mint"
   },
   {
    "slot": 3,
    "shape": "ball",
-   "color": "gold"
+   "color": "pink"
   },
   {
    "slot": 33,
@@ -746,7 +746,7 @@
   {
    "slot": 36,
    "shape": "heart",
-   "color": "red"
+   "color": "pink"
   }
  ]
 }
