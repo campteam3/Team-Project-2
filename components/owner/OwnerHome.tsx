@@ -14,6 +14,7 @@ import { Dock } from "@/components/ui/Dock";
 import { closeGlobe, deleteOrnament, type Globe } from "@/lib/api";
 import { clearOwnerToken, globePath } from "@/lib/owner-token";
 import { loadReadState, saveReadState, type ReadState } from "@/lib/read-state";
+import { MAX_ORNAMENTS } from "@/lib/snowglobe";
 import { parseTheme } from "@/lib/theme";
 import { globeName } from "@/components/friend/FriendFlow";
 import ShareDock from "./ShareDock";
@@ -109,8 +110,13 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
     }
   };
 
+  const full = total >= MAX_ORNAMENTS; // 자리가 모두 찼음. 하나를 지우면 다시 자리가 생깁니다
   const subtitle =
-    total === 0
+    full && opened
+      ? `오너먼트 ${total}개로 가득 찼어요 · ${readCount}개 읽었어요`
+      : full
+        ? `오너먼트 ${total}개로 가득 찼어요`
+        : total === 0
       ? "아직 오너먼트가 없어요"
       : !opened
         ? `오너먼트 ${total}개가 도착했어요`

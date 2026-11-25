@@ -70,8 +70,8 @@ export default function OpeningView() {
       // 문구: Impeccable clarify 로 다듬음. 제목은 "무엇인지", 설명은 제목에 없는 "어떻게"만 (각각 한 줄)
       title="친구 마음이 쌓이는 스노우볼"
       subtitle="링크를 보내면 친구들이 오너먼트를 달아 줘요"
-      hint="드래그로 돌리고, 흔들면 눈이 내려요"
-      hintMobile="폰을 흔들거나 드래그해서 눈을 내려보세요"
+      hint="드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
+      hintMobile="폰을 흔들면 눈이 내리고, 두 손가락으로 크게 볼 수 있어요"
       layout={{ desktop: { centerFromTop: 0.47 }, mobile: { centerFromTop: 0.48 } }}
       // 명판에 실제 이름처럼 보여 줘서 "여기에 내 이름이 새겨진다"를 처음부터 알게 합니다
       plate={<span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">지수의 스노우볼</span>}

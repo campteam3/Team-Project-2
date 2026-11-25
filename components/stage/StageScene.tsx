@@ -149,6 +149,10 @@ function Snow({ color, shakeSignal, reducedMotion, takeDragKick }: SnowProps) {
   );
 }
 
+// 확대 · 축소 범위 (빈 공간에 꼭 맞는 크기 대비)
+const ZOOM_MIN = 0.6;
+const ZOOM_MAX = 2;
+
 function Globe(props: StageSceneProps) {
   const {
     theme,
@@ -179,16 +183,46 @@ function Globe(props: StageSceneProps) {
     return k;
   };
 
-  // 드래그로 돌리기 (마을은 그대로)
+  // 확대 · 축소 배율 (1 = 빈 공간에 꼭 맞는 크기). 입력 단계(lockFront)에서는 입력칸이 가려지지 않게 1 로 고정합니다.
+  const zoom = useRef(1);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef(0); // 두 손가락 사이 거리 (px)
+  useEffect(() => {
+    if (lockFront) zoom.current = 1;
+  }, [lockFront]);
+
+  // 드래그로 돌리기 (마을은 그대로) · 마우스 휠 / 트랙패드 / 두 손가락으로 확대 · 축소 · 두 번 눌러 원래 크기
   useEffect(() => {
     const target = gl.domElement;
+    const setZoom = (z: number) => {
+      if (!lockFront) zoom.current = THREE.MathUtils.clamp(z, ZOOM_MIN, ZOOM_MAX);
+    };
+    const gap = () => {
+      const [a, b] = [...pointers.current.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
     const down = (e: PointerEvent) => {
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      target.setPointerCapture(e.pointerId);
+      if (pointers.current.size === 2) {
+        // 두 손가락: 돌리기를 멈추고 확대 · 축소로
+        drag.current.active = false;
+        pinch.current = gap();
+        return;
+      }
       if (holdRotation) return;
       drag.current.active = true;
       drag.current.x = e.clientX;
-      target.setPointerCapture(e.pointerId);
     };
     const move = (e: PointerEvent) => {
+      if (!pointers.current.has(e.pointerId)) return;
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.current.size >= 2) {
+        const d = gap();
+        if (pinch.current > 0) setZoom(zoom.current * (d / pinch.current));
+        pinch.current = d;
+        return;
+      }
       if (!drag.current.active || !group.current) return;
       const dx = e.clientX - drag.current.x;
       drag.current.x = e.clientX;
@@ -196,18 +230,33 @@ function Globe(props: StageSceneProps) {
       group.current.rotation.y += drag.current.velocity;
       if (Math.abs(dx) > 14) dragKick.current = Math.min(1, Math.abs(dx) / 40);
     };
-    const up = () => (drag.current.active = false);
+    const up = (e: PointerEvent) => {
+      pointers.current.delete(e.pointerId);
+      pinch.current = 0;
+      drag.current.active = false;
+    };
+    const wheel = (e: WheelEvent) => {
+      if (lockFront) return;
+      e.preventDefault(); // 트랙패드 오므리기(ctrl + 휠)로 페이지 전체가 확대되지 않게
+      const unit = e.deltaMode === 1 ? 16 : 1; // 줄 단위 휠은 px 로 바꿉니다
+      setZoom(zoom.current * Math.exp(-e.deltaY * unit * (e.ctrlKey ? 0.01 : 0.0015)));
+    };
+    const reset = () => setZoom(1);
     target.addEventListener("pointerdown", down);
     target.addEventListener("pointermove", move);
     target.addEventListener("pointerup", up);
     target.addEventListener("pointercancel", up);
+    target.addEventListener("wheel", wheel, { passive: false });
+    target.addEventListener("dblclick", reset);
     return () => {
       target.removeEventListener("pointerdown", down);
       target.removeEventListener("pointermove", move);
       target.removeEventListener("pointerup", up);
       target.removeEventListener("pointercancel", up);
+      target.removeEventListener("wheel", wheel);
+      target.removeEventListener("dblclick", reset);
     };
-  }, [gl, holdRotation]);
+  }, [gl, holdRotation, lockFront]);
 
   useFrame((_, delta) => {
     const g = group.current;
@@ -263,6 +312,12 @@ function Globe(props: StageSceneProps) {
       const [yMin, yMax] = range(scale);
       y = vh * (0.5 - layout.centerFromTop) - mid * scale;
       y = THREE.MathUtils.clamp(y, Math.min(yMin, yMax), yMax);
+    }
+    // 확대 · 축소: 스노우볼 가운데를 기준으로 키웁니다 (키우면 UI 뒤로 겹쳐도 됨, 사용자가 고른 크기)
+    if (zoom.current !== 1) {
+      const center = y + mid * scale;
+      scale *= zoom.current;
+      y = center - mid * scale;
     }
     const k = 1 - Math.exp(-delta * (reducedMotion ? 60 : 4)); // 부드럽게 따라가기
     g.scale.setScalar(THREE.MathUtils.lerp(g.scale.x || scale, scale, k));

@@ -27,6 +27,9 @@ const StageScene = dynamic(() => import("./StageScene"), {
 const DESKTOP: GlobeLayout = { height: 0.9, centerFromTop: 0.45 };
 const MOBILE: GlobeLayout = { height: 0.9, centerFromTop: 0.46 };
 
+const HINT_PILL =
+  "max-w-full rounded-full bg-night-900/75 px-4 py-1.5 text-center text-[15px] font-medium text-ink shadow-[0_4px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm";
+
 type MotionPermission = { requestPermission?: () => Promise<"granted" | "denied"> };
 
 export type StageProps = {
@@ -227,8 +230,9 @@ export default function Stage(props: StageProps) {
         <div className="flex-1" />
 
         <footer ref={footerEl} className="flex flex-col items-center gap-3">
-          {(hintMobile ?? hint) && <p className="text-center text-[15px] text-ink-sub sm:hidden">{hintMobile ?? hint}</p>}
-          {hint && <p className="hidden text-center text-[15px] text-ink-sub sm:block">{hint}</p>}
+          {/* 안내 문구는 받침대 위에 겹칠 때가 있어, 어두운 알약 바탕을 깔아 어디서든 읽히게 합니다 */}
+          {(hintMobile ?? hint) && <p className={`${HINT_PILL} sm:hidden`}>{hintMobile ?? hint}</p>}
+          {hint && <p className={`${HINT_PILL} hidden sm:block`}>{hint}</p>}
           {children}
           {below}
         </footer>

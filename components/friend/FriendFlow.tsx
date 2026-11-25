@@ -4,7 +4,8 @@
 // 한 화면 안에서 단계만 바뀌므로 3D 는 한 번만 불러옵니다.
 // DB 호출은 기존 OrnamentForm 과 같은 addOrnament 를 그대로 씁니다. 메시지 내용은 주인만 읽습니다.
 //
-// 개발용 미리보기: /globe/demo?preview=friend 이면 샘플 스노우볼에 저장 없이 달아 봅니다.
+// 개발용 미리보기: /globe/demo?preview=friend 이면 샘플 스노우볼에 저장 없이 달아 봅니다. (&full=1 이면 가득 찬 상태)
+// 가득 참: 오너먼트가 MAX_ORNAMENTS(트리 자리 수 = DB 한도 39)개면 마음 달기 대신 "나도 스노우볼 만들기"를 권합니다.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -12,7 +13,7 @@ import Stage from "@/components/stage/Stage";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { addOrnament, type Globe, type Ornament } from "@/lib/api";
-import { type OrnamentShape } from "@/lib/snowglobe";
+import { MAX_ORNAMENTS, type OrnamentShape } from "@/lib/snowglobe";
 import { ORNAMENT_OPTIONS, parseTheme } from "@/lib/theme";
 import MessageCard from "./MessageCard";
 import OrnamentPickDock from "./OrnamentPickDock";
@@ -20,8 +21,8 @@ import OrnamentPickDock from "./OrnamentPickDock";
 type Step = "view" | "pick" | "write" | "done";
 
 const PENDING = "pending"; // 고르는 중인 내 오너먼트(아직 저장 전)
-const HINT = "드래그로 돌리고, 흔들면 눈이 내려요";
-const HINT_MOBILE = "폰을 흔들거나 드래그해서 눈을 내려보세요";
+const HINT = "드래그로 돌리고, 스크롤로 크게 볼 수 있어요";
+const HINT_MOBILE = "폰을 흔들면 눈이 내리고, 두 손가락으로 크게 볼 수 있어요";
 
 // 스노우볼 이름: 이름을 따로 정하지 않았으면(= 닉네임) "○○의 스노우볼"로 보여 줍니다
 export function globeName(globe: Pick<Globe, "title" | "nickname">) {
@@ -72,6 +73,8 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
   if (mine && !ornaments.some((o) => o.id === mine.id)) ornaments.push(mine);
   if (step === "pick" || step === "write") ornaments.push({ id: PENDING, color, sender_name: "", shape, position: null, created_at: "" });
 
+  const full = count >= MAX_ORNAMENTS; // 자리가 모두 찼음
+
   const plate = <span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{name}</span>;
 
   const submit = async () => {
@@ -86,7 +89,15 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
       setBusy(true);
       const result = await addOrnament(nickname, sender, message, color, shape); // 모양도 함께 저장 (#12 · PR #13)
       setBusy(false);
-      if (!result.ok) return setError(result.message);
+      if (!result.ok) {
+        // 쓰는 사이에 다른 친구가 마지막 자리를 채웠으면, 오류 문구 대신 가득 찬 화면으로 돌아갑니다 (쓴 글은 지우지 않음)
+        if (result.code === "globe_full") {
+          setStep("view");
+          await onAdded();
+          return;
+        }
+        return setError(result.message);
+      }
       setMine(result.data);
       void onAdded(); // 목록을 다시 불러옵니다 (메시지 내용은 오지 않음)
     }
@@ -102,7 +113,15 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
       <Stage
         {...common}
         title={name}
-        subtitle={count > 0 ? `오너먼트 ${count}개가 달려 있어요` : "아직 오너먼트가 없어요. 첫 번째로 마음을 달아 주세요"}
+        subtitle={
+          full
+            ? `오너먼트 ${count}개로 가득 찼어요`
+            : count > 0
+              ? `오너먼트 ${count}개가 달려 있어요`
+              : "아직 오너먼트가 없어요. 첫 번째로 마음을 달아 주세요"
+        }
+        hint={full ? "자리가 모두 찼어요. 이제 마음은 더 달 수 없어요" : HINT}
+        hintMobile={full ? "자리가 모두 찼어요. 이제 마음은 더 달 수 없어요" : HINT_MOBILE}
         highlightId={mine?.id}
         below={
           <Link
@@ -114,9 +133,15 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         }
       >
         <div key={step} className="flex w-full animate-rise justify-center">
-          <Dock label="마음 달기">
-            <Button onClick={() => setStep("pick")}>{mine ? "하나 더 달기" : "마음 달기"}</Button>
-          </Dock>
+          {full ? (
+            <Dock label="다음 할 일">
+              <ButtonLink href="/new">나도 스노우볼 만들기</ButtonLink>
+            </Dock>
+          ) : (
+            <Dock label="마음 달기">
+              <Button onClick={() => setStep("pick")}>{mine ? "하나 더 달기" : "마음 달기"}</Button>
+            </Dock>
+          )}
         </div>
       </Stage>
     );
