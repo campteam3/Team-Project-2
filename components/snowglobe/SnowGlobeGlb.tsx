@@ -460,15 +460,17 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
         mesh.material = star;
         return;
       }
-      const tune = MATERIAL_TUNES[material.name];
+      // Blender 가 내보낼 때 재질 이름 뒤에 ".001" 같은 번호를 붙이는 일이 있어, 번호를 떼고 찾습니다.
+      const name = material.name.replace(/\.\d+$/, "");
+      const tune = MATERIAL_TUNES[name];
       if (!tune) return;
-      let next = tuned.get(material.name);
+      let next = tuned.get(name);
       if (!next) {
         next = material.clone();
         tune(next);
-        if (material.name === TREE_MATERIAL && treeColor) recolor(next, treeColor, 0.2);
-        if (material.name === BASE_MATERIAL && baseColor) recolor(next, baseColor, 0.18);
-        tuned.set(material.name, next);
+        if (name === TREE_MATERIAL && treeColor) recolor(next, treeColor, 0.2);
+        if (name === BASE_MATERIAL && baseColor) recolor(next, baseColor, 0.18);
+        tuned.set(name, next);
       }
       mesh.material = next;
     });
