@@ -11,7 +11,8 @@ dist/
 build/
 .vercel/
 
-# 개인 설정
+# 개인 설정 (작업자 이름은 각자 PC 에만)
+.claude/me.json
 .claude/settings.local.json
 .DS_Store
 Thumbs.db
