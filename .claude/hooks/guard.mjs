@@ -1,9 +1,18 @@
 #!/usr/bin/env node
 // PreToolUse 훅 (Bash · PowerShell): 팀의 고정 규율을 확인한다.
-//  - git commit : main 에서의 커밋을 막고, 위임 로그가 비어 있으면 알려 준다 (막지는 않음)
+//  - git commit : main 에서의 커밋과 개인 이메일로의 커밋을 막고, 위임 로그가 비어 있으면 알려 준다
 //  - git push   : 본인 브랜치인지, main 최신 내용을 받았는지, 위임 로그를 남겼는지 확인 (어기면 막음)
 //  - gh issue create : 받는 팀원 이름이 있는지 확인하고, 사용자 승인을 받게 한다
-import { git, loadMe, loadTeam, nameSetupMessage, nfc, readHookInput } from './team.mjs';
+import {
+  EMAIL_SETUP_MESSAGE,
+  emailIsPrivate,
+  git,
+  loadMe,
+  loadTeam,
+  nameSetupMessage,
+  nfc,
+  readHookInput,
+} from './team.mjs';
 
 const input = readHookInput();
 const command = input?.tool_input?.command ?? '';
@@ -56,6 +65,9 @@ if (isCommit) {
       `커밋이 보류되었습니다: main 에서는 커밋하지 않습니다.`,
       `- 본인 브랜치로 옮기세요: git switch ${me.branch} (없으면 git switch -c ${me.branch})`,
     ]);
+  }
+  if (!emailIsPrivate()) {
+    block(['커밋이 보류되었습니다: 커밋 이메일이 개인 주소입니다.', EMAIL_SETUP_MESSAGE]);
   }
   const logTouched = changedInTree().includes(me.log) || changedSinceMain().includes(me.log);
   if (!logTouched && !isPush) {
