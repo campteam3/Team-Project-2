@@ -31,7 +31,7 @@ type MotionPermission = { requestPermission?: () => Promise<"granted" | "denied"
 
 export type StageProps = {
   theme: GlobeTheme;
-  ornaments?: Pick<Ornament, "id" | "color">[];
+  ornaments?: (Pick<Ornament, "id" | "color"> & { shape?: string })[];
   title: string;
   subtitle?: string;
   display?: boolean; // 오프닝처럼 큰 제목
@@ -42,6 +42,8 @@ export type StageProps = {
   pinKey?: number; // 바뀔 때마다 앞쪽 오너먼트를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때
   highlightId?: string; // 빛나게 보여 줄 오너먼트
+  onSelectOrnament?: (id: string) => void; // 오너먼트를 눌렀을 때 (주인 화면)
+  extraShake?: number; // 바깥에서 눈을 날리고 싶을 때 이 값을 늘립니다 (예: 스노우볼 열기)
   arrivingId?: string; // 지금 막 달리는 오너먼트
   focusId?: string; // 이 오너먼트가 정면에 오도록 스노우볼을 돌립니다
   lockFront?: boolean;
@@ -60,7 +62,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, children, below } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, children, below, onSelectOrnament, extraShake = 0 } = props;
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -169,12 +171,13 @@ export default function Stage(props: StageProps) {
             pinKey={pinKey}
             pinId={pinId}
             highlightId={highlightId}
+            onSelectOrnament={onSelectOrnament}
             arrivingId={arrivingId}
             focusId={focusId}
             getSafeArea={getSafeArea}
             onPinMove={pin ? movePin : undefined}
             lockFront={lockFront}
-            shakeSignal={shakeSignal}
+            shakeSignal={shakeSignal + extraShake}
             reducedMotion={reducedMotion}
           />
         ) : (

@@ -20,6 +20,7 @@ import SnowGlobeModel, {
 } from "./SnowGlobeModel";
 import { NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
 import VillageBackdrop from "./VillageBackdrop";
+import { toShape } from "@/lib/snowglobe";
 
 export type GlobeLayout = {
   height: number; // 스노우볼(구+받침대)이 차지할 화면 높이 비율
@@ -28,12 +29,13 @@ export type GlobeLayout = {
 
 export type StageSceneProps = {
   theme: GlobeTheme;
-  ornaments?: Pick<Ornament, "id" | "color">[];
+  ornaments?: (Pick<Ornament, "id" | "color"> & { shape?: string })[];
   layout: GlobeLayout;
   onPlateMove?: (x: number, y: number, visibility: number, width: number) => void; // 명판 가운데의 화면 좌표(px)와 보이는 정도(0~1)
   pinKey?: number; // 값이 바뀔 때마다 앞쪽을 향한 오너먼트 하나를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때 (pinKey 보다 우선)
   highlightId?: string;
+  onSelectOrnament?: (id: string) => void; // 주인 화면: 오너먼트를 눌러 메시지 읽기
   arrivingId?: string;
   onPinMove?: (x: number, y: number, visibility: number) => void; // 고른 오너먼트 바로 위의 화면 좌표와 보이는 정도
   lockFront?: boolean; // 명판에 입력할 때는 앞면을 고정합니다
@@ -162,6 +164,8 @@ function Globe(props: StageSceneProps) {
     reducedMotion,
   } = props;
   const focusIndex = focusId ? ornaments.findIndex((o) => o.id === focusId) : -1;
+  // n 번째 오너먼트의 자리. 아직 달리지 않은 오너먼트(미리보기)는 모양에 따라 자리가 달라서 모양을 함께 넘깁니다.
+  const spotOf = (i: number) => ornamentPosition(i, toShape(ornaments[i]?.shape ?? "ball"));
   const holdRotation = lockFront || focusIndex >= 0; // 정해진 방향으로 돌리는 동안에는 드래그로 돌리지 않습니다
   const group = useRef<THREE.Group>(null);
   const { camera, size, gl } = useThree();
@@ -266,7 +270,7 @@ function Globe(props: StageSceneProps) {
 
     if (focusIndex >= 0 && !lockFront) {
       // 고른 오너먼트가 정면에 오는 각도 중 지금과 가장 가까운 곳으로 돌아갑니다
-      const [ox, , oz] = ornamentPosition(focusIndex);
+      const [ox, , oz] = spotOf(focusIndex);
       const want = Math.atan2(-ox, oz);
       const target =
         want + Math.round((g.rotation.y - want) / (Math.PI * 2)) * Math.PI * 2;
@@ -302,7 +306,7 @@ function Globe(props: StageSceneProps) {
     if (onPinMove && ornaments.length) {
       const n = ornaments.length;
       const facingOf = (i: number) => {
-        const [x, , z] = ornamentPosition(i);
+        const [x, , z] = spotOf(i);
         const r = Math.hypot(x, z) || 1;
         return (-x * Math.sin(g.rotation.y) + z * Math.cos(g.rotation.y)) / r; // 1 이면 정면
       };
@@ -317,7 +321,7 @@ function Globe(props: StageSceneProps) {
           const score =
             facingOf(i) +
             (i === pin.current.index ? -1 : 0) +
-            (ornamentPosition(i)[1] > -0.1 ? 0.3 : 0);
+            (spotOf(i)[1] > -0.1 ? 0.3 : 0);
           if (score > bestScore) {
             bestScore = score;
             best = i;
@@ -325,7 +329,7 @@ function Globe(props: StageSceneProps) {
         }
         pin.current = { key: pinKey, index: best };
       }
-      const [x, y, z] = ornamentPosition(pin.current.index);
+      const [x, y, z] = spotOf(pin.current.index);
       g.updateMatrixWorld();
       const p = platePoint.current.set(x, y + 0.07, z);
       g.localToWorld(p).project(camera);
@@ -344,6 +348,8 @@ function Globe(props: StageSceneProps) {
           theme={theme}
           ornaments={ornaments}
           highlightId={props.highlightId}
+          selectedId={props.onSelectOrnament ? (props.highlightId ?? null) : undefined}
+          onSelect={props.onSelectOrnament}
           arrivingId={props.arrivingId}
           reducedMotion={reducedMotion}
         />

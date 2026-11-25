@@ -1,11 +1,18 @@
 "use client";
 
-// 02 꾸미기 도크 (시안 C = 시안 A 의 02): 꾸밀 곳 4개 · 색 3개 · 다음
-// 넓은 화면에서는 한 줄, 휴대폰에서는 두 줄(꾸밀 곳 / 색 + 다음)로 놓입니다.
+// 02 꾸미기 도크 (시안 C = 시안 A 의 02)
+//  - 넓은 화면: 한 줄 도크 (꾸밀 곳 4개 · 선택지 3개 · 다음)
+//  - 휴대폰: 도크 두 개. 위 도크는 꾸밀 곳 4칸, 아래 도크는 고른 곳의 선택지 3칸 + 다음.
+//    두 도크는 같은 너비 · 같은 칸 나눔으로 정렬하고, 선택지에는 이름을 함께 보여 줍니다.
 
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
-import { THEME_PARTS, type GlobeTheme, type ThemePart } from "@/lib/theme";
+import { THEME_PARTS, type GlobeTheme, type ThemeOption, type ThemePart } from "@/lib/theme";
+
+// 소품은 색이 아니라 모양으로 고르므로 그림 아이콘으로 보여 줍니다 (처음 보는 사람도 눌러 보지 않고 알 수 있게)
+// 아이콘: public/icons/prop-*.svg (Figma AI 벡터, Figma 파일의 "Icons · 꾸미기 소품" 판)
+const PROP_ICON: Record<string, string> = { gift: "/icons/prop-gift.svg", snowman: "/icons/prop-snowman.svg", both: "/icons/prop-both.svg" };
 
 type Props = {
   theme: GlobeTheme;
@@ -15,36 +22,45 @@ type Props = {
   onNext: () => void;
 };
 
+// 선택지 하나의 그림 (소품은 아이콘, 나머지는 색 동그라미)
+function OptionMark({ part, option, size }: { part: ThemePart; option: ThemeOption; size: number }) {
+  if (part === "prop") {
+    return <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size + 4} height={size + 4} unoptimized />;
+  }
+  return <span className="rounded-full border border-glass-border" style={{ background: option.color, width: size, height: size }} />;
+}
+
+const sheetTitle = (part: ThemePart, label: string) => (part === "prop" ? "소품 고르기" : `${label} 색 고르기`);
+
 export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: Props) {
   const current = THEME_PARTS.find((p) => p.key === part)!;
 
   return (
-    <Dock label="스노우볼 꾸미기" className="max-sm:w-full max-sm:flex-col max-sm:items-stretch max-sm:rounded-[28px]">
-      <div className="flex items-center justify-between gap-1 sm:justify-start" role="group" aria-label="꾸밀 곳">
-        {THEME_PARTS.map((p) => {
-          const selected = p.key === part;
-          return (
-            <button
-              key={p.key}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onPart(p.key)}
-              className={`h-11 shrink-0 rounded-full px-4 text-[15px] transition duration-200 ease-soft sm:px-5 ${
-                selected
-                  ? "bg-glass-strong font-bold text-ink ring-2 ring-inset ring-accent"
-                  : "font-medium text-ink-sub hover:text-ink"
-              }`}
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
+    <>
+      {/* 넓은 화면: 한 줄 도크 */}
+      <Dock label="스노우볼 꾸미기" className="max-sm:hidden">
+        <div className="flex items-center gap-1" role="group" aria-label="꾸밀 곳">
+          {THEME_PARTS.map((p) => {
+            const selected = p.key === part;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => onPart(p.key)}
+                className={`h-11 shrink-0 rounded-full px-5 text-[15px] transition duration-200 ease-soft ${
+                  selected ? "bg-glass-strong font-bold text-ink ring-2 ring-inset ring-accent" : "font-medium text-ink-sub hover:text-ink"
+                }`}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
 
-      <span className="mx-1.5 hidden h-7 w-px bg-glass-strong sm:block" aria-hidden="true" />
+        <span className="mx-1.5 h-7 w-px bg-glass-strong" aria-hidden="true" />
 
-      <div className="flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1" role="group" aria-label={`${current.label} 색`}>
+        <div className="flex items-center gap-1" role="group" aria-label={sheetTitle(part, current.label)}>
           {current.options.map((o) => {
             const selected = theme[part] === o.id;
             return (
@@ -59,15 +75,64 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
                   selected ? "ring-2 ring-inset ring-accent" : "hover:bg-glass"
                 }`}
               >
-                <span className="size-8 rounded-full border border-glass-border" style={{ backgroundColor: o.color }} />
+                <OptionMark part={part} option={o} size={32} />
               </button>
             );
           })}
         </div>
-        <Button onClick={onNext} className="sm:ml-1">
+        <Button onClick={onNext} className="ml-1">
           다음
         </Button>
+      </Dock>
+
+      {/* 휴대폰: 도크 두 개 — 위는 꾸밀 곳 4칸, 아래는 고른 곳의 선택지 3칸 + 다음 (항상 보임) */}
+      <div className="flex w-full flex-col gap-2 sm:hidden">
+        <Dock label="꾸밀 곳" className="w-full">
+          <div className="grid w-full grid-cols-4 gap-1" role="group" aria-label="꾸밀 곳">
+            {THEME_PARTS.map((p) => {
+              const selected = p.key === part;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onPart(p.key)}
+                  className={`h-11 rounded-full text-[15px] transition duration-200 ease-soft ${
+                    selected ? "bg-glass-strong font-bold text-ink ring-2 ring-inset ring-accent" : "font-medium text-ink-sub"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </Dock>
+
+        <Dock label={sheetTitle(part, current.label)} className="w-full !rounded-[28px]">
+          <div className="grid min-w-0 flex-1 grid-cols-3 gap-1" role="group" aria-label={sheetTitle(part, current.label)}>
+            {current.options.map((o) => {
+              const selected = theme[part] === o.id;
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onPick(part, o.id)}
+                  className={`flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-2xl px-1 transition duration-200 ease-soft ${
+                    selected ? "bg-glass-strong ring-2 ring-inset ring-accent" : ""
+                  }`}
+                >
+                  <OptionMark part={part} option={o} size={28} />
+                  <span className={`max-w-full truncate text-xs ${selected ? "font-bold text-ink" : "text-ink-sub"}`}>{o.label}</span>
+                </button>
+              );
+            })}
+          </div>
+          <Button onClick={onNext} className="ml-1 !h-[62px] !rounded-[20px] !px-5">
+            다음
+          </Button>
+        </Dock>
       </div>
-    </Dock>
+    </>
   );
 }

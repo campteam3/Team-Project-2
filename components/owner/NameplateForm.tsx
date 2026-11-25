@@ -17,7 +17,8 @@ const COLUMN = "w-[232px] max-w-full sm:w-[264px]"; // 휴대폰에서는 받침
 export function NameplateInput({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <div className="relative flex items-center">
-      <p className="absolute right-full mr-5 hidden items-center gap-2 whitespace-nowrap text-sm font-medium text-ink lg:flex" aria-hidden="true">
+      <p className="absolute right-full mr-4 hidden items-center gap-2 whitespace-nowrap rounded-full bg-night-900/80 px-3 py-1.5 text-sm font-medium text-ink shadow-[0_4px_12px_rgba(0,0,0,0.35)] lg:flex" aria-hidden="true">
+        {/* 받침대 장식 위에서도 읽히도록 어두운 바탕을 깝니다 */}
         여기에 닉네임을 새겨 주세요
         <Icon name="arrow-right" size={18} />
       </p>
