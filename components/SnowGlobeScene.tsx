@@ -7,7 +7,7 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import type { Ornament } from "@/lib/sample-data";
+import type { Ornament } from "@/lib/api";
 
 const SNOW_COUNT = 500;
 const GLOBE_RADIUS = 0.94;
