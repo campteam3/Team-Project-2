@@ -46,6 +46,7 @@ Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니�
 | `components/GlobeView.tsx`, `components/SnowGlobeScene.tsx` | 3D 실험 화면: 돌려 보기, 흔들면 눈, 오너먼트 누르면 메시지. 자유롭게 바꾸거나 새로 만들어도 됩니다 |
 | `lib/sample-data.ts` | 샘플 오너먼트. DB 연결 전까지 화면 작업에 씁니다 |
 | `lib/supabase.ts`, `.env.example` | Supabase 연결 자리. 키가 없어도 앱은 실행됩니다 |
+| `db.md`, `supabase/migrations/` | DB 설계와 SQL. 테이블은 직접 못 읽고 `supabase.rpc()` 로 함수만 부릅니다. 함수 목록과 오류 이름은 `db.md` 6번 |
 
 - 실행: `npm run dev` · 확인: `npm run lint`, `npm run build`
 - **이 Next.js 는 16 버전이라 예전 방식과 다른 점이 있습니다.** 코드를 쓰기 전에 `AGENTS.md` 의 안내대로 `node_modules/next/dist/docs/` 의 해당 문서를 확인하세요.
