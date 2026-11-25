@@ -8,7 +8,17 @@
 
 이 파일은 팀원 세 명의 에이전트가 세션마다 읽는 공통 안내입니다.
 
-## 작업자 확인 (세션을 시작하면 가장 먼저)
+## 작업 준비 확인 (세션을 시작하면 가장 먼저)
+
+세션이 시작되면 훅이 `[팀 프로젝트] 작업자: ...` 로 시작하는 안내를 줍니다. **이 안내가 보이지 않으면 훅이 돌지 않은 것**이고, 대개 Node.js 가 없어서입니다. 작업 전에 아래를 확인하세요.
+
+1. **Node.js**: `node -v` 를 실행합니다. 명령이 없거나 20 미만이면 사용자에게 알리고 LTS 버전을 설치합니다 (Windows: `winget install OpenJS.NodeJS.LTS` / Mac: `brew install node`). 설치 뒤에는 Claude Code 를 다시 열어야 훅이 동작합니다.
+2. **GitHub CLI 로그인**: `gh auth status` 를 실행합니다. 로그인이 안 되어 있으면 사용자에게 터미널에서 `gh auth login` 을 하도록 안내합니다. `gh` 가 없으면 먼저 설치합니다 (Windows: `winget install GitHub.cli` / Mac: `brew install gh`).
+3. **패키지**: `node_modules` 가 없으면 `npm install` 을 실행합니다.
+
+훅이 돌았다면 2번과 3번은 훅이 대신 확인해서, 문제가 있을 때만 `[작업 준비 확인]` 으로 알려 줍니다.
+
+## 작업자 확인
 
 - 세션이 시작되면 훅이 지금 작업자가 누구인지 알려 줍니다.
 - "작업자 이름이 설정되지 않았습니다"라고 나오면, 사용자에게 이름을 묻고 `.claude/me.json`에 `{"name": "이름"}`을 저장한 뒤 본인 브랜치로 전환합니다. 이 파일은 git에 올라가지 않으며, 한 번만 하면 됩니다.
@@ -23,7 +33,23 @@
 
 ## 일하는 방식
 
-작업은 각자의 에이전트가 주도적으로 진행합니다. 무엇을 어떻게 만들지는 작업자와 상의해 자유롭게 정하세요. `PRD.md`는 확정이 아닌 초안이라 그대로 따르지 않아도 됩니다. 폴더 구조와 기술 선택도 필요에 따라 정하면 됩니다.
+작업은 각자의 에이전트가 주도적으로 진행합니다. **이번에 무슨 작업을 맡을지는 작업자가 작업 전에 직접 알려 줍니다.** 아직 듣지 못했다면 먼저 물어보세요. 어떻게 만들지는 작업자와 상의해 자유롭게 정하면 됩니다. `PRD.md`는 확정이 아닌 초안이라 그대로 따르지 않아도 됩니다. 폴더 구조도 필요에 따라 바꿔도 됩니다.
+
+## 앱 구조 (지금 있는 것)
+
+Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니다.
+
+| 위치 | 내용 |
+| --- | --- |
+| `app/page.tsx` | 랜딩 자리 |
+| `app/globe/[id]/page.tsx` | 스노우볼 보기 (`/globe/demo` 로 확인) |
+| `components/GlobeView.tsx`, `components/SnowGlobeScene.tsx` | 3D 실험 화면: 돌려 보기, 흔들면 눈, 오너먼트 누르면 메시지. 자유롭게 바꾸거나 새로 만들어도 됩니다 |
+| `lib/sample-data.ts` | 샘플 오너먼트. DB 연결 전까지 화면 작업에 씁니다 |
+| `lib/supabase.ts`, `.env.example` | Supabase 연결 자리. 키가 없어도 앱은 실행됩니다 |
+
+- 실행: `npm run dev` · 확인: `npm run lint`, `npm run build`
+- **이 Next.js 는 16 버전이라 예전 방식과 다른 점이 있습니다.** 코드를 쓰기 전에 `AGENTS.md` 의 안내대로 `node_modules/next/dist/docs/` 의 해당 문서를 확인하세요.
+- push 하기 전에 `npm run build` 가 통과하는지 확인합니다.
 
 다만 **아래 다섯 가지는 고정 규율**입니다. 누구든 반드시 지킵니다.
 
