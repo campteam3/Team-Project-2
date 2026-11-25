@@ -128,7 +128,8 @@ export default function LoginView() {
             autoFocus={!askName}
             autoComplete="current-password"
             placeholder="비밀번호 (4자 이상)"
-            className="glass h-12 w-full rounded-full px-5 text-base text-ink outline-none placeholder:text-ink-sub/70 focus:ring-2 focus:ring-ink"
+            // 받침대(어두운 색 · 장식) 위에 겹쳐도 잘 보이도록 진한 바탕 + 밝은 테두리
+            className="h-12 w-full rounded-full border border-ink/45 bg-night-900/85 px-5 text-base text-ink shadow-[0_6px_20px_rgba(0,0,0,0.45)] outline-none backdrop-blur-md placeholder:text-ink-sub focus:border-ink focus:ring-2 focus:ring-ink"
           />
         </label>
 
