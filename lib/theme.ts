@@ -21,10 +21,12 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
   {
     key: "prop",
     label: "소품",
+    // 별은 트리 꼭대기에 항상 있고, 트리 아래 소품만 고릅니다 (#14 에서 이민정 님과 정함)
+    // color 는 고르기 버튼에 칠하는 값입니다 (CSS background 값)
     options: [
-      { id: "star", label: "금빛 별", color: "#F2C46D" },
       { id: "gift", label: "선물 상자", color: "#C8363D" },
       { id: "snowman", label: "눈사람", color: "#F5F1EA" },
+      { id: "both", label: "둘 다", color: "linear-gradient(135deg, #C8363D 50%, #F5F1EA 50%)" },
     ],
   },
   {
@@ -47,7 +49,7 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
   },
 ];
 
-export const DEFAULT_THEME: GlobeTheme = { tree: "green", prop: "star", base: "red", snow: "white" };
+export const DEFAULT_THEME: GlobeTheme = { tree: "green", prop: "both", base: "red", snow: "white" };
 
 export function themeOption(part: ThemePart, id: string): ThemeOption {
   const options = THEME_PARTS.find((p) => p.key === part)!.options;

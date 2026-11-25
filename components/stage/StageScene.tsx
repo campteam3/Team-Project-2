@@ -27,7 +27,7 @@ export type GlobeLayout = {
 
 export type StageSceneProps = {
   theme: GlobeTheme;
-  ornaments?: Pick<Ornament, "id" | "color">[];
+  ornaments?: (Pick<Ornament, "id" | "color"> & { shape?: string })[];
   layout: GlobeLayout;
   onPlateMove?: (x: number, y: number, visibility: number, width: number) => void; // 명판 가운데의 화면 좌표(px)와 보이는 정도(0~1)
   pinKey?: number; // 값이 바뀔 때마다 앞쪽을 향한 오너먼트 하나를 새로 고릅니다

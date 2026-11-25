@@ -12,6 +12,7 @@ import Stage from "@/components/stage/Stage";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { addOrnament, type Globe, type Ornament } from "@/lib/api";
+import { type OrnamentShape } from "@/lib/snowglobe";
 import { ORNAMENT_OPTIONS, parseTheme } from "@/lib/theme";
 import MessageCard from "./MessageCard";
 import OrnamentPickDock from "./OrnamentPickDock";
@@ -46,6 +47,7 @@ type Props = {
 export default function FriendFlow({ nickname, globe, preview = false, onAdded }: Props) {
   const [step, setStep] = useState<Step>("view");
   const [colorId, setColorId] = useState(ORNAMENT_OPTIONS[0].id);
+  const [shape, setShape] = useState<OrnamentShape>("ball");
   const [sender, setSender] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -68,7 +70,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
   // 3D 에 그릴 오너먼트: 기존 + (고르는 중이면) 미리 보기 + (달았으면) 내 오너먼트
   const ornaments = [...globe.ornaments];
   if (mine && !ornaments.some((o) => o.id === mine.id)) ornaments.push(mine);
-  if (step === "pick" || step === "write") ornaments.push({ id: PENDING, color, sender_name: "", shape: "ball", position: null, created_at: "" });
+  if (step === "pick" || step === "write") ornaments.push({ id: PENDING, color, sender_name: "", shape, position: null, created_at: "" });
 
   const plate = <span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{name}</span>;
 
@@ -79,10 +81,10 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
     setError("");
 
     if (preview) {
-      setMine({ id: `preview-${Date.now()}`, color, sender_name: sender, shape: "ball", position: null, created_at: "" });
+      setMine({ id: `preview-${Date.now()}`, color, sender_name: sender, shape, position: null, created_at: "" });
     } else {
       setBusy(true);
-      const result = await addOrnament(nickname, sender, message, color);
+      const result = await addOrnament(nickname, sender, message, color, shape); // 모양도 함께 저장 (#12 · PR #13)
       setBusy(false);
       if (!result.ok) return setError(result.message);
       setMine(result.data);
@@ -124,7 +126,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
     return (
       <Stage
         {...common}
-        title="오너먼트 색을 골라 주세요"
+        title="오너먼트를 골라 주세요"
         subtitle="1 / 2 단계"
         hint="고른 오너먼트가 트리에서 빛나고 있어요"
         hintMobile="고른 오너먼트가 트리에서 빛나고 있어요"
@@ -134,7 +136,14 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         pin={<PinLabel text="내 오너먼트" />}
       >
         <div key={step} className="flex w-full animate-rise justify-center">
-          <OrnamentPickDock colorId={colorId} onPick={setColorId} onBack={() => setStep("view")} onNext={() => setStep("write")} />
+          <OrnamentPickDock
+            shape={shape}
+            onShape={setShape}
+            colorId={colorId}
+            onPick={setColorId}
+            onBack={() => setStep("view")}
+            onNext={() => setStep("write")}
+          />
         </div>
       </Stage>
     );

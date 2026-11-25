@@ -31,7 +31,7 @@ type MotionPermission = { requestPermission?: () => Promise<"granted" | "denied"
 
 export type StageProps = {
   theme: GlobeTheme;
-  ornaments?: Pick<Ornament, "id" | "color">[];
+  ornaments?: (Pick<Ornament, "id" | "color"> & { shape?: string })[];
   title: string;
   subtitle?: string;
   display?: boolean; // 오프닝처럼 큰 제목

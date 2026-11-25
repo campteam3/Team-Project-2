@@ -5,8 +5,8 @@
 // 이민정 님의 3D 스노우볼(GLB)이 나오면 이 파일만 바꿉니다.
 //   1) 파일을 public/models/snowglobe.glb 에 둡니다.
 //   2) 아래 Placeholder 대신 drei 의 useGLTF("/models/snowglobe.glb") 로 장면을 불러옵니다.
-//   3) 꾸미기 색은 GLB 안의 이름이 Tree / Prop_star / Prop_gift / Prop_snowman / Base 인
-//      메시의 material.color 를 theme 값으로 바꿔 줍니다.
+//   3) 꾸미기 색은 GLB 안의 이름이 Tree / Base 인 메시의 material.color 를 theme 값으로 바꿔 줍니다.
+//      소품: Prop_star 는 항상, Prop_gift · Prop_snowman 은 theme.prop(gift | snowman | both)에 맞춰 보이기 · 숨기기.
 //   4) 크기와 기준점은 아래 MODEL 값과 맞춰 주세요. 바깥(StageScene)은 이 값으로
 //      화면 크기와 위치를 계산하고, 명판 입력칸을 NAMEPLATE 위치에 붙입니다.
 // ─────────────────────────────────────────────────────────────
@@ -42,15 +42,51 @@ export function ornamentPosition(index: number): [number, number, number] {
 const DROP_FROM: [number, number, number] = [0, 0.86, 0];
 const DROP_SECONDS = 1.6;
 
+// 별 · 하트 도형 (임시 모델용, 진짜 모델이 합쳐지면 이민정 님 ornaments.glb 로 바뀝니다)
+function starShape() {
+  const s = new THREE.Shape();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 ? 0.45 : 1;
+    const a = Math.PI / 2 + (i * Math.PI) / 5;
+    if (i === 0) s.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    else s.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  s.closePath();
+  return s;
+}
+function heartShape() {
+  const s = new THREE.Shape();
+  s.moveTo(0, -0.9);
+  s.bezierCurveTo(-0.15, -0.7, -1, -0.25, -1, 0.25);
+  s.bezierCurveTo(-1, 0.75, -0.45, 1, 0, 0.55);
+  s.bezierCurveTo(0.45, 1, 1, 0.75, 1, 0.25);
+  s.bezierCurveTo(1, -0.25, 0.15, -0.7, 0, -0.9);
+  return s;
+}
+function shapeGeometry(shape: string) {
+  const g = new THREE.ExtrudeGeometry(shape === "heart" ? heartShape() : starShape(), {
+    depth: 0.35,
+    bevelEnabled: true,
+    bevelThickness: 0.08,
+    bevelSize: 0.06,
+    bevelSegments: 2,
+  });
+  g.center();
+  g.scale(0.062, 0.062, 0.062);
+  return g;
+}
+
 function OrnamentBall({
   index,
   color,
+  shape = "ball",
   highlight,
   arriving,
   reducedMotion,
 }: {
   index: number;
   color: string;
+  shape?: string; // ball · star · heart
   highlight: boolean;
   arriving: boolean;
   reducedMotion: boolean;
@@ -58,6 +94,8 @@ function OrnamentBall({
   const ref = useRef<THREE.Group>(null);
   const start = useRef<number | null>(null);
   const target = ornamentPosition(index);
+  const geometry = useMemo(() => (shape === "star" || shape === "heart" ? shapeGeometry(shape) : null), [shape]);
+  const facing = Math.atan2(target[0], target[2]); // 별 · 하트가 트리 바깥쪽을 보게
 
   useFrame(({ clock }) => {
     const g = ref.current;
@@ -78,8 +116,8 @@ function OrnamentBall({
 
   return (
     <group ref={ref} position={arriving && !reducedMotion ? DROP_FROM : target}>
-      <mesh>
-        <sphereGeometry args={[0.052, 24, 24]} />
+      <mesh geometry={geometry ?? undefined} rotation={[0, facing, 0]}>
+        {!geometry && <sphereGeometry args={[0.052, 24, 24]} />}
         <meshStandardMaterial
           color={color}
           metalness={0.45}
@@ -100,7 +138,7 @@ function OrnamentBall({
 
 type Props = ThreeElements["group"] & {
   theme: GlobeTheme;
-  ornaments?: Pick<Ornament, "id" | "color">[];
+  ornaments?: (Pick<Ornament, "id" | "color"> & { shape?: string })[];
   highlightId?: string; // 빛나게 보여 줄 오너먼트 (친구가 고른 것)
   arrivingId?: string; // 지금 막 달리는 오너먼트
   reducedMotion?: boolean;
@@ -152,14 +190,14 @@ export default function SnowGlobeModel({ theme, ornaments = [], highlightId, arr
         ))}
       </group>
 
-      {/* 소품 */}
-      {theme.prop === "star" && (
+      {/* 소품: 별은 트리 꼭대기에 항상, 선물 · 눈사람은 고른 것만 (prop: gift | snowman | both) */}
+      {(
         <mesh name="Prop_star" position={[0, 0.6, 0]}>
           <octahedronGeometry args={[0.08, 0]} />
           <meshStandardMaterial color="#F2C46D" emissive="#F2C46D" emissiveIntensity={0.9} roughness={0.3} />
         </mesh>
       )}
-      {theme.prop === "gift" && (
+      {(theme.prop === "gift" || theme.prop === "both") && (
         <group name="Prop_gift" position={[0.36, -0.46, 0.3]} rotation={[0, 0.5, 0]}>
           <mesh>
             <boxGeometry args={[0.18, 0.16, 0.18]} />
@@ -171,7 +209,7 @@ export default function SnowGlobeModel({ theme, ornaments = [], highlightId, arr
           </mesh>
         </group>
       )}
-      {theme.prop === "snowman" && (
+      {(theme.prop === "snowman" || theme.prop === "both") && (
         <group name="Prop_snowman" position={[-0.38, -0.44, 0.28]}>
           <mesh>
             <sphereGeometry args={[0.1, 24, 24]} />
@@ -194,6 +232,7 @@ export default function SnowGlobeModel({ theme, ornaments = [], highlightId, arr
           key={o.id}
           index={i}
           color={o.color}
+          shape={o.shape}
           highlight={o.id === highlightId}
           arriving={o.id === arrivingId}
           reducedMotion={reducedMotion}
