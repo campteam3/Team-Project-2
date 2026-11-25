@@ -38,3 +38,6 @@ next-env.d.ts
 *.blend1
 design/blender/render_*.png
 !design/blender/render_v23.png
+
+# 화면 확인용 스크린샷 (Playwright)
+.playwright-mcp/

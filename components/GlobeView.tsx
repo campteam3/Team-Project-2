@@ -6,6 +6,14 @@ import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SAMPLE_ORNAMENTS } from "@/lib/sample-data";
+import type { GlobeOrnament, OrnamentShape } from "@/lib/snowglobe";
+
+// 샘플 메시지에는 아직 모양이 없어서, 화면 확인용으로 볼·별·하트를 번갈아 붙입니다.
+const DEMO_SHAPES: OrnamentShape[] = ["ball", "star", "heart", "ball", "ball"];
+const DEMO_ORNAMENTS: GlobeOrnament[] = SAMPLE_ORNAMENTS.map((ornament, index) => ({
+  ...ornament,
+  shape: DEMO_SHAPES[index % DEMO_SHAPES.length],
+}));
 
 // 3D 장면은 브라우저에서만 그립니다.
 const SnowGlobeScene = dynamic(() => import("./SnowGlobeScene"), {
@@ -21,7 +29,7 @@ export default function GlobeView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const lastShake = useRef(0);
 
-  const ornaments = SAMPLE_ORNAMENTS;
+  const ornaments = DEMO_ORNAMENTS;
   const selected = ornaments.find((ornament) => ornament.id === selectedId) ?? null;
 
   // 휴대폰을 흔들면 눈이 내립니다.
