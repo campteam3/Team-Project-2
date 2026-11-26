@@ -43,10 +43,10 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     options: [
       { id: "red", label: "레드", color: "#ED4034" },
       { id: "wood", label: "나무", color: "#4B2F21" },
-      { id: "night", label: "남색", color: "#1B3478" },
+      { id: "night", label: "남색", color: "#18274F" },
       { id: "white", label: "흰색", color: "#F2EFE9" },
       { id: "pink", label: "분홍", color: "#F6C6D3" },
-      { id: "green", label: "초록", color: "#1F7558" },
+      { id: "green", label: "초록", color: "#1B4D3C" },
       { id: "black", label: "검정", color: "#28292E" },
     ],
   },
