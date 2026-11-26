@@ -42,7 +42,7 @@ export type PlacedOrnament<T extends OrnamentLike = OrnamentLike> = {
   // 오너먼트를 놓을 위치와 크기 (자리 값에서 계산)
   position: [number, number, number];
   scale: number;
-  // 기본 장식이면 null
+  // 달린 메시지. 기본 장식을 달던 때에는 null 이었고, 지금은 항상 값이 있습니다.
   ornament: T | null;
 };
 
@@ -52,25 +52,36 @@ export const GLASS = slotData.glass as { center: [number, number, number]; radiu
 // 한 스노우볼에 달 수 있는 메시지 수. DB 의 제한(supabase/migrations 의 ornament_limit)과 같아야 합니다.
 export const MAX_ORNAMENTS = SLOTS.length;
 
-const DEFAULT_COLORS: Record<string, string> = {
-  red: "#b3121f",
-  gold: "#e9ad3f",
-  cream: "#efe6d0",
-  pink: "#ff3f93",
-  blue: "#2fb0f5",
-  yellow: "#ffb81f",
-  mint: "#22cf8f",
-};
+// 예전에는 처음부터 기본 장식이 달려 있었습니다. 친구가 단 오너먼트와 구별이 안 된다는 피드백(FEEDBACK B1)으로 더 달지 않습니다.
 
-type DefaultOrnament = { slot: number; shape: OrnamentShape; color: string };
-const DEFAULTS = slotData.defaults as DefaultOrnament[];
-const DEFAULT_SLOTS = new Set(DEFAULTS.map((item) => item.slot));
+// 오너먼트는 정면(명판이 있는 쪽, +z)부터 답니다: 앞쪽 → 옆 → 뒤.
+// 정면에서 벗어난 각도(0 = 정면, π = 뒤)
+const offFront = (slot: Slot) => Math.abs(Math.atan2(slot.position[0], slot.position[2]));
+// 0: 앞쪽(정면에서 60도 안), 1: 옆, 2: 뒤
+const side = (slot: Slot) => (offFront(slot) < Math.PI / 3 ? 0 : offFront(slot) < (Math.PI * 2) / 3 ? 1 : 2);
+// 자리 사이의 거리 (자리 번호는 SLOTS 의 순서와 같습니다)
+const APART = SLOTS.map((a) => SLOTS.map((b) => Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1], a.position[2] - b.position[2])));
+// 자리마다의 기본 점수: 앞쪽일수록, 모양에 맞는 종류(kind)일수록, 정면에 가까울수록 높습니다.
+// 볼은 매다는 자리가, 별 · 하트는 얹는 자리가 맞는 자리입니다. 앞쪽에 맞는 자리가 없으면 앞쪽의 다른 종류 자리를 쓰고, 그다음에 옆 · 뒤로 넘어갑니다.
+const baseScore = (kind: Slot["kind"]) => SLOTS.map((slot) => -side(slot) * 10 - Number(slot.kind !== kind) * 5 - offFront(slot) * 0.3);
+const BASE_SCORE = { hang: baseScore("hang"), slope: baseScore("slope") };
 
-// 메시지가 한쪽에 몰리지 않도록 자리를 건너뛰며 채우는 순서
-const FILL_ORDER = [...SLOTS].sort((a, b) => ((a.id * 17) % SLOTS.length) - ((b.id * 17) % SLOTS.length));
-// 볼은 매다는 자리를 먼저, 별 · 하트는 얹는 자리를 먼저 씁니다. 자리가 모자라면 다른 종류의 자리도 씁니다.
-const HANG_FIRST = [...FILL_ORDER].sort((a, b) => Number(a.kind === "slope") - Number(b.kind === "slope"));
-const SLOPE_FIRST = [...FILL_ORDER].sort((a, b) => Number(a.kind === "hang") - Number(b.kind === "hang"));
+// 비어 있는 자리 중 가장 좋은 자리. 한곳에 몰리지 않게, 이미 달린 오너먼트에서 먼 자리에 점수를 더 줍니다.
+function pickSlot(kind: Slot["kind"], used: Set<number>): Slot | undefined {
+  let best: Slot | undefined;
+  let bestScore = -Infinity;
+  for (const slot of SLOTS) {
+    if (used.has(slot.id)) continue;
+    let near = 0.6;
+    for (const id of used) near = Math.min(near, APART[slot.id][id]);
+    const score = BASE_SCORE[kind][slot.id] + near;
+    if (score > bestScore) {
+      bestScore = score;
+      best = slot;
+    }
+  }
+  return best;
+}
 
 // 자리의 방향(quaternion)으로 벡터를 돌립니다.
 function rotate([x, y, z]: [number, number, number], [qx, qy, qz, qw]: Slot["quaternion"]): [number, number, number] {
@@ -91,7 +102,7 @@ function fit(slot: Slot, shape: OrnamentShape): { position: [number, number, num
 }
 
 // 메시지 오너먼트를 자리에 배치합니다. 순서(먼저 달린 것부터)대로 자리를 고르므로, 새 오너먼트가 달려도 기존 것은 움직이지 않습니다.
-// 자리가 모자라면 기본 장식 자리를 쓰고, 자리 수(MAX_ORNAMENTS)를 넘는 메시지는 달지 않습니다.
+// 트리에는 메시지 오너먼트만 달립니다. 자리 수(MAX_ORNAMENTS)를 넘는 메시지는 달지 않습니다.
 export function placeOrnaments<T extends OrnamentLike>(ornaments: T[]): PlacedOrnament<T>[] {
   const used = new Set<number>();
   const placed: PlacedOrnament<T>[] = [];
@@ -99,32 +110,13 @@ export function placeOrnaments<T extends OrnamentLike>(ornaments: T[]): PlacedOr
   for (const ornament of ornaments) {
     const shape = toShape(ornament.shape);
     const wanted = wantedSlot(ornament.position);
-    const order = shape === "ball" ? HANG_FIRST : SLOPE_FIRST;
-    const free = (slot: Slot) => !used.has(slot.id);
-
-    const slot =
-      (wanted && free(wanted) ? wanted : undefined) ??
-      order.find((candidate) => free(candidate) && !DEFAULT_SLOTS.has(candidate.id)) ??
-      order.find(free);
+    const slot = (wanted && !used.has(wanted.id) ? wanted : undefined) ?? pickSlot(shape === "ball" ? "hang" : "slope", used);
     if (!slot) continue;
 
     used.add(slot.id);
     placed.push({ key: `message-${ornament.id}`, slot, shape, color: ornament.color, metallic: false, ...fit(slot, shape), ornament });
   }
 
-  for (const item of DEFAULTS) {
-    if (used.has(item.slot)) continue;
-    const slot = SLOTS[item.slot];
-    placed.push({
-      key: `default-${item.slot}`,
-      slot,
-      shape: item.shape,
-      color: DEFAULT_COLORS[item.color] ?? item.color,
-      metallic: item.color === "gold",
-      ...fit(slot, item.shape),
-      ornament: null,
-    });
-  }
   return placed;
 }
 

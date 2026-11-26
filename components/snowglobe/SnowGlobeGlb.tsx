@@ -482,6 +482,8 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
       // 꾸미기 소품: 고른 것만 보입니다.
       if (child.name.startsWith("w_Gift_")) child.visible = showGifts;
       if (child.name.startsWith("w_Snowman")) child.visible = showSnowman;
+      // 트리에 미리 붙어 있던 고리는 숨깁니다. 오너먼트는 제 꼭지(금속 부분)를 달고 걸립니다. (FEEDBACK B1)
+      if (child.name.startsWith("w_Tree_Hooks")) child.visible = false;
 
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) return;
