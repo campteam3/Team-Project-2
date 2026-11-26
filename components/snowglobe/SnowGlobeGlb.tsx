@@ -279,6 +279,7 @@ function makeGold(material: THREE.MeshStandardMaterial, roughness: number) {
 }
 
 const TREE_MATERIAL = "W_Ceramic_Green";
+const TRUNK_MATERIAL = "W_Ceramic_Trunk";
 const BASE_MATERIAL = "W_Base_RedMat";
 
 type Tune = (material: THREE.MeshStandardMaterial) => void;
@@ -490,6 +491,7 @@ export type GlobeLook = {
   title?: string;
   // 꾸미기 색. 비우면 모델 기본색입니다.
   treeColor?: string;
+  trunkColor?: string; // 트리 색에 어울리는 나무 기둥 색
   baseColor?: string;
   // 꾸미기 소품. 별은 항상 트리 꼭대기에 있습니다.
   showGifts?: boolean;
@@ -516,7 +518,7 @@ function recolor(material: THREE.MeshStandardMaterial, color: string, rimStrengt
 }
 
 // 스노우볼 본체. 유리, 전구 줄, 별, 명패와 재질 값을 웹에 맞게 바꿉니다.
-export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true, showSnowman = true }: GlobeLook) {
+export function GlobeModel({ title = "", treeColor, trunkColor, baseColor, showGifts = true, showSnowman = true }: GlobeLook) {
   const { scene } = useGLTF(MODEL_URL);
 
   // 글꼴이 늦게 불러와지면 명패 글자를 그 글꼴로 다시 그립니다.
@@ -604,6 +606,7 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
         next = material.clone();
         tune(next);
         if (name === TREE_MATERIAL && treeColor) recolor(next, treeColor, 0.2);
+        if (name === TRUNK_MATERIAL && trunkColor) recolor(next, trunkColor, 0.1);
         if (name === BASE_MATERIAL && baseColor) recolor(next, baseColor, 0.18);
         tuned.set(name, next);
       }
@@ -620,7 +623,7 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
       mesh.renderOrder = 10;
     }
     return copy;
-  }, [scene, nameplate, treeColor, baseColor, showGifts, showSnowman]);
+  }, [scene, nameplate, treeColor, trunkColor, baseColor, showGifts, showSnowman]);
 
   return <primitive object={model} />;
 }

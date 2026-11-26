@@ -7,7 +7,8 @@
 
 export type ThemePart = "tree" | "prop" | "base" | "snow";
 
-export type ThemeOption = { id: string; label: string; color: string };
+// trunk: 트리 색에만 씁니다. 그 트리 색에 어울리는 나무 기둥 색 (없으면 모델 원래 기둥 색)
+export type ThemeOption = { id: string; label: string; color: string; trunk?: string };
 
 export type GlobeTheme = Record<ThemePart, string>;
 
@@ -16,11 +17,12 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     key: "tree",
     label: "트리",
     options: [
+      // 나무 기둥은 원래 초록 트리에 맞춘 붉은 갈색이라, 다른 색 트리에는 그 색에 어울리는 기둥 색을 함께 입힙니다.
       { id: "green", label: "초록", color: "#38B562" },
-      { id: "frost", label: "흰색", color: "#EEF3F3" },
-      { id: "mint", label: "민트", color: "#86D8C4" },
-      { id: "pink", label: "분홍", color: "#F4A9C2" },
-      { id: "black", label: "검정", color: "#2B2E35" },
+      { id: "frost", label: "흰색", color: "#EEF3F3", trunk: "#B9A594" }, // 자작나무 같은 밝은 회갈색
+      { id: "mint", label: "민트", color: "#86D8C4", trunk: "#A98B76" }, // 부드러운 코코아색
+      { id: "pink", label: "분홍", color: "#F4A9C2", trunk: "#94707C" }, // 분홍 기운이 도는 회갈색
+      { id: "black", label: "검정", color: "#2B2E35", trunk: "#382E2C" }, // 아주 짙은 고동색 (안쪽의 따뜻한 조명을 받아 화면에서는 더 밝게 보입니다)
     ],
   },
   {
@@ -67,6 +69,9 @@ export function themeOption(part: ThemePart, id: string): ThemeOption {
 }
 
 export const themeColor = (theme: GlobeTheme, part: ThemePart) => themeOption(part, theme[part]).color;
+
+// 고른 트리 색에 어울리는 나무 기둥 색. 기본 트리는 모델 원래 색을 쓰므로 undefined 입니다.
+export const trunkColor = (theme: GlobeTheme) => themeOption("tree", theme.tree).trunk;
 
 // DB 에서 읽은 값(모양을 믿을 수 없음)을 안전한 테마로 바꿉니다.
 export function parseTheme(value: unknown): GlobeTheme {

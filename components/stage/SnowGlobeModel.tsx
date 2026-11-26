@@ -13,7 +13,7 @@ import { Suspense, useEffect } from "react";
 import { GlowDust } from "@/components/SnowGlobeAtmosphere";
 import { GlobeInnerLights, GlobeModel, Ornaments } from "@/components/snowglobe/SnowGlobeGlb";
 import { GLASS, ornamentSpot, placeOrnaments, type OrnamentLike, type OrnamentShape } from "@/lib/snowglobe";
-import { themeColor, type GlobeTheme } from "@/lib/theme";
+import { themeColor, trunkColor, type GlobeTheme } from "@/lib/theme";
 
 // 모델 원본은 유리 구의 가운데가 y = 0.55 입니다. 이만큼 내려서 구의 가운데를 원점에 둡니다.
 const LIFT = -GLASS.center[1];
@@ -89,7 +89,7 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
     <group {...group}>
       <group position={[0, LIFT, 0]}>
         <Suspense fallback={null}>
-          <GlobeModel title={plateText} treeColor={treeColor} baseColor={baseColor} showGifts={showGifts} showSnowman={showSnowman} />
+          <GlobeModel title={plateText} treeColor={treeColor} trunkColor={trunkColor(theme)} baseColor={baseColor} showGifts={showGifts} showSnowman={showSnowman} />
           <Ornaments ornaments={ornaments} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} reducedMotion={reducedMotion} />
         </Suspense>
         <GlobeInnerLights />
