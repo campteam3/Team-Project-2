@@ -3,7 +3,7 @@
 // 트리 · 받침대의 색 값은 3D 스노우볼에 그대로 입히는 색이고, 고르기 버튼의 동그라미에도 같은 색을 칠합니다. (FEEDBACK E2, 이민정)
 // 기본값(초록 트리, 레드 받침대)만 모델 원래 색을 쓰므로, 그 둘의 값은 버튼에 칠하는 색입니다.
 // 이미 저장된 스노우볼이 있으니 남아 있는 선택지의 id 는 바꾸지 않습니다. 없어진 선택지("deep" 짙은 초록)를 골랐던 스노우볼은 기본값으로 보입니다.
-// 선택지가 3개를 넘으면 휴대폰 꾸미기 도크가 두 줄로 놓입니다.
+// 휴대폰 꾸미기 도크는 선택지를 그림(색 동그라미 · 아이콘)만으로 한 줄에 놓습니다. 한 곳의 선택지는 7개까지 들어갑니다.
 
 export type ThemePart = "tree" | "prop" | "base" | "snow";
 
@@ -29,10 +29,9 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     key: "prop",
     label: "소품",
     // 별은 트리 꼭대기에 항상 있고, 트리 아래 소품만 고릅니다 (#14 에서 이민정 님과 정함)
-    // color 는 고르기 버튼에 칠하는 값입니다 (CSS background 값)
-    // 기본값("둘 다")을 다른 항목처럼 맨 왼쪽에 둡니다 (FEEDBACK C4)
+    // 소품은 하나만 고르는 것이 아니라 켜고 끄는 것입니다: 둘 다 · 하나만 · 둘 다 없이 (김미영).
+    // 저장하는 값은 예전과 같은 글자 하나입니다: "both"(둘 다, 기본) · "gift" · "snowman" · "none"(없음). 아래 hasProp · toggleProp 참고
     options: [
-      { id: "both", label: "둘 다", color: "linear-gradient(135deg, #C8363D 50%, #F5F1EA 50%)" },
       { id: "gift", label: "선물 상자", color: "#C8363D" },
       { id: "snowman", label: "눈사람", color: "#F5F1EA" },
     ],
@@ -68,6 +67,18 @@ export function themeOption(part: ThemePart, id: string): ThemeOption {
   return options.find((o) => o.id === id) ?? options[0];
 }
 
+// 소품 값("both" · "gift" · "snowman" · "none")에 이 소품이 들어 있는지. 모르는 값은 예전처럼 둘 다로 봅니다.
+export type PropItem = "gift" | "snowman";
+const PROP_VALUES = ["both", "gift", "snowman", "none"];
+export const hasProp = (prop: string, item: PropItem) => prop !== "none" && prop !== (item === "gift" ? "snowman" : "gift");
+
+// 소품 하나를 켜거나 끈 뒤의 소품 값
+export function toggleProp(prop: string, item: PropItem): string {
+  const gift = item === "gift" ? !hasProp(prop, "gift") : hasProp(prop, "gift");
+  const snowman = item === "snowman" ? !hasProp(prop, "snowman") : hasProp(prop, "snowman");
+  return gift && snowman ? "both" : gift ? "gift" : snowman ? "snowman" : "none";
+}
+
 export const themeColor = (theme: GlobeTheme, part: ThemePart) => themeOption(part, theme[part]).color;
 
 // 고른 트리 색에 어울리는 나무 기둥 색. 기본 트리는 모델 원래 색을 쓰므로 undefined 입니다.
@@ -79,7 +90,8 @@ export function parseTheme(value: unknown): GlobeTheme {
   const theme = { ...DEFAULT_THEME };
   for (const part of THEME_PARTS) {
     const id = source[part.key];
-    if (typeof id === "string" && part.options.some((o) => o.id === id)) theme[part.key] = id;
+    const known = part.key === "prop" ? PROP_VALUES.includes(id as string) : part.options.some((o) => o.id === id);
+    if (typeof id === "string" && known) theme[part.key] = id;
   }
   return theme;
 }
