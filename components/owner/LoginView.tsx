@@ -100,13 +100,8 @@ export default function LoginView() {
       ornaments={askName ? undefined : globe?.ornaments}
       title={title}
       subtitle={subtitle}
-      plate={
-        askName ? (
-          <NameplateInput value={nickname} onChange={setNickname} prompt="여기에 닉네임을 적어 주세요" srLabel="닉네임" />
-        ) : (
-          <span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{globe ? globeName(globe) : `${known}의 스노우볼`}</span>
-        )
-      }
+      plate={askName ? <NameplateInput value={nickname} onChange={setNickname} prompt="여기에 닉네임을 적어 주세요" srLabel="닉네임" /> : undefined}
+      plateText={askName ? undefined : globe ? globeName(globe) : `${known}의 스노우볼`}
       lockFront
       layout={askName ? { desktop: { centerFromTop: 0.4 }, mobile: { centerFromTop: 0.4 } } : undefined}
       below={

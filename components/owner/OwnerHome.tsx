@@ -141,7 +141,7 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
       subtitle={subtitle}
       hint={hint}
       hintMobile={hint}
-      plate={<span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{name}</span>}
+      plateText={name}
       highlightId={selected?.id}
       focusId={selected?.id}
       onSelectOrnament={select}

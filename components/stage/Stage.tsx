@@ -41,7 +41,8 @@ export type StageProps = {
   display?: boolean; // 오프닝처럼 큰 제목
   hint?: string;
   hintMobile?: string;
-  plate?: ReactNode; // 받침대 명판에 붙일 내용
+  plate?: ReactNode; // 받침대 명판에 붙일 내용 (닉네임 입력칸처럼 누르거나 적는 것)
+  plateText?: string; // 받침대 명판에 새길 이름. 3D 명판 면에 그려져 스노우볼과 함께 돕니다 (plate 가 있으면 plate 가 먼저)
   pin?: ReactNode; // 오너먼트 하나 위에 띄울 내용 (예시 말풍선)
   pinKey?: number; // 바뀔 때마다 앞쪽 오너먼트를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때
@@ -67,7 +68,12 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, onSelectOrnament, extraShake = 0 } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, onSelectOrnament, extraShake = 0 } = props;
+  // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
+  // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
+  const engraved = !plate && !!plateText;
+  const plateContent =
+    plate ?? (plateText ? <span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{plateText}</span> : undefined);
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -239,13 +245,14 @@ export default function Stage(props: StageProps) {
       <div ref={sceneEl} className="absolute inset-0 z-0 [translate:0_var(--vv-top,0px)]">
       <div className="absolute inset-0 z-0">
         {webgl === false ? (
-          <StageFallback plate={plate} centerFromTop={layout.centerFromTop} height={layout.height} />
+          <StageFallback plate={plateContent} centerFromTop={layout.centerFromTop} height={layout.height} />
         ) : webgl ? (
           <StageScene
             theme={theme}
             ornaments={ornaments}
             layout={layout}
-            onPlateMove={plate ? movePlate : undefined}
+            plateText={engraved ? plateText : undefined}
+            onPlateMove={plateContent ? movePlate : undefined}
             pinKey={pinKey}
             pinId={pinId}
             highlightId={highlightId}
@@ -264,9 +271,9 @@ export default function Stage(props: StageProps) {
       </div>
 
       {/* 명판 글자 · 입력칸: 3D 받침대 명판 위치를 따라갑니다 */}
-      {plate && webgl && (
-        <div ref={plateEl} className="absolute left-0 top-0 z-[5] opacity-0 will-change-transform">
-          {plate}
+      {plateContent && webgl && (
+        <div ref={plateEl} className={`absolute left-0 top-0 z-[5] opacity-0 will-change-transform ${engraved ? "invisible" : ""}`}>
+          {plateContent}
         </div>
       )}
 

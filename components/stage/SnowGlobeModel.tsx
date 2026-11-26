@@ -69,10 +69,11 @@ type Props = ThreeElements["group"] & {
   selectedId?: string | null; // 주인이 눌러 읽고 있는 오너먼트 (김미영: 주인 화면용 전달)
   onSelect?: (id: string) => void; // 오너먼트를 눌렀을 때 (김미영: 주인 화면용 전달)
   arrivingId?: string; // 지금 막 달리는 오너먼트
+  plateText?: string; // 받침대 명판에 새길 이름
   reducedMotion?: boolean;
 };
 
-export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, selectedId, onSelect, arrivingId, reducedMotion = false, ...group }: Props) {
+export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, selectedId, onSelect, arrivingId, plateText, reducedMotion = false, ...group }: Props) {
   useEffect(() => {
     remember(ornaments);
   }, [ornaments]);
@@ -88,7 +89,7 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
     <group {...group}>
       <group position={[0, LIFT, 0]}>
         <Suspense fallback={null}>
-          <GlobeModel treeColor={treeColor} baseColor={baseColor} showGifts={showGifts} showSnowman={showSnowman} />
+          <GlobeModel title={plateText} treeColor={treeColor} baseColor={baseColor} showGifts={showGifts} showSnowman={showSnowman} />
           <Ornaments ornaments={ornaments} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} reducedMotion={reducedMotion} />
         </Suspense>
         <GlobeInnerLights />
