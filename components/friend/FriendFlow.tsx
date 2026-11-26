@@ -54,6 +54,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [mine, setMine] = useState<Ornament | null>(null); // 방금 단 내 오너먼트
+  const [earlier, setEarlier] = useState<Ornament[]>([]); // 이번에 들어와서 그 전에 단 내 오너먼트들 (FEEDBACK A6)
   const [landed, setLanded] = useState(false); // 달리는 움직임이 끝났는지
 
   // 달리는 움직임(1.6초)이 끝난 뒤 "내 오너먼트" 말풍선을 보여 줍니다
@@ -66,11 +67,13 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
   const theme = parseTheme(globe.theme);
   const name = globeName(globe);
   const color = ORNAMENT_OPTIONS.find((o) => o.id === colorId)!.color;
-  const count = globe.ornaments.length + (mine && !globe.ornaments.some((o) => o.id === mine.id) ? 1 : 0);
-
-  // 3D 에 그릴 오너먼트: 기존 + (고르는 중이면) 미리 보기 + (달았으면) 내 오너먼트
+  // 3D 에 그릴 오너먼트: 기존 + (달았으면) 내 오너먼트들 + (고르는 중이면) 미리 보기
   const ornaments = [...globe.ornaments];
-  if (mine && !ornaments.some((o) => o.id === mine.id)) ornaments.push(mine);
+  for (const own of mine ? [...earlier, mine] : earlier) {
+    if (!ornaments.some((o) => o.id === own.id)) ornaments.push(own);
+  }
+  const count = ornaments.length;
+  const earlierIds = earlier.map((o) => o.id);
   if (step === "pick" || step === "write") ornaments.push({ id: PENDING, color, sender_name: "", shape, position: null, created_at: "" });
 
   const full = count >= MAX_ORNAMENTS; // 자리가 모두 찼음
@@ -99,6 +102,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
       setMine(result.data);
       void onAdded(); // 목록을 다시 불러옵니다 (메시지 내용은 오지 않음)
     }
+    if (mine) setEarlier((list) => [...list, mine]); // 먼저 단 것도 "내 오너먼트"로 기억합니다
     setMessage("");
     setLanded(false);
     setStep("done");
@@ -121,6 +125,10 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         hint={full ? "자리가 모두 찼어요. 이제 마음은 더 달 수 없어요" : HINT}
         hintMobile={full ? "자리가 모두 찼어요. 이제 마음은 더 달 수 없어요" : HINT_MOBILE}
         highlightId={mine?.id}
+        // 내가 단 오너먼트는 모두 "내 오너먼트" 말풍선으로 알려 줍니다 (FEEDBACK A6)
+        pinId={mine?.id}
+        morePinIds={earlierIds}
+        pin={mine ? <PinLabel text="내 오너먼트" /> : undefined}
         below={
           <Link
             href={`/login?nickname=${encodeURIComponent(nickname)}`}
@@ -213,8 +221,10 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
       hintMobile={undefined}
       highlightId={mine?.id}
       arrivingId={mine?.id}
-      focusId={mine?.id}
+      // 자리에 앉을 때까지만 방금 단 오너먼트를 정면에 둡니다. 그 뒤에는 돌려서 먼저 단 내 오너먼트도 찾아볼 수 있습니다 (FEEDBACK A6)
+      focusId={landed ? undefined : mine?.id}
       pinId={landed ? mine?.id : undefined}
+      morePinIds={earlierIds}
       pin={landed ? <PinLabel text="내 오너먼트" /> : undefined}
     >
       <div key={step} className="flex w-full animate-rise justify-center">

@@ -55,6 +55,7 @@ export type StageProps = {
   pin?: ReactNode; // 오너먼트 하나 위에 띄울 내용 (예시 말풍선)
   pinKey?: number; // 바뀔 때마다 앞쪽 오너먼트를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때
+  morePinIds?: string[]; // 같은 말풍선(pin)을 더 붙일 오너먼트들 (친구가 먼저 단 내 오너먼트, FEEDBACK A6)
   highlightId?: string; // 빛나게 보여 줄 오너먼트
   onSelectOrnament?: (id: string) => void; // 오너먼트를 눌렀을 때 (주인 화면)
   extraShake?: number; // 바깥에서 눈을 날리고 싶을 때 이 값을 늘립니다 (예: 스노우볼 열기)
@@ -80,7 +81,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0 } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0 } = props;
   // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
   // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
   const engraved = !plate && !!plateText;
@@ -311,9 +312,10 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
     };
   }, []);
   const pinEl = useRef<HTMLDivElement>(null);
+  const morePinEls = useRef<(HTMLDivElement | null)[]>([]);
 
-  const movePin = useCallback((x: number, y: number, visibility: number) => {
-    const el = pinEl.current;
+  const movePin = useCallback((x: number, y: number, visibility: number, slot = 0) => {
+    const el = slot === 0 ? pinEl.current : morePinEls.current[slot - 1];
     if (!el) return;
     el.style.transform = `translate(${x}px, ${y}px) translate(-50%, calc(-100% - 10px))`;
     el.style.opacity = String(visibility);
@@ -430,6 +432,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             onPlateMove={plateContent ? movePlate : undefined}
             pinKey={pinKey}
             pinId={pinId}
+            morePinIds={pin ? morePinIds : undefined}
             highlightId={highlightId}
             onSelectOrnament={onSelectOrnament}
             arrivingId={arrivingId}
@@ -458,6 +461,19 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
           {pin}
         </div>
       )}
+      {pin &&
+        webgl &&
+        morePinIds?.map((id, i) => (
+          <div
+            key={id}
+            ref={(el) => {
+              morePinEls.current[i] = el;
+            }}
+            className="pointer-events-none absolute left-0 top-0 z-[6] opacity-0 transition-opacity duration-400 will-change-transform"
+          >
+            {pin}
+          </div>
+        ))}
       </div>
 
       {/* 앞: UI */}

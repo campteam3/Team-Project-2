@@ -40,7 +40,9 @@ export type StageSceneProps = {
   highlightId?: string;
   onSelectOrnament?: (id: string) => void; // 주인 화면: 오너먼트를 눌러 메시지 읽기
   arrivingId?: string;
-  onPinMove?: (x: number, y: number, visibility: number) => void; // 고른 오너먼트 바로 위의 화면 좌표와 보이는 정도
+  morePinIds?: string[]; // 같은 말풍선을 더 붙일 오너먼트들 (친구가 먼저 단 내 오너먼트, FEEDBACK A6)
+  // 고른 오너먼트 바로 위의 화면 좌표와 보이는 정도. slot 0 은 pinId · pinKey 로 고른 것, 1 부터는 morePinIds 순서입니다
+  onPinMove?: (x: number, y: number, visibility: number, slot?: number) => void;
   lockFront?: boolean; // 명판에 입력할 때는 앞면을 고정합니다
   focusId?: string; // 이 오너먼트가 정면에 오도록 돌립니다 (친구가 고른 · 단 오너먼트)
   // 화면 위 UI(제목) 아래 끝과 화면 아래 UI(안내 · 도크 · 입력) 위 끝의 px 좌표.
@@ -71,6 +73,7 @@ function Globe(props: StageSceneProps) {
     onPlateMove,
     pinKey = 0,
     pinId,
+    morePinIds,
     onPinMove,
     lockFront,
     focusId,
@@ -322,6 +325,20 @@ function Globe(props: StageSceneProps) {
         ((1 - p.y) / 2) * size.height,
         THREE.MathUtils.clamp((facingOf(pin.current.index) - 0.1) / 0.5, 0, 1),
       );
+      // 더 붙일 말풍선들: 같은 방법으로 자리를 알려 줍니다. 목록에 없는 것은 숨깁니다
+      morePinIds?.forEach((id, i) => {
+        const index = ornaments.findIndex((o) => o.id === id);
+        if (index < 0) return onPinMove(0, 0, 0, i + 1);
+        const [mx, my, mz] = spotOf(index);
+        const q = platePoint.current.set(mx, my + 0.07, mz);
+        g.localToWorld(q).project(camera);
+        onPinMove(
+          ((q.x + 1) / 2) * size.width,
+          ((1 - q.y) / 2) * size.height,
+          THREE.MathUtils.clamp((facingOf(index) - 0.1) / 0.5, 0, 1),
+          i + 1,
+        );
+      });
     }
   });
 

@@ -30,7 +30,7 @@ export type OpenResult =
 
 export type Result<T> = { ok: true; data: T } | { ok: false; code: string; message: string };
 
-export const MESSAGE_MAX = 200; // DESIGN.md 기준. DB 는 300자까지 받습니다.
+export const MESSAGE_MAX = 200; // DESIGN.md 기준. DB 도 200자까지 받습니다 (supabase/migrations 의 message_limit_200)
 export const SENDER_MAX = 20;
 export const NICKNAME_RULE = "한글, 영문, 숫자, _ , - 로 2~20자";
 
@@ -47,6 +47,8 @@ const MESSAGES: Record<string, string> = {
   invalid_color: "오너먼트 색을 다시 골라 주세요.",
   invalid_position: "오너먼트 위치를 저장하지 못했어요.",
   globe_full: "이 스노우볼은 오너먼트가 가득 찼어요.",
+  // 욕설이 들어 있으면 DB 가 막습니다 (목록은 supabase/migrations 의 banned_words). 닉네임 · 이름 · 메시지 모두 같은 안내를 씁니다
+  banned_word: "금지어가 포함되어 있어 등록할 수 없어요. 다른 말로 적어 주세요.",
   too_many_requests: "잠시 뒤에 다시 달아 주세요. 한꺼번에 많이 달 수 없어요.",
   invalid_owner_token: "다시 들어와 주세요. 닉네임과 비밀번호를 입력하면 돼요.",
   not_configured: "DB 연결 설정이 없어요. .env.local 을 확인해 주세요.",
