@@ -7,11 +7,13 @@
 //   빈 상태: 오너먼트가 0개면 링크 공유를 권합니다
 // 다른 화면(오프닝 · 만들기 · 친구)과 같은 무대(Stage)를 써서, 겨울밤 배경이 화면 전체에 깔립니다.
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Stage from "@/components/stage/Stage";
+import { useNotice } from "@/components/stage/useNotice";
 import { Button } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { closeGlobe, deleteOrnament, type Globe } from "@/lib/api";
+import { copyText, showLinkToCopy } from "@/lib/copy";
 import { clearOwnerToken, globePath } from "@/lib/owner-token";
 import { loadReadState, saveReadState, type ReadState } from "@/lib/read-state";
 import { MAX_ORNAMENTS } from "@/lib/snowglobe";
@@ -35,9 +37,8 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
   const [state, setState] = useState<ReadState>(() => loadReadState(nickname));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [notice, say] = useNotice(); // "링크를 복사했어요" 같은 알림. 안내 알약 자리에 뜹니다
   const [openShake, setOpenShake] = useState(0);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const ornaments = globe.ornaments;
   const total = ornaments.length;
@@ -47,12 +48,6 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
   const selected = index >= 0 ? ornaments[index] : null;
   const name = globeName(globe);
   const url = `${window.location.origin}${globePath(nickname)}`;
-
-  const say = (message: string) => {
-    setNotice(message);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setNotice(""), 2500);
-  };
 
   const update = (next: ReadState) => {
     setState(next);
@@ -102,12 +97,8 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
   };
 
   const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      say("링크를 복사했어요");
-    } catch {
-      say("복사하지 못했어요. 주소창의 주소를 복사해 주세요");
-    }
+    if (await copyText(url)) say("링크를 복사했어요");
+    else showLinkToCopy(url);
   };
 
   const full = total >= MAX_ORNAMENTS; // 자리가 모두 찼음. 하나를 지우면 다시 자리가 생깁니다
@@ -141,6 +132,7 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
       subtitle={subtitle}
       hint={hint}
       hintMobile={hint}
+      notice={notice}
       plateText={name}
       highlightId={selected?.id}
       focusId={selected?.id}
@@ -158,10 +150,6 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
         ) : undefined
       }
     >
-      <p role="status" className={`text-center text-sm text-ink transition-opacity duration-400 ${notice ? "opacity-100" : "opacity-0"}`}>
-        {notice || " "}
-      </p>
-
       {selected ? (
         <div key="viewer" className="flex w-full flex-col items-center gap-4">
           <MessageViewer
@@ -201,7 +189,7 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
               {readCount < total ? "안 읽은 메시지 읽기" : "메시지 다시 읽기"}
             </Button>
           )}
-          <ShareDock url={url} title={name} />
+          <ShareDock url={url} title={name} onNotice={say} />
         </div>
       )}
     </Stage>

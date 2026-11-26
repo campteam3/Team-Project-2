@@ -28,6 +28,13 @@ const StageScene = dynamic(() => import("./StageScene"), {
 const DESKTOP: GlobeLayout = { height: 0.9, centerFromTop: 0.45 };
 const MOBILE: GlobeLayout = { height: 0.9, centerFromTop: 0.46 };
 
+// 화면 키보드 높이: 한 번 올라온 뒤에는 그 값을 기억해 다음에 미리 맞춥니다. 처음에는 어림값을 씁니다.
+const KEYBOARD_GUESS = 300;
+const KEYBOARD_KEY = "snowglobe:keyboard";
+let lastKeyboard = 0;
+// 키보드 위에 떠 있는 줄(이전 · 다음 · 완료)처럼 입력칸을 가리는 높이. 브라우저가 화면을 민 만큼으로 알아냅니다.
+let keyboardClear = 0;
+
 const HINT_PILL =
   "max-w-full rounded-full bg-night-900/75 px-4 py-1.5 text-center text-[15px] font-medium text-ink shadow-[0_4px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm";
 
@@ -56,6 +63,7 @@ export type StageProps = {
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
   below?: ReactNode; // 도크 아래 작은 글자 링크
+  notice?: string; // 잠깐 뜨는 알림 ("링크를 복사했어요"). 안내 알약 자리에 같은 모양으로 뜹니다 (useNotice). 알림을 쓰는 화면은 없을 때 "" 를 넘깁니다
 };
 
 function supportsWebGL() {
@@ -68,7 +76,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, onSelectOrnament, extraShake = 0 } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, onSelectOrnament, extraShake = 0 } = props;
   // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
   // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
   const engraved = !plate && !!plateText;
@@ -77,12 +85,18 @@ export default function Stage(props: StageProps) {
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  // 스노우볼을 만지기 시작하면(돌리기 · 확대) 안내 문구를 흐리게 물려, 받침대와 명판을 가리지 않게 합니다 (FEEDBACK A4).
+  // 어느 안내 문구에서 물렸는지 기억해서, 문구가 바뀌면(다음 단계) 다시 보입니다.
+  const [quietHint, setQuietHint] = useState<string | null>(null);
+  const hintKey = `${hint ?? ""}|${hintMobile ?? ""}`;
+  const quiet = quietHint === hintKey;
   const [shakeSignal, setShakeSignal] = useState(0);
   const soundOn = useSyncExternalStore(subscribeBgm, isBgmOn, isBgmOnServer); // 배경 음악을 켜 둔 상태인지
   const lastShake = useRef(0);
   const plateEl = useRef<HTMLDivElement>(null);
   const mainEl = useRef<HTMLElement>(null);
   const sceneEl = useRef<HTMLDivElement>(null);
+  const fixedEl = useRef<HTMLDivElement>(null);
   const headerEl = useRef<HTMLElement>(null);
   const footerEl = useRef<HTMLElement>(null);
   const [keyboard, setKeyboard] = useState(false); // 휴대폰 화면 키보드가 올라와 있는지
@@ -126,6 +140,32 @@ export default function Stage(props: StageProps) {
     let width = vv.width;
     let full = vv.height; // 키보드가 없을 때의 높이
     let frame = 0;
+    let open = false;
+    let guessedAt = 0; // 키보드가 올라올 것을 미리 예상한 시각 (0: 예상 안 함, -1: 이번 입력칸에서는 다시 예상하지 않음)
+    const coarse = window.matchMedia("(pointer: coarse)"); // 손가락으로 쓰는 기기
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)"); // 움직임 줄이기
+    // 전에 이 기기에서 잰 키보드 높이가 있으면 처음부터 그 값으로 맞춥니다 (같은 화면 방향일 때만)
+    if (!lastKeyboard) {
+      try {
+        const [w, h] = (localStorage.getItem(KEYBOARD_KEY) ?? "").split(":").map(Number);
+        if (w === Math.round(width) && h > 120) lastKeyboard = h;
+      } catch {
+        // 읽지 못하면 어림값을 씁니다
+      }
+    }
+    let touchedAt = -1e9; // 마지막으로 화면을 누른 시각과 누른 곳
+    let touched: EventTarget | null = null;
+    let realAt = 0; // 키보드가 실제로 다 올라온 것을 처음 본 시각
+    let heldTop = 0; // 지금 UI 를 내려 둔 값
+    let pulls = 0; // 이번에 키보드가 올라온 뒤 화면을 제자리로 되돌린 횟수
+    let pulledAt = 0;
+    // 기기에서 값을 직접 볼 때: 주소 끝에 vvdebug 를 붙이면 화면 위쪽에 숫자가 보입니다 (예: /new?preview=1&vvdebug)
+    let debug: HTMLElement | null = null;
+    if (window.location.search.includes("vvdebug")) {
+      debug = document.createElement("pre");
+      debug.style.cssText = "position:fixed;left:4px;top:4px;z-index:99;margin:0;padding:4px 6px;background:#000c;color:#0f0;font:11px/1.3 monospace;pointer-events:none";
+      el.appendChild(debug);
+    }
     const apply = () => {
       frame = 0;
       if (Math.abs(vv.width - width) > 1) {
@@ -136,29 +176,118 @@ export default function Stage(props: StageProps) {
       if (!zoomed) full = Math.max(full, vv.height);
       const active = document.activeElement;
       const typing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
-      const open = typing && !zoomed && full - vv.height > 120;
+      const now = performance.now();
+      const real = typing && !zoomed && full - vv.height > 120; // 실제로 올라옴
+      if (real) {
+        guessedAt = 0;
+        if (Math.abs(lastKeyboard - (full - vv.height)) > 1) {
+          lastKeyboard = full - vv.height;
+          try {
+            localStorage.setItem(KEYBOARD_KEY, `${Math.round(width)}:${Math.round(lastKeyboard)}`);
+          } catch {
+            // 저장하지 못해도 이번 화면에서는 기억합니다
+          }
+        }
+      } else if (!typing) guessedAt = 0;
+      else if (guessedAt > 0 && now - guessedAt > 1200) guessedAt = -1; // 예상했지만 올라오지 않음 (블루투스 키보드 등)
+      const wasOpen = open;
+      open = real || (typing && guessedAt > 0);
+      // 카드가 스노우볼 위에 떠 있는 단계(12 메시지 쓰기)에서는, 키보드가 올라올 때 카드가 한 번에 튀어 보이지 않게
+      // 새 자리에서 서서히 나타나게 합니다. 얼마나 옮겨졌는지 알려고 옮기기 전 위치를 먼저 재 둡니다.
+      const foot = footerEl.current;
+      const fade = open && !wasOpen && hold.current && !!foot && !still.matches;
+      const footBefore = fade ? foot.getBoundingClientRect().top : 0;
+      // 처음 올라올 때는 바로 맞추고(브라우저가 화면을 밀기 전에 끝나야 함), 그 뒤 높이가 바뀌거나 내려갈 때는 부드럽게 움직입니다
+      el.style.setProperty("--vv-t", open && !wasOpen ? "0ms" : "220ms");
+      el.toggleAttribute("data-kb", open);
+      if (open && !wasOpen) el.style.setProperty("--kb-clear", `${keyboardClear}px`);
+      if (!real) realAt = 0;
+      else if (!realAt) realAt = now;
+      const settled = real && now - realAt > 500; // 키보드가 다 올라오고 자리를 잡은 뒤
       if (open) {
-        const top = Math.max(0, vv.offsetTop - el.getBoundingClientRect().top);
-        el.style.setProperty("--vv-top", `${top}px`);
-        el.style.setProperty("--vv-h", `${vv.height}px`);
+        // 1) 밀려 올라간 화면을 제자리로 되돌려 봅니다. UI 를 보이는 영역 안에 맞췄으므로 되돌려도 입력칸은 보입니다.
+        //    (브라우저가 다시 밀어 올리면 서로 다투지 않게 횟수와 간격을 제한합니다)
+        if (!settled && (vv.offsetTop > 1 || window.scrollY > 1) && pulls < 8 && now - pulledAt > 250) {
+          pulls += 1;
+          pulledAt = now;
+          window.scrollTo(0, 0);
+        }
+        // 2) 그래도 밀려 있으면 그만큼 UI 와 무대를 내립니다.
+        //    좌표 기준이 브라우저마다 달라서(보이는 영역 기준 / 화면 전체 기준), 화면에 고정된 기준점(fixedEl)으로 보정합니다.
+        const origin = fixedEl.current?.getBoundingClientRect().top ?? 0;
+        const pushed = Math.max(0, Math.round(vv.offsetTop + origin - el.getBoundingClientRect().top));
+        // 3) 자리를 잡은 뒤 입력칸을 옮길 때 브라우저가 조금 미는 것은 그대로 둡니다 (되돌리면 서로 다퉈서 끊겨 보입니다).
+        //    대신 밀린 만큼을 기억해 두었다가, 다음에 키보드가 올라올 때 아래 여백으로 미리 비워 밀리지 않게 합니다.
+        const drift = pushed - heldTop;
+        if (settled && Math.abs(drift) <= 120) {
+          if (drift > 3) keyboardClear = Math.min(96, Math.max(keyboardClear, drift + 8));
+        } else heldTop = pushed;
+        el.style.setProperty("--vv-top", `${heldTop}px`);
+        // 아직 올라오는 중이면 지난번 키보드 높이(처음이면 어림값)로 미리 맞춥니다
+        const height = real ? vv.height : Math.max(220, full - (lastKeyboard || KEYBOARD_GUESS));
+        el.style.setProperty("--vv-h", `${Math.round(height)}px`);
+        if (fade && footBefore - foot.getBoundingClientRect().top > 8) {
+          // 자리는 바로 옮기고(입력칸 위치가 처음부터 맞아야 브라우저가 화면을 밀지 않습니다) 새 자리에서 서서히 나타납니다.
+          // 미끄러져 올라오게도 해 봤지만, 움직이는 도중 화면이 밀려 덜컥거렸습니다 (아이폰에서 김미영 확인)
+          foot.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, easing: "ease-out" });
+        }
+        // 키보드가 올라와 있는 동안에는 매 프레임 다시 잽니다 (앱 안 브라우저는 밀림이 바뀌어도 알려 주지 않을 때가 있습니다)
+        frame = requestAnimationFrame(apply);
       } else {
+        pulls = 0;
+        heldTop = 0;
+        el.style.removeProperty("--kb-clear");
         el.style.removeProperty("--vv-top");
         el.style.removeProperty("--vv-h");
+      }
+      if (debug) {
+        const origin = fixedEl.current?.getBoundingClientRect().top ?? 0;
+        debug.textContent = `open ${open} guess ${guessedAt > 0} kb ${lastKeyboard.toFixed(0)} clear ${keyboardClear} held ${heldTop} pulls ${pulls}
+vv top ${vv.offsetTop.toFixed(0)} h ${vv.height.toFixed(0)} full ${full.toFixed(0)}
+scrollY ${window.scrollY.toFixed(0)} inner ${window.innerHeight}
+main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
+--vv-top ${el.style.getPropertyValue("--vv-top") || "-"}`;
       }
       setKeyboard(open);
     };
     const queue = () => {
       if (!frame) frame = requestAnimationFrame(apply);
     };
+    // 입력칸을 누른 바로 그 순간에 키보드 자리를 비워 둡니다.
+    // 키보드가 다 올라온 뒤에 맞추면, 브라우저가 먼저 화면을 밀어 올렸다가 우리가 다시 옮겨서 두 번 움직여 끊겨 보입니다.
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      const input = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+      // 손가락으로 그 입력칸(또는 입력칸을 감싼 이름표)을 방금 누른 경우만 예상합니다.
+      // 화면이 열리며 저절로 잡히는 초점은 키보드를 올리지 않습니다.
+      const tapped =
+        touched instanceof Node &&
+        performance.now() - touchedAt < 700 &&
+        (target === touched || !!(target as Element).closest("label")?.contains(touched));
+      if (input && coarse.matches && !open && tapped) {
+        guessedAt = performance.now();
+        cancelAnimationFrame(frame);
+        apply();
+      } else queue();
+    };
+    const onTouch = (event: Event) => {
+      touchedAt = performance.now();
+      touched = event.target;
+    };
+    window.addEventListener("pointerdown", onTouch, true);
+    window.addEventListener("pointerup", onTouch, true);
     vv.addEventListener("resize", queue);
     vv.addEventListener("scroll", queue);
-    window.addEventListener("focusin", queue);
+    window.addEventListener("focusin", onFocusIn);
     window.addEventListener("focusout", queue);
     return () => {
       cancelAnimationFrame(frame);
+      debug?.remove();
       vv.removeEventListener("resize", queue);
       vv.removeEventListener("scroll", queue);
-      window.removeEventListener("focusin", queue);
+      window.removeEventListener("pointerdown", onTouch, true);
+      window.removeEventListener("pointerup", onTouch, true);
+      window.removeEventListener("focusin", onFocusIn);
       window.removeEventListener("focusout", queue);
     };
   }, []);
@@ -255,10 +384,21 @@ export default function Stage(props: StageProps) {
     ? { ...MOBILE, ...props.layout?.mobile }
     : { ...DESKTOP, ...props.layout?.desktop };
 
+  const mobileHint = hintMobile ?? hint;
+  // 알림이 떠 있을 때는 항상 또렷하게, 안내만 있을 때는 스노우볼을 만지는 동안 흐리게
+  const pillFade = `transition-opacity duration-400 ${quiet && !notice ? "opacity-0" : "opacity-100"}`;
+
   return (
     <main ref={mainEl} data-kb={keyboard ? "" : undefined} className="relative h-dvh w-full overflow-hidden">
+      {/* 화면에 고정된 기준점 (키보드에 밀린 정도를 잴 때 씁니다) */}
+      <div ref={fixedEl} className="pointer-events-none fixed left-0 top-0 size-0" aria-hidden="true" />
       {/* 뒤: 3D 무대 + 무대를 따라다니는 명판 · 말풍선. 키보드에 밀려 올라간 만큼 내려 제자리에 보이게 합니다 */}
-      <div ref={sceneEl} className="absolute inset-0 z-0 [translate:0_var(--vv-top,0px)]">
+      <div
+        ref={sceneEl}
+        className="absolute inset-0 z-0 [translate:0_var(--vv-top,0px)]"
+        onPointerDown={() => setQuietHint(hintKey)}
+        onWheel={() => setQuietHint(hintKey)}
+      >
       <div className="absolute inset-0 z-0">
         {webgl === false ? (
           <StageFallback plate={plateContent} centerFromTop={layout.centerFromTop} height={layout.height} />
@@ -302,8 +442,9 @@ export default function Stage(props: StageProps) {
       </div>
 
       {/* 앞: UI */}
-      <div className="pointer-events-none absolute inset-x-0 top-[var(--vv-top,0px)] z-10 flex h-[var(--vv-h,100%)] flex-col px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 kb:pb-3 kb:pt-3 sm:px-8 sm:pb-8 sm:pt-8">
-        <div className="pointer-events-auto absolute left-4 top-4 kb:hidden sm:left-8 sm:top-8">
+      <div className="pointer-events-none absolute inset-x-0 top-[var(--vv-top,0px)] z-10 flex h-[var(--vv-h,100%)] flex-col [transition:height_var(--vv-t,0ms)_var(--ease-soft)] px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 kb:pb-[calc(0.75rem+var(--kb-clear,0px))] kb:pt-3 sm:px-8 sm:pb-8 sm:pt-8">
+        {/* 전체 화면 버튼은 넓은 화면에서만 보입니다. 휴대폰은 이미 화면을 꽉 채우고, 아이폰은 전체 화면이 되지 않습니다 (FEEDBACK C6) */}
+        <div className="pointer-events-auto absolute left-8 top-8 max-sm:hidden kb:hidden">
           <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} />
         </div>
         <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 kb:hidden sm:right-8 sm:top-8">
@@ -338,8 +479,29 @@ export default function Stage(props: StageProps) {
 
         <footer ref={footerEl} className="flex min-h-0 flex-col items-center gap-3">
           {/* 안내 문구는 받침대 위에 겹칠 때가 있어, 어두운 알약 바탕을 깔아 어디서든 읽히게 합니다 */}
-          {(hintMobile ?? hint) && <p className={`${HINT_PILL} kb:hidden sm:hidden`}>{hintMobile ?? hint}</p>}
-          {hint && <p className={`${HINT_PILL} hidden sm:block`}>{hint}</p>}
+          {/* 알림(notice)은 안내 알약 자리에 같은 모양으로 잠깐 떴다가 원래 안내로 돌아옵니다.
+              안내가 없는 화면도 알림을 쓰면 자리를 미리 비워 둡니다. 알림이 뜰 때 스노우볼이 밀리거나 명판을 가리지 않습니다 */}
+          <p role="status" className="sr-only">
+            {notice}
+          </p>
+          {(mobileHint || notice !== undefined) && (
+            <p
+              key={notice ? "notice" : "hint"}
+              aria-hidden={!!notice}
+              className={`${HINT_PILL} ${pillFade} kb:hidden sm:hidden ${notice || mobileHint ? "" : "invisible"}`}
+            >
+              {notice || mobileHint || "\u00a0"}
+            </p>
+          )}
+          {(hint || notice !== undefined) && (
+            <p
+              key={notice ? "notice-wide" : "hint-wide"}
+              aria-hidden={!!notice}
+              className={`${HINT_PILL} ${pillFade} hidden sm:block ${notice || hint ? "" : "invisible"}`}
+            >
+              {notice || hint || "\u00a0"}
+            </p>
+          )}
           {children}
           {below && <div className="contents kb:hidden">{below}</div>}
         </footer>

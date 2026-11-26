@@ -71,7 +71,7 @@ export default function OpeningView() {
       title="친구 마음이 쌓이는 스노우볼"
       subtitle="링크를 보내면 친구들이 오너먼트를 달아 줘요"
       hint="드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
-      hintMobile="폰을 흔들면 눈이 내리고, 두 손가락으로 크게 볼 수 있어요"
+      hintMobile="폰을 흔들어 눈을 내려 보세요"
       layout={{ desktop: { centerFromTop: 0.47 }, mobile: { centerFromTop: 0.48 } }}
       // 명판에 실제 이름처럼 보여 줘서 "여기에 내 이름이 새겨진다"를 처음부터 알게 합니다
       plateText="지수의 스노우볼"
