@@ -19,6 +19,7 @@ import SnowGlobeModel, {
   ornamentPosition,
 } from "./SnowGlobeModel";
 import { NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
+import Snow from "./Snow";
 import VillageBackdrop from "./VillageBackdrop";
 import { toShape } from "@/lib/snowglobe";
 
@@ -31,6 +32,7 @@ export type StageSceneProps = {
   theme: GlobeTheme;
   ornaments?: (Pick<Ornament, "id" | "color"> & { shape?: string })[];
   layout: GlobeLayout;
+  plateText?: string; // 받침대 명판에 새길 이름 (3D 명판 면에 그립니다)
   onPlateMove?: (x: number, y: number, visibility: number, width: number) => void; // 명판 가운데의 화면 좌표(px)와 보이는 정도(0~1)
   pinKey?: number; // 값이 바뀔 때마다 앞쪽을 향한 오너먼트 하나를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때 (pinKey 보다 우선)
@@ -48,106 +50,8 @@ export type StageSceneProps = {
   reducedMotion: boolean;
 };
 
-const SNOW_COUNT = 420;
 const UI_OVERLAP = 0.3; // 스노우볼 몸체가 아래쪽 UI 뒤로 들어가도 되는 비율
 const SAFE_GAP = 24; // UI 와 스노우볼 사이 최소 간격(px) · DESIGN.md 4-2
-
-type SnowProps = {
-  color: string;
-  shakeSignal: number;
-  reducedMotion: boolean;
-  takeDragKick: () => number; // 빠르게 드래그하면 눈이 날립니다
-};
-
-function Snow({ color, shakeSignal, reducedMotion, takeDragKick }: SnowProps) {
-  const geometry = useRef<THREE.BufferGeometry>(null);
-  const velocities = useRef<Float32Array | null>(null);
-  const energy = useRef(0);
-
-  // 처음에는 눈이 구 안에 흩어져 있다가 천천히 내려앉습니다
-  useEffect(() => {
-    const pos = new Float32Array(SNOW_COUNT * 3);
-    for (let i = 0; i < SNOW_COUNT; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const r = Math.sqrt(Math.random()) * 0.82;
-      pos[i * 3] = Math.cos(a) * r;
-      pos[i * 3 + 1] = MODEL.floorY + Math.random() * 1.4;
-      pos[i * 3 + 2] = Math.sin(a) * r;
-    }
-    geometry.current?.setAttribute(
-      "position",
-      new THREE.BufferAttribute(pos, 3),
-    );
-    velocities.current = new Float32Array(SNOW_COUNT * 3);
-  }, []);
-
-  useEffect(() => {
-    energy.current = reducedMotion ? 0 : 0.35;
-  }, [reducedMotion]);
-
-  useEffect(() => {
-    if (shakeSignal > 0) energy.current = 1;
-  }, [shakeSignal]);
-
-  useFrame((_, delta) => {
-    const attribute = geometry.current?.getAttribute("position") as
-      THREE.BufferAttribute | undefined;
-    const vel = velocities.current;
-    if (!attribute || !vel) return;
-    const pos = attribute.array as Float32Array;
-    const dt = Math.min(delta, 0.05);
-    energy.current = Math.max(energy.current, takeDragKick());
-    const kick = energy.current;
-    const R = MODEL.glassRadius * 0.94;
-    for (let i = 0; i < SNOW_COUNT; i++) {
-      const x = i * 3,
-        y = x + 1,
-        z = x + 2;
-      if (kick > 0.05) {
-        vel[x] += (Math.random() - 0.5) * kick * dt * 12;
-        vel[y] += Math.random() * kick * dt * 14;
-        vel[z] += (Math.random() - 0.5) * kick * dt * 12;
-      }
-      vel[y] -= (reducedMotion ? 2 : 0.18) * dt; // 눈은 천천히 내려앉습니다
-      vel[x] *= 0.98;
-      vel[y] *= 0.98;
-      vel[z] *= 0.98;
-      pos[x] += vel[x] * dt;
-      pos[y] += vel[y] * dt;
-      pos[z] += vel[z] * dt;
-      const len = Math.hypot(pos[x], pos[y], pos[z]);
-      if (len > R) {
-        const s = R / len;
-        pos[x] *= s;
-        pos[y] *= s;
-        pos[z] *= s;
-        vel[x] *= -0.2;
-        vel[y] *= -0.2;
-        vel[z] *= -0.2;
-      }
-      if (pos[y] < MODEL.floorY) {
-        pos[y] = MODEL.floorY;
-        vel[x] = vel[y] = vel[z] = 0;
-      }
-    }
-    energy.current = kick * Math.exp(-dt * 1.6);
-    attribute.needsUpdate = true;
-  });
-
-  return (
-    <points>
-      <bufferGeometry ref={geometry} />
-      <pointsMaterial
-        color={color}
-        size={0.024}
-        sizeAttenuation
-        transparent
-        opacity={0.95}
-        depthWrite={false}
-      />
-    </points>
-  );
-}
 
 // 확대 · 축소 범위 (빈 공간에 꼭 맞는 크기 대비)
 const ZOOM_MIN = 0.6;
@@ -406,6 +310,7 @@ function Globe(props: StageSceneProps) {
           selectedId={props.onSelectOrnament ? (props.highlightId ?? null) : undefined}
           onSelect={props.onSelectOrnament}
           arrivingId={props.arrivingId}
+          plateText={props.plateText}
           reducedMotion={reducedMotion}
         />
         <Snow

@@ -6,16 +6,17 @@
 // UI 는 위쪽 띠와 아래쪽에만 두고, 스노우볼 위에 겹치지 않습니다.
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import type { Ornament } from "@/lib/api";
 import type { GlobeTheme } from "@/lib/theme";
+import { isBgmOn, isBgmOnServer, subscribeBgm, toggleBgm } from "@/lib/bgm";
 import { IconButton } from "@/components/ui/Button";
 import StageFallback from "./StageFallback";
 import type { GlobeLayout } from "./StageScene";
 
-// 음악 파일이 생기면 true 로 바꿉니다. 지금은 버튼을 숨겨 둡니다.
-const SHOW_SOUND = false;
+// 소리 버튼 (차명근 연결): 배경 음악을 켜고 끕니다. 재생은 lib/bgm.ts 가 맡습니다.
+const SHOW_SOUND = true;
 
 const StageScene = dynamic(() => import("./StageScene"), {
   ssr: false,
@@ -47,7 +48,8 @@ export type StageProps = {
   display?: boolean; // 오프닝처럼 큰 제목
   hint?: string;
   hintMobile?: string;
-  plate?: ReactNode; // 받침대 명판에 붙일 내용
+  plate?: ReactNode; // 받침대 명판에 붙일 내용 (닉네임 입력칸처럼 누르거나 적는 것)
+  plateText?: string; // 받침대 명판에 새길 이름. 3D 명판 면에 그려져 스노우볼과 함께 돕니다 (plate 가 있으면 plate 가 먼저)
   pin?: ReactNode; // 오너먼트 하나 위에 띄울 내용 (예시 말풍선)
   pinKey?: number; // 바뀔 때마다 앞쪽 오너먼트를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때
@@ -73,11 +75,17 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, onSelectOrnament, extraShake = 0 } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, onSelectOrnament, extraShake = 0 } = props;
+  // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
+  // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
+  const engraved = !plate && !!plateText;
+  const plateContent =
+    plate ?? (plateText ? <span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{plateText}</span> : undefined);
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [shakeSignal, setShakeSignal] = useState(0);
+  const soundOn = useSyncExternalStore(subscribeBgm, isBgmOn, isBgmOnServer); // 배경 음악을 켜 둔 상태인지
   const lastShake = useRef(0);
   const plateEl = useRef<HTMLDivElement>(null);
   const mainEl = useRef<HTMLElement>(null);
@@ -323,7 +331,9 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
     };
   }, []);
 
-  // 휴대폰 흔들기. 아이폰은 처음 화면을 누를 때 권한을 한 번 묻습니다.
+  // 휴대폰 흔들기. 아이폰은 화면을 눌렀다 뗄 때 "동작 및 방향 접근" 권한을 묻습니다. (FEEDBACK A3)
+  // 아이폰 사파리는 손이 닿는 순간(pointerdown · touchstart)에는 권한 창을 띄워 주지 않고,
+  // 눌렀다 뗀 동작(touchend · click)에서만 띄워 줍니다. 허용이든 거부든 답이 정해질 때까지 누를 때마다 다시 묻습니다.
   useEffect(() => {
     const onMotion = (e: DeviceMotionEvent) => {
       const a = e.acceleration ?? e.accelerationIncludingGravity;
@@ -331,17 +341,31 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       const force = Math.hypot(a.x ?? 0, a.y ?? 0, a.z ?? 0);
       if (force > (e.acceleration ? 14 : 24)) shake();
     };
-    const ask = () => {
-      const Motion = (window as unknown as { DeviceMotionEvent?: MotionPermission }).DeviceMotionEvent;
-      Motion?.requestPermission?.().catch(() => {
-        // 거부해도 드래그와 눈 버튼으로 눈을 내릴 수 있습니다
-      });
+    const stopAsking = () => {
+      window.removeEventListener("touchend", ask);
+      window.removeEventListener("click", ask);
     };
+    let asking = false; // 권한 창이 떠 있는 동안에는 다시 묻지 않습니다 (한 번 누르면 touchend 와 click 이 연달아 옵니다)
+    function ask() {
+      const Motion = (window as unknown as { DeviceMotionEvent?: MotionPermission }).DeviceMotionEvent;
+      if (!Motion?.requestPermission) return stopAsking(); // 권한을 묻지 않는 기기(안드로이드 · PC)
+      if (asking) return;
+      asking = true;
+      Motion.requestPermission()
+        .then(stopAsking) // 허용 · 거부가 정해졌습니다. 거부해도 드래그와 눈 버튼으로 눈을 내릴 수 있습니다
+        .catch(() => {
+          // 브라우저가 이번 동작을 "누른 것"으로 인정하지 않았습니다. 다음에 누를 때 다시 묻습니다
+        })
+        .finally(() => {
+          asking = false;
+        });
+    }
     window.addEventListener("devicemotion", onMotion);
-    window.addEventListener("pointerdown", ask, { once: true });
+    window.addEventListener("touchend", ask);
+    window.addEventListener("click", ask);
     return () => {
       window.removeEventListener("devicemotion", onMotion);
-      window.removeEventListener("pointerdown", ask);
+      stopAsking();
     };
   }, [shake]);
 
@@ -362,13 +386,14 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       <div ref={sceneEl} className="absolute inset-0 z-0 [translate:0_var(--vv-top,0px)]">
       <div className="absolute inset-0 z-0">
         {webgl === false ? (
-          <StageFallback plate={plate} centerFromTop={layout.centerFromTop} height={layout.height} />
+          <StageFallback plate={plateContent} centerFromTop={layout.centerFromTop} height={layout.height} />
         ) : webgl ? (
           <StageScene
             theme={theme}
             ornaments={ornaments}
             layout={layout}
-            onPlateMove={plate ? movePlate : undefined}
+            plateText={engraved ? plateText : undefined}
+            onPlateMove={plateContent ? movePlate : undefined}
             pinKey={pinKey}
             pinId={pinId}
             highlightId={highlightId}
@@ -387,9 +412,9 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       </div>
 
       {/* 명판 글자 · 입력칸: 3D 받침대 명판 위치를 따라갑니다 */}
-      {plate && webgl && (
-        <div ref={plateEl} className="absolute left-0 top-0 z-[5] opacity-0 will-change-transform">
-          {plate}
+      {plateContent && webgl && (
+        <div ref={plateEl} className={`absolute left-0 top-0 z-[5] opacity-0 will-change-transform ${engraved ? "invisible" : ""}`}>
+          {plateContent}
         </div>
       )}
 
@@ -407,7 +432,14 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
           <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} />
         </div>
         <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 kb:hidden sm:right-8 sm:top-8">
-          {SHOW_SOUND && <IconButton icon="volume" label="소리" />}
+          {SHOW_SOUND && (
+            <IconButton
+              icon={soundOn ? "volume" : "volume-off"}
+              label={soundOn ? "소리 끄기" : "소리 켜기"}
+              aria-pressed={soundOn}
+              onClick={toggleBgm}
+            />
+          )}
           <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />
         </div>
 

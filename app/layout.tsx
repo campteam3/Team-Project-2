@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import BgmAutoStart from "@/components/BgmAutoStart";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
 // 링크를 붙여 넣었을 때 보이는 미리보기 정보. 이미지는 app/opengraph-image.jpg 를 자동으로 씁니다.
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b1020",
+  themeColor: "#1b2a53", // 3D 배경의 가장자리 색 (globals.css 의 --color-night-sky 와 같은 값)
   viewportFit: "cover",
 };
 
@@ -31,10 +32,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className="h-full antialiased">
       <head>
+        {/* 3D 모델을 화면 코드보다 먼저 받기 시작합니다. 첫 화면이 뜨는 시간을 줄입니다 (FEEDBACK A8) */}
+        <link rel="preload" href="/models/snowglobe.glb" as="fetch" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
         <link rel="stylesheet" href={PRETENDARD} />
       </head>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        {/* 배경 음악: 처음 화면을 누르면 캐롤이 나옵니다. 끄는 버튼은 화면 오른쪽 위에 있습니다 */}
+        <BgmAutoStart />
+      </body>
     </html>
   );
 }
