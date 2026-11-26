@@ -25,12 +25,34 @@ type Props = {
 };
 
 // 선택지 하나의 그림 (소품은 아이콘, 나머지는 색 동그라미)
-function OptionMark({ part, option, size }: { part: ThemePart; option: ThemeOption; size: number }) {
+// size 를 주면 그 크기(px)로, 안 주면 놓인 칸에 맞춰 그립니다 (휴대폰 도크: 화면 너비에 따라 칸 크기가 달라짐)
+function OptionMark({ part, option, size }: { part: ThemePart; option: ThemeOption; size?: number }) {
   if (part === "prop") {
-    return <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size + 4} height={size + 4} unoptimized />;
+    const px = size ? size + 4 : 48;
+    return (
+      <Image
+        src={PROP_ICON[option.id] ?? PROP_ICON.gift}
+        alt=""
+        width={px}
+        height={px}
+        loading="eager"
+        unoptimized
+        className={size ? undefined : "size-[88%]"}
+      />
+    );
   }
-  return <span className="rounded-full border border-glass-border" style={{ background: option.color, width: size, height: size }} />;
+  return (
+    <span
+      className={`rounded-full border border-glass-border ${size ? "" : "size-[78%]"}`}
+      style={{ background: option.color, ...(size ? { width: size, height: size } : {}) }}
+    />
+  );
 }
+
+// 휴대폰 도크의 선택지 한 칸 너비: 선택지가 가장 많은 곳(받침대 7색)이 한 줄에 꼭 맞게 들어가는 크기.
+// 어느 곳을 고르든 그림 크기가 같도록, 선택지가 적은 곳도 같은 칸 크기를 씁니다.
+const MOST_OPTIONS = Math.max(...THEME_PARTS.map((p) => p.options.length));
+const OPTION_CELL = `calc(100% / ${MOST_OPTIONS})`;
 
 // "눈 색깔"처럼 이름에 이미 색이 들어 있으면 "색"을 한 번 더 붙이지 않습니다
 const sheetTitle = (part: ThemePart, label: string) => (part === "prop" ? "소품 고르기" : label.includes("색") ? `${label} 고르기` : `${label} 색 고르기`);
@@ -119,7 +141,7 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
         </Dock>
 
         <Dock label={groupLabel} className="w-full">
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-0.5" role="group" aria-label={groupLabel}>
+          <div className="flex min-w-0 flex-1 items-center" role="group" aria-label={groupLabel}>
             {current.options.map((o) => {
               const selected = isOn(o.id);
               return (
@@ -129,20 +151,21 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
                   aria-pressed={selected}
                   aria-label={`${current.label}: ${o.label}`}
                   onClick={() => pick(o.id)}
-                  className="flex h-11 min-w-0 max-w-11 flex-1 items-center justify-center"
+                  className="flex h-12 max-w-12 shrink-0 items-center justify-center"
+                  style={{ width: OPTION_CELL }}
                 >
                   <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-full transition duration-200 ease-soft ${
-                      selected ? "bg-glass-strong ring-2 ring-accent" : ""
+                    className={`flex aspect-square w-full items-center justify-center rounded-full transition duration-200 ease-soft ${
+                      selected ? "bg-glass-strong ring-2 ring-inset ring-accent" : ""
                     }`}
                   >
-                    <OptionMark part={part} option={o} size={24} />
+                    <OptionMark part={part} option={o} />
                   </span>
                 </button>
               );
             })}
           </div>
-          <Button onClick={onNext} className="ml-1 !px-5">
+          <Button onClick={onNext} className="ml-0.5 !px-4">
             {DONE_LABEL}
           </Button>
         </Dock>
