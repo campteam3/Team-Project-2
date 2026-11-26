@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
-// 링크를 붙여 넣었을 때 보이는 미리보기 정보. 이미지는 app/opengraph-image.png 를 자동으로 씁니다.
+// 링크를 붙여 넣었을 때 보이는 미리보기 정보. 이미지는 app/opengraph-image.jpg 를 자동으로 씁니다.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
