@@ -261,8 +261,9 @@ export function GlowDust({ still = false }: { still?: boolean }) {
             float blur = smoothstep(0.55, 1.0, vNear);
             float soft = smoothstep(1.0, mix(0.0, 0.55, blur), d);
             float shape = mix(soft * soft, soft, blur);
-            float depthFade = mix(0.45, 1.0, smoothstep(0.0, 0.5, vNear)) * mix(1.0, 0.45, blur);
-            float alpha = shape * (0.35 + 0.65 * vGlow) * depthFade;
+            // 앞쪽(트리 앞)의 크고 흐릿한 빛은 트리를 가리지 않게 더 옅게 그립니다.
+            float depthFade = mix(0.45, 1.0, smoothstep(0.0, 0.5, vNear)) * mix(1.0, 0.26, blur);
+            float alpha = shape * (0.35 + 0.65 * vGlow) * depthFade * 0.6;
             gl_FragColor = vec4(vColor * (0.9 + 0.7 * vGlow), alpha);
             #include <colorspace_fragment>
           }

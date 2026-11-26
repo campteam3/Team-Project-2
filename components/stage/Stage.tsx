@@ -11,7 +11,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExter
 import type { Ornament } from "@/lib/api";
 import type { GlobeTheme } from "@/lib/theme";
 import { isBgmOn, isBgmOnServer, subscribeBgm, toggleBgm } from "@/lib/bgm";
+import { saveGlobeImage } from "@/lib/save-image";
 import { IconButton } from "@/components/ui/Button";
+import SavedImage from "./SavedImage";
 import StageFallback from "./StageFallback";
 import type { GlobeLayout } from "./StageScene";
 
@@ -63,6 +65,8 @@ export type StageProps = {
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
   below?: ReactNode; // 도크 아래 작은 글자 링크
+  saveAs?: string; // 값을 주면 위쪽에 "이미지로 저장" 버튼이 생깁니다. 저장할 파일 이름으로 씁니다 (FEEDBACK E4, 차명근)
+  onNotice?: (message: string) => void; // 저장 결과 알림을 띄울 함수 (화면의 useNotice 에서 받은 say)
   notice?: string; // 잠깐 뜨는 알림 ("링크를 복사했어요"). 안내 알약 자리에 같은 모양으로 뜹니다 (useNotice). 알림을 쓰는 화면은 없을 때 "" 를 넘깁니다
 };
 
@@ -76,7 +80,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, onSelectOrnament, extraShake = 0 } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0 } = props;
   // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
   // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
   const engraved = !plate && !!plateText;
@@ -92,6 +96,21 @@ export default function Stage(props: StageProps) {
   const quiet = quietHint === hintKey;
   const [shakeSignal, setShakeSignal] = useState(0);
   const soundOn = useSyncExternalStore(subscribeBgm, isBgmOn, isBgmOnServer); // 배경 음악을 켜 둔 상태인지
+  const [saving, setSaving] = useState(false); // 이미지를 만드는 중인지
+  const [savedUrl, setSavedUrl] = useState(""); // 화면에 띄울 저장용 이미지 (공유 창을 열 수 없는 휴대폰 브라우저에서만)
+  const closeSaved = useCallback(() => setSavedUrl(""), []);
+
+  // 이미지로 저장 (FEEDBACK E4): 3D 무대에 지금 보이는 모습을 한 장으로 만듭니다 (lib/save-image.ts)
+  const saveImage = async () => {
+    const canvas = sceneEl.current?.querySelector("canvas");
+    if (!canvas || !saveAs || saving) return;
+    setSaving(true);
+    const result = await saveGlobeImage(canvas, saveAs);
+    setSaving(false);
+    if (result.status === "downloaded") onNotice?.("이미지를 저장했어요");
+    else if (result.status === "show") setSavedUrl(result.url);
+    else if (result.status === "failed") onNotice?.("이미지를 만들지 못했어요. 다시 시도해 주세요");
+  };
   const lastShake = useRef(0);
   const plateEl = useRef<HTMLDivElement>(null);
   const mainEl = useRef<HTMLElement>(null);
@@ -448,6 +467,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
           <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} />
         </div>
         <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 kb:hidden sm:right-8 sm:top-8">
+          {saveAs && webgl && <IconButton icon="download" label="이미지로 저장" disabled={saving} onClick={saveImage} />}
           {SHOW_SOUND && (
             <IconButton
               icon={soundOn ? "volume" : "volume-off"}
@@ -506,6 +526,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
           {below && <div className="contents kb:hidden">{below}</div>}
         </footer>
       </div>
+      {savedUrl && saveAs && <SavedImage url={savedUrl} name={saveAs} onClose={closeSaved} />}
     </main>
   );
 }
