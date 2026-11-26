@@ -8,6 +8,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BEFORE_TONE_MAPPING_GLSL, backdropUniforms } from "@/components/stage/backdropShared";
+import bakedBulbSeats from "@/lib/tree-bulb-seats.json";
 import { placeOrnaments, type OrnamentLike, type OrnamentShape, type PlacedOrnament } from "@/lib/snowglobe";
 
 const MODEL_URL = "/models/snowglobe.glb";
@@ -436,7 +437,15 @@ function createBulbSeat(garland: THREE.Mesh, trees: THREE.Mesh[]): BulbSeat {
   };
 }
 
-// 전구 줄 모양은 트리 색을 바꿔도 같으므로, 한 번 만든 것을 다시 씁니다 (겉면을 찾는 계산이 무겁습니다)
+// 전구가 놓일 자리는 미리 계산해 lib/tree-bulb-seats.json 에 넣어 두고, 화면에서는 읽기만 합니다.
+// 겉면을 찾는 계산(위의 createBulbSeat)은 전구 하나마다 트리 전체를 훑어서, 화면을 열 때마다 하면 몇 초가 걸리기 때문입니다.
+//  - count: 전구 수, check: 모델이 바뀌었는지 알아보는 값(원래 전구 자리들의 합), seats: 전구마다 x, y, z
+//  - 트리 · 전구 줄 모델이나 전구 크기(BULB_SCALES)를 바꾸면 다시 계산해야 합니다:
+//    개발 서버에서 /globe/demo?bake-bulbs 를 열면 브라우저 콘솔에 "BULB_SEATS" 로 시작하는 한 줄이 찍힙니다. 그 뒤의 내용을 파일에 넣습니다.
+//  - 파일이 모델과 맞지 않으면 겉면 계산 없이 바깥으로 내밀기만 하고, 콘솔에 알립니다.
+type BakedSeats = { count: number; check: number; seats: number[] };
+
+// 전구 줄 모양은 트리 색을 바꿔도 같으므로, 한 번 만든 것을 다시 씁니다
 const bulbGeometries = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
 
 // 전구마다 정해진 0~1 사이의 값 (볼 때마다 같은 전구가 같은 크기 · 같은 박자로 반짝이도록)
@@ -471,7 +480,7 @@ function createBulbMaterial() {
 }
 
 // 전구 줄은 구슬 수백 개가 한 덩어리로 붙어 있습니다. 서로 이어진 면끼리 묶어 구슬을 구분하고 구슬마다 색 · 크기 · 반짝이는 박자를 줍니다.
-function colorBulbs(source: THREE.BufferGeometry, seat?: BulbSeat) {
+function colorBulbs(source: THREE.BufferGeometry, baked?: BakedSeats, seat?: BulbSeat, onSeats?: (seats: BakedSeats) => void) {
   const geometry = source.clone();
   const index = geometry.getIndex();
   const count = geometry.getAttribute("position").count;
@@ -532,53 +541,60 @@ function colorBulbs(source: THREE.BufferGeometry, seat?: BulbSeat) {
     const far = Math.hypot(position.getX(i) - centers[bulb * 3], position.getY(i) - centers[bulb * 3 + 1], position.getZ(i) - centers[bulb * 3 + 2]);
     if (far > radius[bulb]) radius[bulb] = far;
   }
-  // 구슬마다 크기와 놓일 자리(가운데)를 정합니다.
-  // 크기는 줄을 따라 큰 것 - 작은 것 - 중간 - 작은 것 순서이고, 같은 크기끼리도 아주 조금씩 다릅니다 (±5%).
+  // 구슬마다 크기를 정합니다: 줄을 따라 큰 것 - 작은 것 - 중간 - 작은 것 순서이고, 같은 크기끼리도 아주 조금씩 다릅니다 (±5%).
   const scales = new Float32Array(bulbCount);
+  for (let bulb = 0; bulb < bulbCount; bulb++) scales[bulb] = BULB_SCALES[bulb % BULB_SCALES.length] * (0.95 + 0.1 * bulbRandom(bulb, 1));
+
+  // 구슬이 놓일 자리(가운데). 미리 계산해 둔 값이 이 모델의 것이면 그대로 씁니다.
+  let check = 0;
+  for (let i = 0; i < bulbCount * 3; i++) check += centers[i];
+  check = Math.round(check * 1000);
   const seats = new Float32Array(bulbCount * 3);
-  const seated = new Uint8Array(bulbCount); // 트리 겉면을 찾아 얹었는지
-  const spot = new THREE.Vector3();
-  for (let bulb = 0; bulb < bulbCount; bulb++) {
-    const scale = BULB_SCALES[bulb % BULB_SCALES.length] * (0.95 + 0.1 * bulbRandom(bulb, 1));
-    scales[bulb] = scale;
-    const cx = centers[bulb * 3];
-    const cy = centers[bulb * 3 + 1];
-    const cz = centers[bulb * 3 + 2];
-    spot.set(cx, cy, cz);
-    seated[bulb] = seat?.(spot, axisX, axisZ, radius[bulb] * scale) ? 1 : 0;
-    if (!seated[bulb]) {
-      // 겉면을 찾지 못하면 가운데 축에서 멀어지는 쪽으로 내밉니다
-      const away = Math.hypot(cx - axisX, cz - axisZ) || 1;
-      const out = radius[bulb] * scale * BULB_OUT;
-      spot.set(cx + ((cx - axisX) / away) * out, cy - out * 0.12, cz + ((cz - axisZ) / away) * out);
+  if (baked && !seat && baked.count === bulbCount && Math.abs(baked.check - check) <= 2 && baked.seats.length === bulbCount * 3) {
+    seats.set(baked.seats);
+  } else {
+    if (!seat) console.warn("전구 자리 파일(lib/tree-bulb-seats.json)이 모델과 맞지 않습니다. /globe/demo?bake-bulbs 로 다시 계산해 주세요.");
+    const spot = new THREE.Vector3();
+    for (let bulb = 0; bulb < bulbCount; bulb++) {
+      const scale = scales[bulb];
+      const cx = centers[bulb * 3];
+      const cy = centers[bulb * 3 + 1];
+      const cz = centers[bulb * 3 + 2];
+      spot.set(cx, cy, cz);
+      if (!seat?.(spot, axisX, axisZ, radius[bulb] * scale)) {
+        // 겉면을 찾지 못하면(또는 찾지 않을 때) 가운데 축에서 멀어지는 쪽으로 내밉니다
+        const away = Math.hypot(cx - axisX, cz - axisZ) || 1;
+        const out = radius[bulb] * scale * BULB_OUT;
+        spot.set(cx + ((cx - axisX) / away) * out, cy - out * 0.12, cz + ((cz - axisZ) / away) * out);
+      }
+      seats.set([spot.x, spot.y, spot.z], bulb * 3);
     }
-    seats.set([spot.x, spot.y, spot.z], bulb * 3);
-  }
-  // 줄이 가지 사이 골이나 위층 가지 밑으로 깊이 들어간 곳은, 양옆 전구만큼 바깥으로 당겨 줄이 골을 건너가게 합니다.
-  // (그대로 두면 그 전구들이 틈 사이로 조각처럼 잘려 보입니다)
-  const reachOut = new Float32Array(bulbCount); // 가운데 축에서 떨어진 거리
-  const linked = new Uint8Array(bulbCount); // 다음 번호의 전구와 줄로 이어져 있는지
-  const gaps: number[] = [];
-  for (let bulb = 0; bulb < bulbCount; bulb++) {
-    reachOut[bulb] = Math.hypot(seats[bulb * 3] - axisX, seats[bulb * 3 + 2] - axisZ);
-    if (bulb + 1 < bulbCount) {
-      gaps.push(Math.hypot(centers[bulb * 3] - centers[bulb * 3 + 3], centers[bulb * 3 + 1] - centers[bulb * 3 + 4], centers[bulb * 3 + 2] - centers[bulb * 3 + 5]));
+    // 줄이 가지 사이 골이나 위층 가지 밑으로 깊이 들어간 곳은, 양옆 전구만큼 바깥으로 당겨 줄이 골을 건너가게 합니다.
+    const reachOut = new Float32Array(bulbCount); // 가운데 축에서 떨어진 거리
+    const linked = new Uint8Array(bulbCount); // 다음 번호의 전구와 줄로 이어져 있는지
+    const gaps: number[] = [];
+    for (let bulb = 0; bulb < bulbCount; bulb++) {
+      reachOut[bulb] = Math.hypot(seats[bulb * 3] - axisX, seats[bulb * 3 + 2] - axisZ);
+      if (bulb + 1 < bulbCount) {
+        gaps.push(Math.hypot(centers[bulb * 3] - centers[bulb * 3 + 3], centers[bulb * 3 + 1] - centers[bulb * 3 + 4], centers[bulb * 3 + 2] - centers[bulb * 3 + 5]));
+      }
     }
-  }
-  const usualGap = [...gaps].sort((x, y) => x - y)[Math.floor(gaps.length / 2)] ?? 0;
-  for (let bulb = 0; bulb + 1 < bulbCount; bulb++) linked[bulb] = gaps[bulb] < usualGap * 2.5 ? 1 : 0;
-  const BRIDGE = 7; // 양옆으로 이만큼의 전구를 살핍니다
-  for (let bulb = 0; bulb < bulbCount; bulb++) {
-    let left = reachOut[bulb];
-    for (let j = bulb - 1; j >= Math.max(0, bulb - BRIDGE) && linked[j]; j--) left = Math.max(left, reachOut[j]);
-    let right = reachOut[bulb];
-    for (let j = bulb + 1; j <= Math.min(bulbCount - 1, bulb + BRIDGE) && linked[j - 1]; j++) right = Math.max(right, reachOut[j]);
-    const bridged = Math.min(left, right);
-    if (bridged > reachOut[bulb] && reachOut[bulb] > 1e-6) {
-      const pull = bridged / reachOut[bulb];
-      seats[bulb * 3] = axisX + (seats[bulb * 3] - axisX) * pull;
-      seats[bulb * 3 + 2] = axisZ + (seats[bulb * 3 + 2] - axisZ) * pull;
+    const usualGap = [...gaps].sort((x, y) => x - y)[Math.floor(gaps.length / 2)] ?? 0;
+    for (let bulb = 0; bulb + 1 < bulbCount; bulb++) linked[bulb] = gaps[bulb] < usualGap * 2.5 ? 1 : 0;
+    const BRIDGE = 7; // 양옆으로 이만큼의 전구를 살핍니다
+    for (let bulb = 0; bulb < bulbCount; bulb++) {
+      let left = reachOut[bulb];
+      for (let j = bulb - 1; j >= Math.max(0, bulb - BRIDGE) && linked[j]; j--) left = Math.max(left, reachOut[j]);
+      let right = reachOut[bulb];
+      for (let j = bulb + 1; j <= Math.min(bulbCount - 1, bulb + BRIDGE) && linked[j - 1]; j++) right = Math.max(right, reachOut[j]);
+      const bridged = Math.min(left, right);
+      if (bridged > reachOut[bulb] && reachOut[bulb] > 1e-6) {
+        const pull = bridged / reachOut[bulb];
+        seats[bulb * 3] = axisX + (seats[bulb * 3] - axisX) * pull;
+        seats[bulb * 3 + 2] = axisZ + (seats[bulb * 3 + 2] - axisZ) * pull;
+      }
     }
+    onSeats?.({ count: bulbCount, check, seats: Array.from(seats, (v) => Math.round(v * 100000) / 100000) });
   }
   const colors = new Float32Array(count * 3);
   const twinkles = new Float32Array(count);
@@ -797,13 +813,16 @@ export function GlobeModel({ title = "", treeColor, trunkColor, baseColor, showG
       }
       mesh.material = next;
     });
-    // 전구: 색 · 크기를 주고 트리 겉면에 얹습니다
+    // 전구: 색 · 크기를 주고, 미리 계산해 둔 자리(트리 겉면 위)에 놓습니다
     if (garlandMeshes.length) {
       copy.updateMatrixWorld(true);
       for (const mesh of garlandMeshes) {
         let geometry = bulbGeometries.get(mesh.geometry);
         if (!geometry) {
-          geometry = colorBulbs(mesh.geometry, createBulbSeat(mesh, treeMeshes));
+          const bake = process.env.NODE_ENV !== "production" && typeof window !== "undefined" && window.location.search.includes("bake-bulbs");
+          geometry = bake
+            ? colorBulbs(mesh.geometry, undefined, createBulbSeat(mesh, treeMeshes), (seats) => console.log("BULB_SEATS " + JSON.stringify(seats)))
+            : colorBulbs(mesh.geometry, bakedBulbSeats as BakedSeats);
           bulbGeometries.set(mesh.geometry, geometry);
         }
         mesh.geometry = geometry;
