@@ -88,7 +88,6 @@ export default function LoginView() {
       ornaments={askName ? undefined : globe?.ornaments}
       title={title}
       subtitle={subtitle}
-      hintMobile={askName ? "받침대 명판에 닉네임을 적어 주세요" : undefined}
       plate={
         askName ? (
           <NameplateInput value={nickname} onChange={setNickname} prompt="여기에 닉네임을 적어 주세요" srLabel="닉네임" />
