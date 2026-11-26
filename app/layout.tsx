@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import BgmAutoStart from "@/components/BgmAutoStart";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 
 // 링크를 붙여 넣었을 때 보이는 미리보기 정보. 이미지는 app/opengraph-image.jpg 를 자동으로 씁니다.
@@ -36,7 +37,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
         <link rel="stylesheet" href={PRETENDARD} />
       </head>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        {/* 배경 음악: 처음 화면을 누르면 캐롤이 나옵니다. 끄는 버튼은 화면 오른쪽 위에 있습니다 */}
+        <BgmAutoStart />
+      </body>
     </html>
   );
 }
