@@ -2,18 +2,19 @@
 
 // 02 꾸미기 도크 (시안 C = 시안 A 의 02)
 //  - 넓은 화면: 한 줄 도크 (꾸밀 곳 4개 · 선택지 · 완료)
-//  - 휴대폰: 도크 두 개. 위 도크는 꾸밀 곳 4칸, 아래 도크는 고른 곳의 선택지(3칸씩) + 완료.
-//    트리(5색) · 받침대(7색)처럼 선택지가 3개를 넘는 곳은 두 줄로 놓입니다 (FEEDBACK E2, 이민정).
-//    두 도크는 같은 너비 · 같은 칸 나눔으로 정렬하고, 선택지에는 이름을 함께 보여 줍니다.
+//  - 휴대폰: 도크 두 개. 위 도크는 꾸밀 곳 4칸, 아래 도크는 고른 곳의 선택지(그림 + 이름) + 완료.
+//    선택지는 세 개까지 한 줄에 나눠 놓고, 트리(5색) · 받침대(7색)처럼 더 많으면 옆으로 밀어서 넘깁니다 (이슈 #62).
+//    밀어 넘기는 칸은 너비 52px · 사이 10px 입니다. 더 있다는 것을 알 수 있게 끝 칸이 걸쳐 보이고 오른쪽 끝이 흐려집니다.
+//  - 소품은 하나만 고르는 것이 아니라 켜고 끕니다: 선물 상자 · 눈사람을 둘 다, 하나만, 둘 다 없이.
 
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
-import { THEME_PARTS, type GlobeTheme, type ThemeOption, type ThemePart } from "@/lib/theme";
+import { hasProp, THEME_PARTS, toggleProp, type GlobeTheme, type PropItem, type ThemeOption, type ThemePart } from "@/lib/theme";
 
 // 소품은 색이 아니라 모양으로 고르므로 그림 아이콘으로 보여 줍니다 (처음 보는 사람도 눌러 보지 않고 알 수 있게)
 // 아이콘: public/icons/prop-*.svg (Figma AI 벡터, Figma 파일의 "Icons · 꾸미기 소품" 판)
-const PROP_ICON: Record<string, string> = { gift: "/icons/prop-gift.svg", snowman: "/icons/prop-snowman.svg", both: "/icons/prop-both.svg" };
+const PROP_ICON: Record<string, string> = { gift: "/icons/prop-gift.svg", snowman: "/icons/prop-snowman.svg" };
 
 type Props = {
   theme: GlobeTheme;
@@ -26,7 +27,7 @@ type Props = {
 // 선택지 하나의 그림 (소품은 아이콘, 나머지는 색 동그라미)
 function OptionMark({ part, option, size }: { part: ThemePart; option: ThemeOption; size: number }) {
   if (part === "prop") {
-    return <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size + 4} height={size + 4} unoptimized />;
+    return <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size + 4} height={size + 4} loading="eager" unoptimized />;
   }
   return <span className="rounded-full border border-glass-border" style={{ background: option.color, width: size, height: size }} />;
 }
@@ -37,14 +38,13 @@ const sheetTitle = (part: ThemePart, label: string) => (part === "prop" ? "소�
 // 꾸미기를 마치는 버튼. "다음"은 다음 꾸밀 곳으로 넘어가는 버튼처럼 읽혀서 바꿨습니다 (FEEDBACK B3)
 const DONE_LABEL = "완료";
 
-// 휴대폰 선택지 도크: 3개까지는 한 줄 3칸, 그보다 많으면 두 줄에 나눠 담습니다 (5 · 6개는 3칸씩, 7 · 8개는 4칸씩).
-const optionColumns = (count: number) => Math.max(3, Math.ceil(count / 2));
-// 꾸밀 곳을 바꿀 때 도크 높이가 달라져 스노우볼이 들썩이지 않도록, 줄 수는 선택지가 가장 많은 곳에 맞춥니다.
-const OPTION_ROWS = Math.max(...THEME_PARTS.map((p) => Math.ceil(p.options.length / optionColumns(p.options.length))));
-const OPTION_HEIGHT = 62; // 선택지 한 칸의 높이(px)
-
 export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: Props) {
   const current = THEME_PARTS.find((p) => p.key === part)!;
+  // 소품은 여러 개를 켜고 끄고, 나머지는 하나만 고릅니다
+  const isOn = (id: string) => (part === "prop" ? hasProp(theme.prop, id as PropItem) : theme[part] === id);
+  const pick = (id: string) => onPick(part, part === "prop" ? toggleProp(theme.prop, id as PropItem) : id);
+  const slides = current.options.length > 3; // 휴대폰: 세 칸을 넘으면 옆으로 밀어서 넘깁니다
+  const groupLabel = part === "prop" ? "소품 고르기 (여러 개 고를 수 있어요)" : sheetTitle(part, current.label);
 
   return (
     <>
@@ -71,9 +71,9 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
 
         <span className="mx-1.5 h-7 w-px bg-glass-strong" aria-hidden="true" />
 
-        <div className="flex items-center gap-1" role="group" aria-label={sheetTitle(part, current.label)}>
+        <div className="flex items-center gap-1" role="group" aria-label={groupLabel}>
           {current.options.map((o) => {
-            const selected = theme[part] === o.id;
+            const selected = isOn(o.id);
             return (
               <button
                 key={o.id}
@@ -81,7 +81,7 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
                 aria-pressed={selected}
                 aria-label={`${current.label}: ${o.label}`}
                 title={o.label}
-                onClick={() => onPick(part, o.id)}
+                onClick={() => pick(o.id)}
                 className={`flex size-11 items-center justify-center rounded-full transition duration-200 ease-soft ${
                   selected ? "ring-2 ring-inset ring-accent" : "hover:bg-glass"
                 }`}
@@ -96,7 +96,7 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
         </Button>
       </Dock>
 
-      {/* 휴대폰: 도크 두 개 — 위는 꾸밀 곳 4칸, 아래는 고른 곳의 선택지 3칸 + 완료 (항상 보임) */}
+      {/* 휴대폰: 도크 두 개 — 위는 꾸밀 곳 4칸, 아래는 고른 곳의 선택지 한 줄(그림만) + 완료 (항상 보임) */}
       <div className="flex w-full flex-col gap-2 sm:hidden">
         <Dock label="꾸밀 곳" className="w-full">
           <div className="grid w-full grid-cols-4 gap-1" role="group" aria-label="꾸밀 곳">
@@ -119,33 +119,36 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
           </div>
         </Dock>
 
-        <Dock label={sheetTitle(part, current.label)} className="w-full !rounded-[28px]">
+        <Dock label={groupLabel} className="w-full !rounded-[28px]">
+          {/* key: 꾸밀 곳을 바꾸면 밀어 둔 자리를 처음으로 되돌립니다 */}
           <div
-            className="grid min-w-0 flex-1 content-center gap-1"
-            style={{
-              gridTemplateColumns: `repeat(${optionColumns(current.options.length)}, minmax(0, 1fr))`,
-              minHeight: OPTION_ROWS * OPTION_HEIGHT + (OPTION_ROWS - 1) * 4,
-            }}
+            key={part}
+            className={`flex min-w-0 flex-1 snap-x gap-2.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+              slides ? "[mask-image:linear-gradient(to_right,black_calc(100%-28px),transparent)]" : ""
+            }`}
             role="group"
-            aria-label={sheetTitle(part, current.label)}
+            aria-label={groupLabel}
           >
             {current.options.map((o) => {
-              const selected = theme[part] === o.id;
+              const selected = isOn(o.id);
               return (
                 <button
                   key={o.id}
                   type="button"
                   aria-pressed={selected}
-                  onClick={() => onPick(part, o.id)}
-                  className={`flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-2xl px-1 transition duration-200 ease-soft ${
+                  onClick={() => pick(o.id)}
+                  className={`flex min-h-[62px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-2xl px-1 transition duration-200 ease-soft ${
                     selected ? "bg-glass-strong ring-2 ring-inset ring-accent" : ""
                   }`}
+                  style={{ width: slides ? 52 : `calc((100% - ${(current.options.length - 1) * 10}px) / ${current.options.length})` }}
                 >
                   <OptionMark part={part} option={o} size={28} />
                   <span className={`max-w-full truncate text-xs ${selected ? "font-bold text-ink" : "text-ink-sub"}`}>{o.label}</span>
                 </button>
               );
             })}
+            {/* 끝까지 밀었을 때 마지막 칸이 흐려진 가장자리 밖으로 나오게 하는 여백 */}
+            {slides && <span className="w-4 shrink-0" aria-hidden="true" />}
           </div>
           <Button onClick={onNext} className="ml-1 !h-[62px] !rounded-[20px] !px-4">
             {DONE_LABEL}
