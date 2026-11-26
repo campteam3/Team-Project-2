@@ -1,10 +1,14 @@
 // 스노우볼 꾸미기 선택지와 기본값.
 // DB 의 globes.theme(jsonb)에 { tree, prop, base, snow } 모양으로 저장합니다. (이슈 #10)
-// 색 값은 3D 스노우볼(이민정) 작업이 나오면 그 모델에 맞춰 바꿉니다.
+// 트리 · 받침대의 색 값은 3D 스노우볼에 그대로 입히는 색이고, 고르기 버튼의 동그라미에도 같은 색을 칠합니다. (FEEDBACK E2, 이민정)
+// 기본값(초록 트리, 레드 받침대)만 모델 원래 색을 쓰므로, 그 둘의 값은 버튼에 칠하는 색입니다.
+// 이미 저장된 스노우볼이 있으니 남아 있는 선택지의 id 는 바꾸지 않습니다. 없어진 선택지("deep" 짙은 초록)를 골랐던 스노우볼은 기본값으로 보입니다.
+// 선택지가 3개를 넘으면 휴대폰 꾸미기 도크가 두 줄로 놓입니다.
 
 export type ThemePart = "tree" | "prop" | "base" | "snow";
 
-export type ThemeOption = { id: string; label: string; color: string };
+// trunk: 트리 색에만 씁니다. 그 트리 색에 어울리는 나무 기둥 색 (없으면 모델 원래 기둥 색)
+export type ThemeOption = { id: string; label: string; color: string; trunk?: string };
 
 export type GlobeTheme = Record<ThemePart, string>;
 
@@ -13,9 +17,12 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     key: "tree",
     label: "트리",
     options: [
-      { id: "green", label: "초록", color: "#3C8E63" },
-      { id: "deep", label: "짙은 초록", color: "#1F5A40" },
-      { id: "frost", label: "눈 덮인", color: "#D7E6E4" },
+      // 나무 기둥은 원래 초록 트리에 맞춘 붉은 갈색이라, 다른 색 트리에는 그 색에 어울리는 기둥 색을 함께 입힙니다.
+      { id: "green", label: "초록", color: "#38B562" },
+      { id: "frost", label: "흰색", color: "#EEF3F3", trunk: "#B9A594" }, // 자작나무 같은 밝은 회갈색
+      { id: "mint", label: "민트", color: "#86D8C4", trunk: "#A98B76" }, // 부드러운 코코아색
+      { id: "pink", label: "분홍", color: "#F4A9C2", trunk: "#94707C" }, // 분홍 기운이 도는 회갈색
+      { id: "black", label: "검정", color: "#2B2E35", trunk: "#382E2C" }, // 아주 짙은 고동색 (안쪽의 따뜻한 조명을 받아 화면에서는 더 밝게 보입니다)
     ],
   },
   {
@@ -34,9 +41,13 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     key: "base",
     label: "받침대",
     options: [
-      { id: "red", label: "레드", color: "#7A3434" },
-      { id: "wood", label: "나무", color: "#7A5233" },
-      { id: "night", label: "밤하늘", color: "#2B3760" },
+      { id: "red", label: "레드", color: "#ED4034" },
+      { id: "wood", label: "나무", color: "#4B2F21" },
+      { id: "night", label: "남색", color: "#18274F" },
+      { id: "white", label: "흰색", color: "#F2EFE9" },
+      { id: "pink", label: "분홍", color: "#F6C6D3" },
+      { id: "green", label: "초록", color: "#1B4D3C" },
+      { id: "black", label: "검정", color: "#28292E" },
     ],
   },
   {
@@ -58,6 +69,9 @@ export function themeOption(part: ThemePart, id: string): ThemeOption {
 }
 
 export const themeColor = (theme: GlobeTheme, part: ThemePart) => themeOption(part, theme[part]).color;
+
+// 고른 트리 색에 어울리는 나무 기둥 색. 기본 트리는 모델 원래 색을 쓰므로 undefined 입니다.
+export const trunkColor = (theme: GlobeTheme) => themeOption("tree", theme.tree).trunk;
 
 // DB 에서 읽은 값(모양을 믿을 수 없음)을 안전한 테마로 바꿉니다.
 export function parseTheme(value: unknown): GlobeTheme {

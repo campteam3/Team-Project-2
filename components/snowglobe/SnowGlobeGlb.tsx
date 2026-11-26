@@ -250,7 +250,8 @@ function makeMatte(material: THREE.MeshStandardMaterial, roughness: number, refl
 }
 
 // 받침대와 빨간 선물 상자가 함께 쓰는 부드러운 빨강
-const SOFT_RED = "#dc4f45";
+// 받침대와 빨간 선물 상자의 빨강. 예전 값(#dc4f45)에서 밝기는 그대로 두고 채도를 올렸습니다 (이민정)
+const SOFT_RED = "#ed4034";
 
 // 아주 약한 유광: 클레이 느낌은 그대로 두고, 빛을 받는 곳에만 부드러운 윤기가 돕니다.
 function makeSoftGloss(material: THREE.MeshStandardMaterial) {
@@ -279,6 +280,7 @@ function makeGold(material: THREE.MeshStandardMaterial, roughness: number) {
 }
 
 const TREE_MATERIAL = "W_Ceramic_Green";
+const TRUNK_MATERIAL = "W_Ceramic_Trunk";
 const BASE_MATERIAL = "W_Base_RedMat";
 
 type Tune = (material: THREE.MeshStandardMaterial) => void;
@@ -364,10 +366,112 @@ const BULB_COLORS: [string, number][] = [
   ["#ff7fb5", 1.55],
 ];
 
-const BULB_SCALE = 1.7;
+// 전구 크기: 모델의 구슬을 이만큼 키웁니다. 줄을 따라 큰 것 - 작은 것 - 중간 - 작은 것 순서가 되풀이됩니다. (이민정)
+// 모델에서 구슬은 줄을 따라 차례로 놓여 있어서(이웃한 번호가 이웃한 구슬), 번호 순서대로 크기를 정하면 됩니다.
+const BULB_SCALES = [2.2, 1.25, 1.65, 1.25];
+// 전구를 트리 겉면에 얹을 때, 전구 가운데를 겉면에서 띄우는 거리 (전구 반지름의 몇 배). 1 이면 겉면에 딱 닿고, 조금 작으면 살짝 박힙니다.
+const BULB_SIT = 0.82;
+// 겉면을 찾지 못한 전구를 바깥쪽으로 내미는 정도 (전구 반지름의 몇 배)
+const BULB_OUT = 1.05;
 
-// 전구 줄은 구슬 수백 개가 한 덩어리로 붙어 있습니다. 서로 이어진 면끼리 묶어 구슬을 구분하고 구슬마다 색을 줍니다.
-function colorBulbs(source: THREE.BufferGeometry) {
+// 전구를 트리 겉면에 얹을 자리를 찾습니다. 제자리에서 키우기만 하면 전구가 트리의 볼록한 곳에 파묻혀 조각처럼 잘려 보이기 때문입니다.
+// 전구 둘레에서 세 방향(가운데 축 쪽, 비스듬히 아래, 바로 아래)으로 선을 그어 가장 가까운 트리 겉면을 찾고,
+// 그 겉면이 향하는 쪽으로 전구 반지름만큼 띄워 놓습니다. 그래서 가지 위에서는 위에 얹히고, 가지 옆에서는 옆에 붙습니다.
+// 좌표는 전구 줄 메시 안의 좌표로 주고받습니다. 찾지 못하면 false 를 돌려줍니다.
+type BulbSeat = (center: THREE.Vector3, axisX: number, axisZ: number, reach: number) => boolean;
+
+function createBulbSeat(garland: THREE.Mesh, trees: THREE.Mesh[]): BulbSeat {
+  const raycaster = new THREE.Raycaster();
+  const from = new THREE.Vector3();
+  const inward = new THREE.Vector3();
+  const aim = new THREE.Vector3();
+  const world = new THREE.Vector3();
+  const best = new THREE.Vector3();
+  const facing = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  const worldScale = garland.getWorldScale(new THREE.Vector3()).x;
+  const START = 0.14; // 선을 긋기 시작하는 곳: 전구에서 이만큼 물러난 자리
+  const NEAR = 0.09; // 원래 자리에서 이보다 먼 겉면은 쓰지 않습니다 (다른 층의 가지 등)
+  const OUTSIDE = 0.4; // 가려지는지 볼 때 선을 긋기 시작하는 곳: 전구에서 바깥으로 이만큼
+  return (center, axisX, axisZ, reach) => {
+    garland.localToWorld(world.copy(center));
+    garland.localToWorld(from.set(axisX, center.y, axisZ));
+    inward.copy(from).sub(world);
+    inward.y = 0;
+    if (inward.lengthSq() < 1e-10) return false;
+    inward.normalize();
+    let nearest = Infinity;
+    for (const down of [0, 0.8, 1]) {
+      if (down === 1) aim.set(0, -1, 0);
+      else aim.copy(inward).multiplyScalar(1 - down).setY(-down).normalize();
+      from.copy(world).addScaledVector(aim, -START);
+      raycaster.set(from, aim);
+      raycaster.far = START + NEAR;
+      const hit = raycaster.intersectObjects(trees, false)[0];
+      if (!hit || !hit.face) continue;
+      const apart = hit.point.distanceTo(world);
+      if (apart >= nearest) continue;
+      nearest = apart;
+      best.copy(hit.point);
+      normal.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
+      if (normal.dot(aim) > 0) normal.negate();
+      facing.copy(normal);
+    }
+    if (nearest > NEAR) return false;
+    const size = reach * worldScale;
+    world.copy(best).addScaledVector(facing, size * BULB_SIT);
+    // 옆에서 봤을 때 다른 가지(위층 가지의 처진 끝 등)에 가려지는 자리면, 가리고 있는 겉면의 바깥으로 옮깁니다.
+    // 바깥에서 전구를 향해 수평으로 선을 그어, 전구에 닿기 전에 트리에 먼저 닿는지 봅니다.
+    from.copy(world).addScaledVector(inward, -OUTSIDE);
+    raycaster.set(from, inward);
+    raycaster.far = OUTSIDE - size * 0.4;
+    const cover = raycaster.intersectObjects(trees, false)[0];
+    if (cover?.face) {
+      normal.copy(cover.face.normal).transformDirection(cover.object.matrixWorld);
+      if (normal.dot(inward) > 0) normal.negate();
+      world.copy(cover.point).addScaledVector(normal, size * BULB_SIT);
+    }
+    center.copy(garland.worldToLocal(world));
+    return true;
+  };
+}
+
+// 전구 줄 모양은 트리 색을 바꿔도 같으므로, 한 번 만든 것을 다시 씁니다 (겉면을 찾는 계산이 무겁습니다)
+const bulbGeometries = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
+
+// 전구마다 정해진 0~1 사이의 값 (볼 때마다 같은 전구가 같은 크기 · 같은 박자로 반짝이도록)
+const bulbRandom = (bulb: number, salt: number) => {
+  const x = Math.sin(bulb * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+// 전구가 반짝이는 박자를 흘려보내는 시계. 전구 줄을 그릴 때마다 지금 시각을 넣습니다.
+const bulbClock = { value: 0 };
+
+// 전구 재질: 스스로 빛나고(빛 번짐이 걸립니다), 전구마다 다른 박자로 이따금 잠깐 밝게 반짝입니다.
+// 평소에는 조금 차분하게 켜져 있다가, 3~10초에 한 번쯤 반짝였다 돌아옵니다. '움직임 줄이기'에서는 반짝이지 않습니다.
+function createBulbMaterial() {
+  const material = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uBulbClock = bulbClock;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute float aTwinkle;\nuniform float uBulbClock;\nvarying float vBulbGlow;")
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        float bulbWave = 0.5 + 0.5 * sin(uBulbClock * (0.6 + fract(aTwinkle * 7.31) * 1.4) + aTwinkle * 6.2832);
+        vBulbGlow = 0.78 + 1.5 * pow(bulbWave, 10.0);`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying float vBulbGlow;")
+      .replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb *= vBulbGlow;");
+  };
+  material.customProgramCacheKey = () => "tree-bulbs-twinkle";
+  return material;
+}
+
+// 전구 줄은 구슬 수백 개가 한 덩어리로 붙어 있습니다. 서로 이어진 면끼리 묶어 구슬을 구분하고 구슬마다 색 · 크기 · 반짝이는 박자를 줍니다.
+function colorBulbs(source: THREE.BufferGeometry, seat?: BulbSeat) {
   const geometry = source.clone();
   const index = geometry.getIndex();
   const count = geometry.getAttribute("position").count;
@@ -386,7 +490,12 @@ function colorBulbs(source: THREE.BufferGeometry) {
       parent[find(index.getX(i + 2))] = a;
     }
   }
-  const position = geometry.getAttribute("position");
+  // 모델은 압축되어 있어서 좌표가 -1~1 범위의 정수로 들어 있습니다. 그대로 고치면 범위를 넘는 값이 잘려서,
+  // 바깥으로 옮기거나 키운 전구가 벽에 눌린 것처럼 길게 찌그러집니다. 자유롭게 고칠 수 있는 실수 좌표로 바꿔 둡니다.
+  const packed = geometry.getAttribute("position");
+  const position = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
+  for (let i = 0; i < count; i++) position.setXYZ(i, packed.getX(i), packed.getY(i), packed.getZ(i));
+  geometry.setAttribute("position", position);
   const bulbOf = new Map<number, number>();
   const bulbIndex = new Int32Array(count);
   const centers: number[] = [];
@@ -406,25 +515,94 @@ function colorBulbs(source: THREE.BufferGeometry) {
     centers[bulb * 3 + 2] += position.getZ(i);
     sizes[bulb] += 1;
   }
+  // 구슬마다 가운데와 원래 반지름을 구하고, 트리의 가운데 축(구슬들의 한가운데)도 구합니다.
+  const bulbCount = sizes.length;
+  const radius = new Float32Array(bulbCount);
+  let axisX = 0;
+  let axisZ = 0;
+  for (let bulb = 0; bulb < bulbCount; bulb++) {
+    centers[bulb * 3] /= sizes[bulb];
+    centers[bulb * 3 + 1] /= sizes[bulb];
+    centers[bulb * 3 + 2] /= sizes[bulb];
+    axisX += centers[bulb * 3] / bulbCount;
+    axisZ += centers[bulb * 3 + 2] / bulbCount;
+  }
+  for (let i = 0; i < count; i++) {
+    const bulb = bulbIndex[i];
+    const far = Math.hypot(position.getX(i) - centers[bulb * 3], position.getY(i) - centers[bulb * 3 + 1], position.getZ(i) - centers[bulb * 3 + 2]);
+    if (far > radius[bulb]) radius[bulb] = far;
+  }
+  // 구슬마다 크기와 놓일 자리(가운데)를 정합니다.
+  // 크기는 줄을 따라 큰 것 - 작은 것 - 중간 - 작은 것 순서이고, 같은 크기끼리도 아주 조금씩 다릅니다 (±5%).
+  const scales = new Float32Array(bulbCount);
+  const seats = new Float32Array(bulbCount * 3);
+  const seated = new Uint8Array(bulbCount); // 트리 겉면을 찾아 얹었는지
+  const spot = new THREE.Vector3();
+  for (let bulb = 0; bulb < bulbCount; bulb++) {
+    const scale = BULB_SCALES[bulb % BULB_SCALES.length] * (0.95 + 0.1 * bulbRandom(bulb, 1));
+    scales[bulb] = scale;
+    const cx = centers[bulb * 3];
+    const cy = centers[bulb * 3 + 1];
+    const cz = centers[bulb * 3 + 2];
+    spot.set(cx, cy, cz);
+    seated[bulb] = seat?.(spot, axisX, axisZ, radius[bulb] * scale) ? 1 : 0;
+    if (!seated[bulb]) {
+      // 겉면을 찾지 못하면 가운데 축에서 멀어지는 쪽으로 내밉니다
+      const away = Math.hypot(cx - axisX, cz - axisZ) || 1;
+      const out = radius[bulb] * scale * BULB_OUT;
+      spot.set(cx + ((cx - axisX) / away) * out, cy - out * 0.12, cz + ((cz - axisZ) / away) * out);
+    }
+    seats.set([spot.x, spot.y, spot.z], bulb * 3);
+  }
+  // 줄이 가지 사이 골이나 위층 가지 밑으로 깊이 들어간 곳은, 양옆 전구만큼 바깥으로 당겨 줄이 골을 건너가게 합니다.
+  // (그대로 두면 그 전구들이 틈 사이로 조각처럼 잘려 보입니다)
+  const reachOut = new Float32Array(bulbCount); // 가운데 축에서 떨어진 거리
+  const linked = new Uint8Array(bulbCount); // 다음 번호의 전구와 줄로 이어져 있는지
+  const gaps: number[] = [];
+  for (let bulb = 0; bulb < bulbCount; bulb++) {
+    reachOut[bulb] = Math.hypot(seats[bulb * 3] - axisX, seats[bulb * 3 + 2] - axisZ);
+    if (bulb + 1 < bulbCount) {
+      gaps.push(Math.hypot(centers[bulb * 3] - centers[bulb * 3 + 3], centers[bulb * 3 + 1] - centers[bulb * 3 + 4], centers[bulb * 3 + 2] - centers[bulb * 3 + 5]));
+    }
+  }
+  const usualGap = [...gaps].sort((x, y) => x - y)[Math.floor(gaps.length / 2)] ?? 0;
+  for (let bulb = 0; bulb + 1 < bulbCount; bulb++) linked[bulb] = gaps[bulb] < usualGap * 2.5 ? 1 : 0;
+  const BRIDGE = 7; // 양옆으로 이만큼의 전구를 살핍니다
+  for (let bulb = 0; bulb < bulbCount; bulb++) {
+    let left = reachOut[bulb];
+    for (let j = bulb - 1; j >= Math.max(0, bulb - BRIDGE) && linked[j]; j--) left = Math.max(left, reachOut[j]);
+    let right = reachOut[bulb];
+    for (let j = bulb + 1; j <= Math.min(bulbCount - 1, bulb + BRIDGE) && linked[j - 1]; j++) right = Math.max(right, reachOut[j]);
+    const bridged = Math.min(left, right);
+    if (bridged > reachOut[bulb] && reachOut[bulb] > 1e-6) {
+      const pull = bridged / reachOut[bulb];
+      seats[bulb * 3] = axisX + (seats[bulb * 3] - axisX) * pull;
+      seats[bulb * 3 + 2] = axisZ + (seats[bulb * 3 + 2] - axisZ) * pull;
+    }
+  }
   const colors = new Float32Array(count * 3);
+  const twinkles = new Float32Array(count);
   const color = new THREE.Color();
   for (let i = 0; i < count; i++) {
     const bulb = bulbIndex[i];
+    twinkles[i] = bulbRandom(bulb, 2);
     const [hex, brightness] = BULB_COLORS[bulb % BULB_COLORS.length];
     color.set(hex).multiplyScalar(brightness);
     colors.set([color.r, color.g, color.b], i * 3);
-    // 색이 보이도록 구슬을 제자리에서 조금 키웁니다.
-    const cx = centers[bulb * 3] / sizes[bulb];
-    const cy = centers[bulb * 3 + 1] / sizes[bulb];
-    const cz = centers[bulb * 3 + 2] / sizes[bulb];
+    // 구슬을 키워서 정한 자리로 옮깁니다
+    const scale = scales[bulb];
     position.setXYZ(
       i,
-      cx + (position.getX(i) - cx) * BULB_SCALE,
-      cy + (position.getY(i) - cy) * BULB_SCALE,
-      cz + (position.getZ(i) - cz) * BULB_SCALE,
+      seats[bulb * 3] + (position.getX(i) - centers[bulb * 3]) * scale,
+      seats[bulb * 3 + 1] + (position.getY(i) - centers[bulb * 3 + 1]) * scale,
+      seats[bulb * 3 + 2] + (position.getZ(i) - centers[bulb * 3 + 2]) * scale,
     );
   }
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute("aTwinkle", new THREE.BufferAttribute(twinkles, 1));
+  // 전구를 옮겼으니 화면 밖 판정에 쓰는 둘레도 다시 잽니다
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
   return geometry;
 }
 
@@ -490,6 +668,7 @@ export type GlobeLook = {
   title?: string;
   // 꾸미기 색. 비우면 모델 기본색입니다.
   treeColor?: string;
+  trunkColor?: string; // 트리 색에 어울리는 나무 기둥 색
   baseColor?: string;
   // 꾸미기 소품. 별은 항상 트리 꼭대기에 있습니다.
   showGifts?: boolean;
@@ -516,7 +695,7 @@ function recolor(material: THREE.MeshStandardMaterial, color: string, rimStrengt
 }
 
 // 스노우볼 본체. 유리, 전구 줄, 별, 명패와 재질 값을 웹에 맞게 바꿉니다.
-export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true, showSnowman = true }: GlobeLook) {
+export function GlobeModel({ title = "", treeColor, trunkColor, baseColor, showGifts = true, showSnowman = true }: GlobeLook) {
   const { scene } = useGLTF(MODEL_URL);
 
   // 글꼴이 늦게 불러와지면 명패 글자를 그 글꼴로 다시 그립니다.
@@ -559,10 +738,13 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
     const copy = scene.clone(true);
     const glassFront = createGlassMaterial(false);
     const glassBack = createGlassMaterial(true);
-    // 트리에 두른 점 줄은 여러 색의 작은 전구처럼 스스로 빛나게 (빛 번짐이 걸립니다)
-    const bulbs = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+    // 트리에 두른 점 줄은 여러 색의 작은 전구처럼 스스로 빛나고, 이따금 반짝입니다
+    const bulbs = createBulbMaterial();
+    const stillBulbs = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const tuned = new Map<string, THREE.MeshStandardMaterial>();
     const glassMeshes: THREE.Mesh[] = [];
+    const garlandMeshes: THREE.Mesh[] = [];
+    const treeMeshes: THREE.Mesh[] = [];
 
     copy.traverse((child) => {
       // 꾸미기 소품: 고른 것만 보입니다.
@@ -578,8 +760,12 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
         return;
       }
       if (mesh.name.startsWith("w_Tree_Garland")) {
-        mesh.geometry = colorBulbs(mesh.geometry);
+        garlandMeshes.push(mesh);
         mesh.material = bulbs;
+        // 그릴 때마다 반짝임의 시계를 지금 시각으로 맞춥니다 (움직임 줄이기에서는 멈춰 둡니다)
+        mesh.onBeforeRender = () => {
+          if (!stillBulbs) bulbClock.value = performance.now() / 1000;
+        };
         return;
       }
       if (mesh.name.startsWith("w_Base_Nameplate") && !mesh.name.startsWith("w_Base_NameplateFrame")) {
@@ -597,6 +783,7 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
       }
       // Blender 가 내보낼 때 재질 이름 뒤에 ".001" 같은 번호를 붙이는 일이 있어, 번호를 떼고 찾습니다.
       const name = material.name.replace(/\.\d+$/, "");
+      if (name === TREE_MATERIAL) treeMeshes.push(mesh);
       const tune = MATERIAL_TUNES[name];
       if (!tune) return;
       let next = tuned.get(name);
@@ -604,11 +791,24 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
         next = material.clone();
         tune(next);
         if (name === TREE_MATERIAL && treeColor) recolor(next, treeColor, 0.2);
+        if (name === TRUNK_MATERIAL && trunkColor) recolor(next, trunkColor, 0.1);
         if (name === BASE_MATERIAL && baseColor) recolor(next, baseColor, 0.18);
         tuned.set(name, next);
       }
       mesh.material = next;
     });
+    // 전구: 색 · 크기를 주고 트리 겉면에 얹습니다
+    if (garlandMeshes.length) {
+      copy.updateMatrixWorld(true);
+      for (const mesh of garlandMeshes) {
+        let geometry = bulbGeometries.get(mesh.geometry);
+        if (!geometry) {
+          geometry = colorBulbs(mesh.geometry, createBulbSeat(mesh, treeMeshes));
+          bulbGeometries.set(mesh.geometry, geometry);
+        }
+        mesh.geometry = geometry;
+      }
+    }
     // 유리는 건너편 안쪽 면을 먼저, 앞면을 나중에 그립니다.
     for (const mesh of glassMeshes) {
       fitGlass(mesh, [glassFront, glassBack]);
@@ -620,7 +820,7 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
       mesh.renderOrder = 10;
     }
     return copy;
-  }, [scene, nameplate, treeColor, baseColor, showGifts, showSnowman]);
+  }, [scene, nameplate, treeColor, trunkColor, baseColor, showGifts, showSnowman]);
 
   return <primitive object={model} />;
 }
