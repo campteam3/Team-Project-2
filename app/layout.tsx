@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b1020",
+  themeColor: "#1b2a53", // 3D 배경의 가장자리 색 (globals.css 의 --color-night-sky 와 같은 값)
   viewportFit: "cover",
 };
 
