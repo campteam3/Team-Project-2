@@ -1,6 +1,6 @@
 "use client";
 
-// 12 메시지 쓰기 카드 (DESIGN.md 8장 팝오버 카드): 보내는 사람 · 메시지 · 색 바꾸기 + 달기
+// 12 메시지 쓰기 카드 (DESIGN.md 8장 팝오버 카드): 보내는 사람 · 메시지 · 색 바꾸기 + 오너먼트 달기
 // 넓은 화면에서는 스노우볼이 위로 작게 물러나고, 휴대폰에서는 스노우볼 위에 겹쳐 올라옵니다 (FEEDBACK B5).
 // 받침대 위에 겹치므로 글자가 묻히지 않게 도크와 같은 어두운 유리를 씁니다. 카드가 스노우볼을 덜 가리도록 "색 바꾸기"도 카드 안에 둡니다.
 // 키보드가 올라오면(kb:) 보이는 영역 안에 다 들어오도록 여백과 메시지 칸을 줄입니다.
@@ -71,11 +71,12 @@ export default function MessageCard({ sender, onSender, message, onMessage, erro
       )}
 
       <div className="flex gap-2.5">
-        <Button variant="secondary" icon="arrow-left" onClick={onBack} className="px-5">
+        <Button variant="secondary" icon="arrow-left" onClick={onBack} className="!px-4">
           색 바꾸기
         </Button>
-        <Button type="submit" disabled={busy} className="min-w-0 flex-1">
-          {busy ? "달고 있어요" : "달기"}
+        {/* 좁은 휴대폰(320px)에서도 "오너먼트 달기"가 여유 있게 들어오도록 좌우 여백을 줄입니다 (FEEDBACK C1) */}
+        <Button type="submit" disabled={busy} className="min-w-0 flex-1 !px-3">
+          {busy ? "달고 있어요" : "오너먼트 달기"}
         </Button>
       </div>
     </form>
