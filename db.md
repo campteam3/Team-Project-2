@@ -58,7 +58,7 @@
 | `id` | uuid | 기본 키 |
 | `globe_id` | uuid | 어느 스노우볼인지. 스노우볼을 지우면 함께 지워짐 |
 | `sender_name` | text | 보낸 사람 이름. 1~20자 |
-| `message` | text | 메시지. 1~300자. **주인만 읽음** |
+| `message` | text | 메시지. 1~200자(화면과 같은 한도). **주인만 읽음** |
 | `shape` | text | 오너먼트 모양 이름. 기본값 `ball`. 종류는 디자인에서 정함 |
 | `color` | text | 색. `#rrggbb` 형식 |
 | `position` | jsonb | 달린 위치. 비우면 화면에서 자동 배치. 모양은 디자인에서 정함 |
@@ -125,7 +125,7 @@
 | `invalid_theme` | 꾸미기 값이 너무 큼 |
 | `globe_not_found` | 없는 스노우볼 |
 | `invalid_sender_name` | 보낸 사람 이름이 비었거나 20자 초과 |
-| `invalid_message` | 메시지가 비었거나 300자 초과 |
+| `invalid_message` | 메시지가 비었거나 200자 초과 |
 | `invalid_shape` / `invalid_color` / `invalid_position` | 모양 · 색 · 위치 값이 틀림 |
 | `globe_full` | 오너먼트가 39개에 도달 (트리의 자리 수) |
 | `banned_word` | 닉네임 · 스노우볼 이름 · 보낸 사람 이름 · 메시지에 금지어(욕설)가 들어 있음 |
@@ -160,6 +160,7 @@ SQL 을 임시 Postgres(PGlite)에 실행해 59가지 경우를 시험했고 모
 3. ✅ **완료** — 프로젝트 URL 과 공개 키(anon key)를 `.env.local` 과 Vercel 환경 변수에 넣습니다 (`.env.example` 참고).
 4. ✅ **확인함** — 기존 `public` 스키마의 연습용 테이블 8개는 모두 RLS 가 켜져 있습니다. 다만 연습용 함수 `buy_item`, `paw_balance` 는 공개 키로 누구나 부를 수 있는 상태입니다. 배포하면 공개 키가 브라우저에 노출되므로, 필요 없으면 지우거나 실행 권한을 거두는 것이 좋습니다.
 5. ✅ **완료 (11/26)** — 금지어 막기 마이그레이션을 적용했습니다 (이름 `snowglobe_banned_words`). 배포 주소의 친구 화면에서 욕설이 든 메시지 · 이름은 "금지어가 포함되어 있어 등록할 수 없어요…" 안내가 뜨고, 멀쩡한 글은 저장되는 것을 확인했습니다. 금지어만 되돌리려면 `drop trigger ornaments_block_banned on snowglobe.ornaments; drop trigger globes_block_banned on snowglobe.globes;` 두 줄이면 됩니다.
+6. ✅ **완료 (11/26)** — 메시지 길이 한도를 화면과 같은 200자로 맞췄습니다 (이름 `snowglobe_message_limit_200`). 200자는 저장되고 201자는 `invalid_message` 로 막히는 것을 직접 호출로 확인했습니다.
 
 되돌리기: `drop schema snowglobe cascade;` 한 줄이면 이 프로젝트의 테이블과 함수가 모두 지워지고, 연습용 테이블에는 영향이 없습니다.
 
