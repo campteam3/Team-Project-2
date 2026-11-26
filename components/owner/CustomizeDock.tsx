@@ -25,15 +25,7 @@ type Props = {
 };
 
 // 선택지 하나의 그림 (소품은 아이콘, 나머지는 색 동그라미)
-// outlined: 소품 아이콘도 색 동그라미와 같은 크기 · 같은 테두리의 동그라미 안에 넣습니다 (넓은 화면 도크: 고르지 않은 소품도 색 동그라미처럼 보이게)
-function OptionMark({ part, option, size, outlined }: { part: ThemePart; option: ThemeOption; size: number; outlined?: boolean }) {
-  if (part === "prop" && outlined) {
-    return (
-      <span className="flex items-center justify-center rounded-full border border-glass-border" style={{ width: size, height: size }}>
-        <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size - 10} height={size - 10} loading="eager" unoptimized />
-      </span>
-    );
-  }
+function OptionMark({ part, option, size }: { part: ThemePart; option: ThemeOption; size: number }) {
   if (part === "prop") {
     return <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size + 4} height={size + 4} loading="eager" unoptimized />;
   }
@@ -94,7 +86,7 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
                   selected ? "ring-2 ring-inset ring-accent" : "hover:bg-glass"
                 }`}
               >
-                <OptionMark part={part} option={o} size={32} outlined />
+                <OptionMark part={part} option={o} size={32} />
               </button>
             );
           })}
