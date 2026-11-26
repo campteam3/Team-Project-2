@@ -7,7 +7,7 @@
 //  - 스노우볼을 돌리면 물은 늦게 따라오고, 멈춰도 한동안 계속 돕니다.
 //  - 눈은 물속이라 천천히 가라앉고, 가벼운 눈송이는 가라앉지 않고 약한 소용돌이를 따라 늘 떠다닙니다.
 //  - 물은 유리 · 바닥을 뚫지 못하고 그 면을 따라 흐릅니다. 그래서 눈이 한곳에 뭉치지 않고 골고루 퍼집니다.
-//  - 눈송이가 물속에서 뒤집히며 빛을 받아 이따금 반짝입니다.
+//  - 눈송이가 물속에서 뒤집히며 빛을 받아 이따금 반짝입니다. 눈 결정은 얇은 판처럼 기울어지며 돌고, 앞뒤 깊이에 따라 크기와 또렷함이 다릅니다.
 // 좌표는 스노우볼 모델과 같습니다 (유리 구의 가운데가 원점, 반지름 1).
 
 import { useFrame } from "@react-three/fiber";
@@ -117,6 +117,11 @@ function createFlakes(resting: boolean): Flakes {
   return f;
 }
 
+// 눈송이를 그리는 방식: 점 하나를 눈송이 하나로 그리되, 입체로 보이게 합니다.
+//  - 큰 눈송이: 얇은 눈 결정 판이 동전처럼 뒤집히며 돕니다. 옆을 보일 때는 가늘어지고, 정면을 향하는 순간 반짝입니다.
+//  - 작은 눈송이: 위 왼쪽에서 빛을 받는 작은 눈뭉치로 그립니다.
+//  - 유리 앞쪽의 눈송이는 더 크고 살짝 흐리게, 뒤쪽은 작고 또렷하게 그려 깊이가 느껴지게 합니다.
+// 진짜 입체 조각을 쓰지 않아서 그릴 양은 예전과 같습니다 (눈송이 하나 = 점 하나).
 const VERTEX = /* glsl */ `
   attribute float aSize;
   attribute float aAlpha;
@@ -131,21 +136,35 @@ const VERTEX = /* glsl */ `
   varying float vPx;
   varying float vTurn;
   varying float vFlash;
+  varying vec2 vAxis;
+  varying float vFace;
+  varying float vBlur;
+  varying float vBall;
 
   void main() {
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
-    // 스노우볼을 키우거나 줄이면 눈송이도 같은 비율로 달라집니다
-    float px = aSize * length(modelMatrix[0].xyz) * uScale * projectionMatrix[1][1] / -mv.z;
+    float modelScale = length(modelViewMatrix[0].xyz);
+    // 유리 구 안에서 얼마나 앞쪽인지: 0 = 맨 뒤, 1 = 맨 앞
+    vec4 center = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+    float near = clamp(0.5 + 0.5 * (mv.z - center.z) / (0.94 * modelScale), 0.0, 1.0);
+    float px = aSize * mix(0.6, 1.6, near * near) * modelScale * uScale * projectionMatrix[1][1] / -mv.z;
     gl_PointSize = max(px, uMinPx);
     vPx = gl_PointSize;
-    // 눈송이가 천천히 돕니다
+    vBlur = smoothstep(0.72, 1.0, near);
     vTurn = aSeed + uTwinkle * uTime * (aSeed - 3.14) * 0.25;
-    // 눈송이가 물속에서 뒤집히며 빛을 받습니다: 평소에는 조금 옅고, 이따금 잠깐 밝게 반짝입니다.
-    // 물이 세게 움직일수록 더 자주 반짝입니다 (uFlick 이 빨리 흐름).
-    vFlash = uTwinkle * pow(0.5 + 0.5 * sin(uFlick * (0.7 + aSeed * 0.22) + aSeed * 7.0), 5.0);
-    float twinkle = mix(1.0, 0.64, uTwinkle) + 0.6 * vFlash;
-    vAlpha = aAlpha * aFade * twinkle * clamp(px / uMinPx, 0.5, 1.0);
+    // 판이 뒤집히는 정도: 1 = 정면, 0 = 옆모습. 물이 세게 움직일수록 빨리 뒤집힙니다 (uFlick).
+    float face = mix(1.0, abs(cos(uFlick * (0.35 + aSeed * 0.11) + aSeed * 7.0)), uTwinkle);
+    // 작게 보이는 눈송이는 판이 아니라 눈뭉치로 그립니다
+    float plate = smoothstep(6.0, 12.0, px);
+    vFace = mix(1.0, max(face, 0.14), plate);
+    vBall = 1.0 - plate;
+    float axisAngle = aSeed * 2.7 + uTwinkle * uTime * 0.13 * (aSeed - 3.14);
+    vAxis = vec2(cos(axisAngle), sin(axisAngle));
+    vFlash = uTwinkle * pow(face, 12.0);
+    float bright = mix(1.0, 0.62 + 0.3 * face, uTwinkle) + 0.6 * vFlash;
+    float depthAlpha = mix(0.7, 1.0, smoothstep(0.0, 0.5, near)) * mix(1.0, 0.62, vBlur);
+    vAlpha = aAlpha * aFade * bright * depthAlpha * clamp(px / uMinPx, 0.5, 1.0);
   }
 `;
 
@@ -155,25 +174,35 @@ const FRAGMENT = /* glsl */ `
   varying float vPx;
   varying float vTurn;
   varying float vFlash;
+  varying vec2 vAxis;
+  varying float vFace;
+  varying float vBlur;
+  varying float vBall;
 
   void main() {
     vec2 p = (gl_PointCoord - 0.5) * 2.0;
-    float d = length(p);
-    // 작게 보일 때: 가장자리가 부드러운 동그라미
-    float soft = 1.0 - smoothstep(0.35, 1.0, d);
-    // 크게 보일 때(큰 눈송이, 확대했을 때): 여섯 갈래 눈 결정
-    float fold = mod(atan(p.y, p.x) + vTurn, 1.0472) - 0.5236;
-    float across = d * abs(sin(fold)); // 가장 가까운 갈래에서 떨어진 거리
+    // 판이 기운 만큼 한쪽으로 눌려 보이게 합니다
+    vec2 q = vec2(dot(p, vAxis), dot(p, vec2(-vAxis.y, vAxis.x)) / vFace);
+    float d = length(q);
+    if (d > 1.0) discard;
+    // 앞쪽 눈송이는 초점이 나간 것처럼 가장자리가 넓게 퍼집니다
+    float soft = 1.0 - smoothstep(mix(0.35, 0.0, vBlur), 1.0, d);
+    // 여섯 갈래 눈 결정
+    float fold = mod(atan(q.y, q.x) + vTurn, 1.0472) - 0.5236;
+    float across = d * abs(sin(fold));
     float along = d * cos(fold);
-    float line = max(0.1, 3.0 / vPx);
+    float line = max(0.1, 3.0 / vPx) * mix(1.0, 1.8, vBlur);
     float arms = (1.0 - smoothstep(line * 0.5, line, across)) * (1.0 - smoothstep(0.75, 1.0, d));
-    // 갈래 중간의 작은 곁가지
     float twig = (1.0 - smoothstep(line * 0.5, line, abs(across - (along - 0.5) * 0.9))) * step(0.5, along) * (1.0 - smoothstep(0.7, 0.85, d));
     float core = 1.0 - smoothstep(0.1, 0.34, d);
     float crystal = max(max(arms, twig), core);
-    float a = min(mix(soft, crystal, smoothstep(9.0, 14.0, vPx)) * vAlpha, 1.0);
+    float shape = mix(soft, mix(crystal, soft * 0.8, vBlur * 0.7), smoothstep(9.0, 14.0, vPx));
+    float a = min(shape * vAlpha, 1.0);
     if (a < 0.01) discard;
-    gl_FragColor = vec4(uColor * (1.0 + 0.45 * vFlash), a);
+    // 눈뭉치: 둥근 겉면에 위 왼쪽에서 빛이 비칩니다
+    vec3 round = normalize(vec3(p.x, -p.y, sqrt(max(0.0, 1.0 - dot(p, p)))));
+    float lit = 0.74 + 0.36 * dot(round, normalize(vec3(-0.45, 0.6, 0.66)));
+    gl_FragColor = vec4(uColor * mix(1.0, lit, vBall) * (1.0 + 0.45 * vFlash), a);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
