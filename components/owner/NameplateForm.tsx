@@ -4,6 +4,7 @@
 //  - NameplateInput: 3D 받침대 명판 위치에 붙는 닉네임 입력칸 (Stage 의 plate 로 넘깁니다)
 //  - NameplateForm: 받침대 아래 비밀번호 · 안내 · 버튼
 // 두 부분은 화면에서 떨어져 있지만 form 속성("owner-form")으로 하나의 폼입니다.
+// 키보드가 올라오면(kb:) 이름표 · 안내 글을 숨겨, 명판 · 비밀번호 · 버튼이 보이는 영역 안에 들어오게 합니다.
 
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
@@ -77,7 +78,7 @@ export default function NameplateForm({ password, onPassword, nickname, error, b
     <form id={FORM_ID} onSubmit={submit} noValidate className="pointer-events-auto flex w-full max-w-[480px] flex-col items-center gap-3">
       <label className={`${COLUMN} flex flex-col gap-2`}>
         {/* 넓은 화면에서는 이 자리가 받침대 위라 글자가 묻혀서, 이름표는 휴대폰에서만 보이고 칸 안 안내로 대신합니다 */}
-        <span className="text-sm font-medium text-ink sm:sr-only">
+        <span className="text-sm font-medium text-ink kb:sr-only sm:sr-only">
           비밀번호 <span className="font-normal text-ink-sub">(4자 이상)</span>
         </span>
         <input
@@ -92,13 +93,13 @@ export default function NameplateForm({ password, onPassword, nickname, error, b
         />
       </label>
 
-      <p className="text-balance text-center text-[13px] leading-[1.6] text-ink-sub">
+      <p className="text-balance text-center text-[13px] leading-[1.6] text-ink-sub kb:hidden">
         닉네임이 그대로 링크가 돼요 · …/globe/{shown}
         <br />
         비밀번호는 잊으면 다시 찾을 수 없으니 꼭 기억해 주세요
       </p>
 
-      <p role="alert" className="min-h-5 text-center text-sm text-danger">
+      <p role="alert" className="min-h-5 text-center text-sm text-danger kb:min-h-0">
         {error}
       </p>
 

@@ -133,7 +133,7 @@ export default function LoginView() {
           />
         </label>
 
-        <p role="alert" className="min-h-5 text-center text-sm text-danger">
+        <p role="alert" className="min-h-5 text-center text-sm text-danger kb:min-h-0">
           {error}
         </p>
 
