@@ -34,6 +34,13 @@ const MOBILE: GlobeLayout = { height: 0.9, centerFromTop: 0.46 };
 const KEYBOARD_GUESS = 300;
 const KEYBOARD_KEY = "snowglobe:keyboard";
 let lastKeyboard = 0;
+// 화면 키보드가 없는 기기 (차명근): PC 브라우저의 휴대폰 모드(F12)는 손가락 입력을 흉내 내서 위의 예상이 켜지는데,
+// 키보드는 올라오지 않아 입력칸만 1.2초 동안 위로 튀었다가 돌아옵니다. 그래서
+//  - Windows 에서는 처음부터 예상하지 않습니다 (휴대폰 모드여도 운영체제 이름은 Windows 로 남습니다)
+//  - 그 밖의 기기도, 예상했는데 키보드가 올라오지 않은 적이 있으면 기억해 두고 다음부터 예상하지 않습니다
+//    (맥의 휴대폰 모드, 블루투스 키보드를 쓰는 태블릿 등). 키보드가 실제로 올라오면 기억을 지우고 다시 예상합니다.
+// 예상하지 않아도 키보드가 실제로 올라오면 그때 맞추므로, 화면이 가려지지는 않습니다.
+const NO_KEYBOARD_KEY = "snowglobe:no-keyboard";
 // 키보드 위에 떠 있는 줄(이전 · 다음 · 완료)처럼 입력칸을 가리는 높이. 브라우저가 화면을 민 만큼으로 알아냅니다.
 let keyboardClear = 0;
 
@@ -173,6 +180,23 @@ export default function Stage(props: StageProps) {
         // 읽지 못하면 어림값을 씁니다
       }
     }
+    let noKeyboard = /^win/i.test(navigator.platform);
+    if (!noKeyboard) {
+      try {
+        noKeyboard = localStorage.getItem(NO_KEYBOARD_KEY) === "1";
+      } catch {
+        // 읽지 못하면 예상합니다
+      }
+    }
+    const rememberNoKeyboard = (value: boolean) => {
+      noKeyboard = value;
+      try {
+        if (value) localStorage.setItem(NO_KEYBOARD_KEY, "1");
+        else localStorage.removeItem(NO_KEYBOARD_KEY);
+      } catch {
+        // 저장하지 못해도 이번 화면에서는 기억합니다
+      }
+    };
     let touchedAt = -1e9; // 마지막으로 화면을 누른 시각과 누른 곳
     let touched: EventTarget | null = null;
     let realAt = 0; // 키보드가 실제로 다 올라온 것을 처음 본 시각
@@ -200,6 +224,7 @@ export default function Stage(props: StageProps) {
       const real = typing && !zoomed && full - vv.height > 120; // 실제로 올라옴
       if (real) {
         guessedAt = 0;
+        if (noKeyboard) rememberNoKeyboard(false); // 키보드가 실제로 올라오는 기기입니다
         if (Math.abs(lastKeyboard - (full - vv.height)) > 1) {
           lastKeyboard = full - vv.height;
           try {
@@ -209,7 +234,10 @@ export default function Stage(props: StageProps) {
           }
         }
       } else if (!typing) guessedAt = 0;
-      else if (guessedAt > 0 && now - guessedAt > 1200) guessedAt = -1; // 예상했지만 올라오지 않음 (블루투스 키보드 등)
+      else if (guessedAt > 0 && now - guessedAt > 1200) {
+        guessedAt = -1; // 예상했지만 올라오지 않음 (블루투스 키보드, PC 의 휴대폰 모드 등)
+        rememberNoKeyboard(true);
+      }
       const wasOpen = open;
       open = real || (typing && guessedAt > 0);
       // 카드가 스노우볼 위에 떠 있는 단계(12 메시지 쓰기)에서는, 키보드가 올라올 때 카드가 한 번에 튀어 보이지 않게
@@ -262,7 +290,7 @@ export default function Stage(props: StageProps) {
       }
       if (debug) {
         const origin = fixedEl.current?.getBoundingClientRect().top ?? 0;
-        debug.textContent = `open ${open} guess ${guessedAt > 0} kb ${lastKeyboard.toFixed(0)} clear ${keyboardClear} held ${heldTop} pulls ${pulls}
+        debug.textContent = `open ${open} guess ${guessedAt > 0} nokb ${noKeyboard} kb ${lastKeyboard.toFixed(0)} clear ${keyboardClear} held ${heldTop} pulls ${pulls}
 vv top ${vv.offsetTop.toFixed(0)} h ${vv.height.toFixed(0)} full ${full.toFixed(0)}
 scrollY ${window.scrollY.toFixed(0)} inner ${window.innerHeight}
 main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
@@ -284,7 +312,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
         touched instanceof Node &&
         performance.now() - touchedAt < 700 &&
         (target === touched || !!(target as Element).closest("label")?.contains(touched));
-      if (input && coarse.matches && !open && tapped) {
+      if (input && coarse.matches && !noKeyboard && !open && tapped) {
         guessedAt = performance.now();
         cancelAnimationFrame(frame);
         apply();
