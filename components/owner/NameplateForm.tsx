@@ -52,8 +52,9 @@ export function NameplateInput({
       >
         <span className="sr-only">{srLabel}</span>
         {/* 닉네임 칸: 안 보이는 글자(같은 내용)가 너비를 정하고, 입력칸이 그 너비를 그대로 씁니다. 그래서 적은 만큼만 넓어지고 잘리지 않습니다 */}
-        <span className="inline-grid min-w-0 grid-cols-[minmax(0,1fr)] items-center overflow-hidden rounded-lg border-b-2 border-dashed border-night-900/50 bg-white/45 px-2.5 py-1 transition-colors duration-200 focus-within:border-solid focus-within:border-night-900 focus-within:bg-white/70">
-          <span className="invisible col-start-1 row-start-1 whitespace-pre font-bold" aria-hidden="true">
+        <span className="inline-grid min-w-0 grid-cols-[minmax(0,1fr)] items-center overflow-hidden rounded-lg border-b-2 border-dashed border-night-900/50 bg-white/45 py-1 pl-2.5 pr-1.5 transition-colors duration-200 focus-within:border-solid focus-within:border-night-900 focus-within:bg-white/70">
+          {/* 오른쪽에 반 글자만큼 여유를 둡니다. 너비가 글자와 딱 맞으면 아이폰에서 커서 자리만큼 글자가 밀려 왼쪽이 살짝 잘려 보입니다 */}
+          <span className="invisible col-start-1 row-start-1 whitespace-pre pr-[0.5em] font-bold" aria-hidden="true">
             {value || PLACEHOLDER}
           </span>
           <input

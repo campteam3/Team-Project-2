@@ -18,7 +18,7 @@ import { globePath, saveOwnerToken } from "@/lib/owner-token";
 import { DEFAULT_THEME, type GlobeTheme, type ThemePart } from "@/lib/theme";
 import CustomizeDock from "./CustomizeDock";
 import NameplateForm, { NameplateInput } from "./NameplateForm";
-import ShareDock, { ShareLinkText } from "./ShareDock";
+import ShareDock from "./ShareDock";
 
 type Step = "customize" | "info" | "share";
 
@@ -131,11 +131,8 @@ export default function OwnerFlow() {
         </Link>
       }
     >
+      {/* 휴대폰에서는 링크 주소를 따로 보여 주지 않습니다. 복사 · 카카오톡 버튼이면 충분합니다 (FEEDBACK C5). 넓은 화면은 도크 안에 주소가 보입니다 */}
       <div key={step} className="flex w-full animate-rise flex-col items-center gap-3">
-        <p className="flex max-w-full items-center gap-2 text-sm text-ink-sub sm:hidden">
-          <Icon name="link" size={16} className="shrink-0" />
-          <ShareLinkText url={url} />
-        </p>
         <ShareDock url={url} title={`${created}의 스노우볼`} onNotice={say} />
       </div>
     </Stage>

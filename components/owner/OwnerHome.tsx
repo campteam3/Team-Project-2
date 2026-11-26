@@ -22,6 +22,9 @@ import { globeName } from "@/components/friend/FriendFlow";
 import ShareDock from "./ShareDock";
 import MessageViewer from "./MessageViewer";
 
+// 주인 화면에서 나가는 글자 링크. "이 기기에서 나가기"는 딱딱하게 읽혀서 바꿨습니다 (FEEDBACK C2)
+const LEAVE_LABEL = "내 스노우볼에서 나가기";
+
 type Props = {
   nickname: string;
   globe: Globe; // 주인으로 열었으므로 메시지 내용이 들어 있습니다
@@ -147,7 +150,7 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
             onClick={leave}
             className="pointer-events-auto -my-1.5 inline-flex min-h-11 items-center px-3 text-[13px] text-ink-sub underline underline-offset-4 hover:text-ink"
           >
-            이 기기에서 나가기
+            {LEAVE_LABEL}
           </button>
         ) : undefined
       }
