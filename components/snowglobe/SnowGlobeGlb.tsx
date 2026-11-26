@@ -117,12 +117,12 @@ function createGlassMaterial(back: boolean) {
         vec3 scene = lit(texture2D(uBackdropMap, ballUv, 2.0).rgb, 3.0);
         float mirror = (0.04 + 0.96 * pow(1.0 - facing, 2.2)) * uBackdropShow * mix(0.9, 0.22, uBack);
 
-        // 3) 흰 반사광: 왼쪽 위의 넓고 부드러운 창빛과 그 안의 또렷한 창, 오른쪽 가는 창, 아래쪽에 비친 눈밭
-        float sheen = softbox(r, -0.72, 0.62, 0.5, 0.36, 0.1) * 0.11;
-        float windowA = softbox(r, -0.8, 0.7, 0.17, 0.2, 0.018) * 0.62;
-        float windowB = softbox(r, 0.98, 0.42, 0.055, 0.4, 0.016) * 0.4;
-        float windowC = softbox(r, -0.15, -0.8, 0.5, 0.07, 0.04) * 0.14;
-        float windows = sheen + windowA + windowB + windowC;
+        // 3) 흰 반사광: 왼쪽 위의 넓고 부드러운 창빛과 그 안의 또렷한 창, 오른쪽 가는 창.
+        //    트리를 가리지 않도록 모두 유리 가장자리 쪽(가운데에서 테두리까지의 0.75~0.85 지점)에 맺히게 합니다.
+        float sheen = softbox(r, -1.8, 0.8, 0.62, 0.3, 0.1) * 0.1;
+        float windowA = softbox(r, -1.84, 0.85, 0.27, 0.17, 0.02) * 0.62;
+        float windowB = softbox(r, 1.89, 0.47, 0.09, 0.36, 0.018) * 0.4;
+        float windows = sheen + windowA + windowB;
         vec3 windowTint = vec3(1.0, 0.97, 0.95);
         // 창 위쪽이 더 밝고 아래로 갈수록 옅어지게
         float reflection = windows * (0.4 + 0.6 * fresnel) * (0.75 + 0.5 * clamp(r.y, 0.0, 1.0));
