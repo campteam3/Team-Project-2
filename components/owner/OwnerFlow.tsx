@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
 import Stage from "@/components/stage/Stage";
+import { useNotice } from "@/components/stage/useNotice";
 import { Icon } from "@/components/ui/Icons";
 import { NICKNAME_RULE, createGlobe } from "@/lib/api";
 import { globePath, saveOwnerToken } from "@/lib/owner-token";
@@ -33,6 +34,7 @@ export default function OwnerFlow() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [created, setCreated] = useState("");
+  const [notice, say] = useNotice();
 
   const submit = async () => {
     if (busy) return;
@@ -115,6 +117,9 @@ export default function OwnerFlow() {
       theme={theme}
       title="스노우볼이 완성됐어요"
       subtitle="링크를 보내면 친구들이 오너먼트에 마음을 담아 달아 줘요"
+      notice={notice}
+      saveAs={`${created}의 스노우볼`}
+      onNotice={say}
       plateText={`${created}의 스노우볼`}
       below={
         <Link
@@ -131,7 +136,7 @@ export default function OwnerFlow() {
           <Icon name="link" size={16} className="shrink-0" />
           <ShareLinkText url={url} />
         </p>
-        <ShareDock url={url} title={`${created}의 스노우볼`} />
+        <ShareDock url={url} title={`${created}의 스노우볼`} onNotice={say} />
       </div>
     </Stage>
   );

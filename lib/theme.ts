@@ -23,10 +23,11 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     label: "소품",
     // 별은 트리 꼭대기에 항상 있고, 트리 아래 소품만 고릅니다 (#14 에서 이민정 님과 정함)
     // color 는 고르기 버튼에 칠하는 값입니다 (CSS background 값)
+    // 기본값("둘 다")을 다른 항목처럼 맨 왼쪽에 둡니다 (FEEDBACK C4)
     options: [
+      { id: "both", label: "둘 다", color: "linear-gradient(135deg, #C8363D 50%, #F5F1EA 50%)" },
       { id: "gift", label: "선물 상자", color: "#C8363D" },
       { id: "snowman", label: "눈사람", color: "#F5F1EA" },
-      { id: "both", label: "둘 다", color: "linear-gradient(135deg, #C8363D 50%, #F5F1EA 50%)" },
     ],
   },
   {
