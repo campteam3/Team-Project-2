@@ -7,13 +7,15 @@ import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { BEFORE_TONE_MAPPING_GLSL, backdropUniforms } from "@/components/stage/backdropShared";
 import { placeOrnaments, type OrnamentLike, type OrnamentShape, type PlacedOrnament } from "@/lib/snowglobe";
 
 const MODEL_URL = "/models/snowglobe.glb";
 const ORNAMENT_URL = "/models/ornaments.glb";
 const TEMPLATE_NAMES: Record<OrnamentShape, string> = { ball: "t_Orn_Ball", star: "t_Orn_Star", heart: "t_Orn_Heart" };
 
-// 유리: 가운데는 완전히 맑고, 창 모양 반사광이 구의 곡면을 따라 또렷하게 맺히며, 테두리에 가는 밝은 선이 돕니다.
+// 유리: 가운데는 완전히 맑고, 가장자리로 갈수록 배경 그림이 곡면을 따라 휘어 비칩니다.
+// 흰 창 모양 반사광과 테두리의 가는 밝은 선은 유리가 있다는 것을 알아보게 하는 정도로만 옅게 둡니다.
 // 반사는 "보는 방향이 유리에 튕겨 나간 방향"으로 계산해서 실제 유리처럼 휘어 보입니다.
 // back 이 true 면 유리 안쪽 뒷면(건너편 벽)에 비친 옅은 반사를 그립니다.
 function createGlassMaterial(back: boolean) {
@@ -22,7 +24,12 @@ function createGlassMaterial(back: boolean) {
     premultipliedAlpha: true,
     depthWrite: false,
     side: back ? THREE.BackSide : THREE.FrontSide,
-    uniforms: { uBack: { value: back ? 1 : 0 } },
+    uniforms: {
+      uBack: { value: back ? 1 : 0 },
+      // 배경 그림 (배경이 받아 온 것을 함께 씁니다. 그림 배경이 없는 장면에서는 비치지 않습니다)
+      uBackdropMap: backdropUniforms.uBackdropMap,
+      uBackdropShow: backdropUniforms.uBackdropShow,
+    },
     vertexShader: /* glsl */ `
       varying vec3 vNormal;
       varying vec3 vView;
@@ -35,8 +42,11 @@ function createGlassMaterial(back: boolean) {
     `,
     fragmentShader: /* glsl */ `
       uniform float uBack;
+      uniform sampler2D uBackdropMap;
+      uniform float uBackdropShow;
       varying vec3 vNormal;
       varying vec3 vView;
+      ${BEFORE_TONE_MAPPING_GLSL}
       float band(float x, float center, float halfWidth, float soft) {
         return smoothstep(center - halfWidth - soft, center - halfWidth + soft, x)
           * (1.0 - smoothstep(center + halfWidth - soft, center + halfWidth + soft, x));
@@ -56,45 +66,40 @@ function createGlassMaterial(back: boolean) {
         float fresnel = 0.04 + 0.96 * pow(1.0 - facing, 5.0);
         vec3 r = reflect(-v, n);
 
-        // 선명한 반사광: 왼쪽 위 작은 창, 오른쪽 가는 창, 아래쪽에 비친 바닥. 가운데는 비워 안이 맑게 보입니다.
-        float windowA = softbox(r, -0.8, 0.7, 0.17, 0.2, 0.018) * 1.0;
-        float windowB = softbox(r, 0.98, 0.42, 0.055, 0.4, 0.016) * 0.62;
-        float windowC = softbox(r, -0.15, -0.8, 0.5, 0.07, 0.04) * 0.2;
+        // 흰 반사광: 왼쪽 위 작은 창, 오른쪽 가는 창, 아래쪽에 비친 눈밭. 가운데는 비워 안이 맑게 보입니다.
+        float windowA = softbox(r, -0.8, 0.7, 0.17, 0.2, 0.018) * 0.7;
+        float windowB = softbox(r, 0.98, 0.42, 0.055, 0.4, 0.016) * 0.4;
+        float windowC = softbox(r, -0.15, -0.8, 0.5, 0.07, 0.04) * 0.14;
         float windows = windowA + windowB + windowC;
-        // 창마다 옅은 색: 왼쪽 위는 분홍 기운의 흰빛, 오른쪽은 하늘색, 아래는 노랑
-        vec3 windowTint = (vec3(1.0, 0.93, 0.97) * windowA + vec3(0.78, 0.91, 1.0) * windowB + vec3(1.0, 0.9, 0.62) * windowC)
-          / max(windows, 0.0001);
+        vec3 windowTint = vec3(1.0, 0.97, 0.95);
         // 창 위쪽이 더 밝고 아래로 갈수록 옅어지게
         float reflection = windows * (0.4 + 0.6 * fresnel) * (0.75 + 0.5 * clamp(r.y, 0.0, 1.0));
 
-        // 테두리 바로 안쪽을 따라 도는 가는 초승달 모양 반사광: 왼쪽은 분홍, 오른쪽 아래는 하늘색
-        vec2 side = normalize(n.xy + vec2(0.00001));
-        float crescentL = band(facing, 0.3, 0.02, 0.014) * smoothstep(0.6, 0.95, dot(side, normalize(vec2(-1.0, 0.15))));
-        float crescentR = band(facing, 0.26, 0.014, 0.012) * smoothstep(0.65, 0.95, dot(side, normalize(vec2(0.8, -0.6))));
-        vec3 crescents = (vec3(1.0, 0.62, 0.82) * crescentL * 0.4 + vec3(0.62, 0.84, 1.0) * crescentR * 0.35) * (1.0 - uBack);
-
-        // 유리에 비친 주변 불빛 (작고 또렷하게)
-        vec3 lights = vec3(1.0, 0.8, 0.4) * glint(r, vec3(-0.9, 0.15, -0.4), 0.13)
-          + vec3(1.0, 0.5, 0.72) * glint(r, vec3(0.85, 0.3, -0.45), 0.11) * 0.9
-          + vec3(1.0, 0.82, 0.5) * glint(r, vec3(0.45, -0.5, -0.75), 0.12) * 0.8
-          + vec3(0.6, 0.8, 1.0) * glint(r, vec3(-0.55, 0.62, -0.55), 0.08) * 0.7
-          + vec3(1.0, 0.7, 0.8) * glint(r, vec3(0.15, 0.85, -0.5), 0.075) * 0.6;
-        lights *= 0.55 + 0.45 * fresnel;
+        // 유리에 비친 배경 그림: 거울 공처럼 반사 방향으로 그림을 읽습니다. 가운데는 거의 비치지 않고 가장자리로 갈수록 진해집니다.
+        // 그림의 왼쪽은 유리 왼쪽 가장자리에, 오른쪽은 오른쪽 가장자리에 휘어 맺힙니다. 흐릿하게 읽어 은은하게 비칩니다.
+        float ballM = 2.0 * sqrt(r.x * r.x + r.y * r.y + (r.z + 1.0) * (r.z + 1.0));
+        vec2 ballUv = r.xy / max(ballM, 0.0001) + 0.5;
+        vec3 picture = texture2D(uBackdropMap, ballUv, 2.0).rgb;
+        // 가로등 · 창문 같은 불빛은 실제로는 그림에 보이는 것보다 훨씬 밝으므로, 밝은 곳일수록 더 또렷하게 맺히게 합니다.
+        float glow = smoothstep(0.3, 0.85, dot(picture, vec3(0.3, 0.6, 0.1)));
+        vec3 scene = beforeToneMapping(picture) * (1.0 + 3.0 * glow);
+        float mirror = (0.04 + 0.96 * pow(1.0 - facing, 2.2)) * 0.9 * uBackdropShow * (1.0 - uBack);
 
         // 작고 날카로운 반짝임
         float sparkle = pow(max(dot(r, normalize(vec3(-0.5, 0.62, 0.6))), 0.0), 1400.0) * 2.2;
 
         // 테두리: 얇은 유리처럼 아주 가는 선만. 무지갯빛이 살짝 돌고, 뿌옇게 번지는 빛은 넣지 않습니다.
+        vec2 side = normalize(n.xy + vec2(0.00001));
         float edgeLine = pow(1.0 - facing, 20.0);
         vec3 iris = 0.5 + 0.5 * cos(6.2832 * (side.y * 0.35 + 0.92 + vec3(0.0, 0.33, 0.67)));
         vec3 edgeColor = mix(vec3(0.9, 0.95, 1.0), iris, 0.42);
 
         float strength = uBack > 0.5 ? 0.3 : 1.0;
         float front = uBack > 0.5 ? 0.0 : 1.0;
-        vec3 color = (windowTint * reflection + lights + vec3(1.0) * sparkle) * strength
-          + crescents + edgeColor * edgeLine * 0.8 * front;
-        float alpha = (reflection * 0.9 + dot(lights, vec3(0.33)) + sparkle) * strength
-          + dot(crescents, vec3(0.33)) + (edgeLine * 0.45 + 0.003) * front;
+        vec3 color = (windowTint * reflection + vec3(1.0) * sparkle) * strength
+          + scene * mirror + edgeColor * edgeLine * 0.65 * front;
+        float alpha = (reflection * 0.9 + sparkle) * strength
+          + mirror + (edgeLine * 0.4 + 0.003) * front;
         gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
         #include <colorspace_fragment>
       }
