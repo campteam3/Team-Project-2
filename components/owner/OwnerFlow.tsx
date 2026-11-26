@@ -118,6 +118,8 @@ export default function OwnerFlow() {
       title="스노우볼이 완성됐어요"
       subtitle="링크를 보내면 친구들이 오너먼트에 마음을 담아 달아 줘요"
       notice={notice}
+      saveAs={`${created}의 스노우볼`}
+      onNotice={say}
       plateText={`${created}의 스노우볼`}
       below={
         <Link

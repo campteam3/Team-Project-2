@@ -133,6 +133,8 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
       hint={hint}
       hintMobile={hint}
       notice={notice}
+      saveAs={name}
+      onNotice={say}
       plateText={name}
       highlightId={selected?.id}
       focusId={selected?.id}
