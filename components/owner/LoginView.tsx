@@ -9,7 +9,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
 import Stage from "@/components/stage/Stage";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { getGlobe, openFailureMessage, openGlobe, type Globe } from "@/lib/api";
@@ -49,6 +49,18 @@ export default function LoginView() {
       alive = false;
     };
   }, [known]);
+
+  // 이 화면을 떠날 때 비밀번호 · 오류 문구 · "확인하고 있어요" 표시를 비웁니다. (FEEDBACK A1)
+  // Next.js 는 떠난 화면을 지우지 않고 숨겨 두었다가 돌아오면 그대로 다시 보여 줍니다.
+  // 비우지 않으면 로그인에 성공한 뒤 다시 이 화면에 왔을 때 버튼이 "확인하고 있어요"로 멈춰 있습니다.
+  // (Next.js 문서: Preserving UI state > Resetting stale status messages)
+  useLayoutEffect(() => {
+    return () => {
+      setBusy(false);
+      setPassword("");
+      setError("");
+    };
+  }, []);
 
   const askName = !known || missing; // 명판에 닉네임을 직접 적는 경우
   const name = askName ? nickname.trim() : known;
