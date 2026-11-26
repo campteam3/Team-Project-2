@@ -30,7 +30,7 @@ export type OpenResult =
 
 export type Result<T> = { ok: true; data: T } | { ok: false; code: string; message: string };
 
-export const MESSAGE_MAX = 200; // DESIGN.md 기준. DB 는 300자까지 받습니다.
+export const MESSAGE_MAX = 200; // DESIGN.md 기준. DB 도 200자까지 받습니다 (supabase/migrations 의 message_limit_200)
 export const SENDER_MAX = 20;
 export const NICKNAME_RULE = "한글, 영문, 숫자, _ , - 로 2~20자";
 
