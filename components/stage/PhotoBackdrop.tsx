@@ -21,8 +21,8 @@ function createParameters(): THREE.ShaderMaterialParameters {
     uniforms: {
       uMap: backdropUniforms.uBackdropMap,
       uShow: backdropUniforms.uBackdropShow,
-      uViewAspect: { value: 1 },
-      uImageAspect: { value: 1 },
+      uViewAspect: backdropUniforms.uBackdropViewAspect,
+      uImageAspect: backdropUniforms.uBackdropImageAspect,
       uNight: { value: new THREE.Color(NIGHT) },
     },
     vertexShader: /* glsl */ `

@@ -14,9 +14,10 @@ const MODEL_URL = "/models/snowglobe.glb";
 const ORNAMENT_URL = "/models/ornaments.glb";
 const TEMPLATE_NAMES: Record<OrnamentShape, string> = { ball: "t_Orn_Ball", star: "t_Orn_Star", heart: "t_Orn_Heart" };
 
-// 유리: 가운데는 완전히 맑고, 가장자리로 갈수록 배경 그림이 곡면을 따라 휘어 비칩니다.
-// 흰 창 모양 반사광과 테두리의 가는 밝은 선은 유리가 있다는 것을 알아보게 하는 정도로만 옅게 둡니다.
-// 반사는 "보는 방향이 유리에 튕겨 나간 방향"으로 계산해서 실제 유리처럼 휘어 보입니다.
+// 유리: 두께가 느껴지는 유리 구. 가운데는 맑고, 가장자리로 갈수록 유리가 두꺼워 보입니다.
+//  - 가장자리 띠: 유리 뒤의 배경이 굴절되어 안쪽으로 당겨져(뒤집혀) 보이고, 색이 살짝 갈라집니다.
+//  - 반사: 배경 그림이 거울 공처럼 곡면을 따라 휘어 비치고, 가로등 · 창문 불빛은 더 또렷하게 맺힙니다.
+//  - 넓고 부드러운 창빛, 가장자리의 밝은 빛, 옅은 푸른 기운으로 유리의 부피를 냅니다.
 // back 이 true 면 유리 안쪽 뒷면(건너편 벽)에 비친 옅은 반사를 그립니다.
 function createGlassMaterial(back: boolean) {
   return new THREE.ShaderMaterial({
@@ -26,26 +27,44 @@ function createGlassMaterial(back: boolean) {
     side: back ? THREE.BackSide : THREE.FrontSide,
     uniforms: {
       uBack: { value: back ? 1 : 0 },
+      // 유리 구의 가운데와 반지름 (메시 안의 좌표). 모델을 읽은 뒤 fitGlass 가 채웁니다.
+      uCenter: { value: new THREE.Vector3(0, 0, 0) },
+      uRadius: { value: 1 },
       // 배경 그림 (배경이 받아 온 것을 함께 씁니다. 그림 배경이 없는 장면에서는 비치지 않습니다)
       uBackdropMap: backdropUniforms.uBackdropMap,
       uBackdropShow: backdropUniforms.uBackdropShow,
+      uBackdropViewAspect: backdropUniforms.uBackdropViewAspect,
+      uBackdropImageAspect: backdropUniforms.uBackdropImageAspect,
     },
     vertexShader: /* glsl */ `
+      uniform vec3 uCenter;
+      uniform float uRadius;
       varying vec3 vNormal;
       varying vec3 vView;
+      varying vec4 vClip;
+      varying vec2 vGlobeSize;
       void main() {
         vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
         vNormal = normalize(normalMatrix * normal);
         vView = normalize(-viewPosition.xyz);
         gl_Position = projectionMatrix * viewPosition;
+        vClip = gl_Position;
+        // 화면에서 유리 구가 차지하는 반지름 (화면 절반을 1 로 본 값, 가로 · 세로)
+        vec4 centerView = modelViewMatrix * vec4(uCenter, 1.0);
+        float radiusView = uRadius * length(modelViewMatrix[0].xyz);
+        vGlobeSize = vec2(projectionMatrix[0][0], projectionMatrix[1][1]) * radiusView / max(-centerView.z, 0.0001);
       }
     `,
     fragmentShader: /* glsl */ `
       uniform float uBack;
       uniform sampler2D uBackdropMap;
       uniform float uBackdropShow;
+      uniform float uBackdropViewAspect;
+      uniform float uBackdropImageAspect;
       varying vec3 vNormal;
       varying vec3 vView;
+      varying vec4 vClip;
+      varying vec2 vGlobeSize;
       ${BEFORE_TONE_MAPPING_GLSL}
       float band(float x, float center, float halfWidth, float soft) {
         return smoothstep(center - halfWidth - soft, center - halfWidth + soft, x)
@@ -55,9 +74,17 @@ function createGlassMaterial(back: boolean) {
       float softbox(vec3 r, float azimuth, float elevation, float halfW, float halfH, float soft) {
         return band(atan(r.x, r.z), azimuth, halfW, soft) * band(asin(clamp(r.y, -1.0, 1.0)), elevation, halfH, soft);
       }
-      // 반사 방향 r 근처의 작은 동그란 불빛
-      float glint(vec3 r, vec3 direction, float size) {
-        return smoothstep(size, size * 0.35, acos(clamp(dot(r, normalize(direction)), -1.0, 1.0)));
+      // 화면의 한 점(화면 절반을 1 로 본 좌표)에 보이는 배경 그림의 색. 배경(PhotoBackdrop)과 같은 방식으로 맞춥니다.
+      vec3 backdropAt(vec2 point, float blur) {
+        vec2 uv = point * 0.5;
+        if (uBackdropViewAspect > uBackdropImageAspect) uv.y *= uBackdropImageAspect / uBackdropViewAspect;
+        else uv.x *= uBackdropViewAspect / uBackdropImageAspect;
+        return texture2D(uBackdropMap, uv + 0.5, blur).rgb;
+      }
+      // 가로등 · 창문 같은 불빛은 실제로는 그림에 보이는 것보다 훨씬 밝으므로, 밝은 곳일수록 더 밝게 돌려줍니다.
+      vec3 lit(vec3 picture, float boost) {
+        float glow = smoothstep(0.3, 0.85, dot(picture, vec3(0.3, 0.6, 0.1)));
+        return beforeToneMapping(picture) * (1.0 + boost * glow);
       }
       void main() {
         vec3 n = normalize(vNormal) * (uBack > 0.5 ? -1.0 : 1.0);
@@ -65,46 +92,86 @@ function createGlassMaterial(back: boolean) {
         float facing = clamp(dot(n, v), 0.0, 1.0);
         float fresnel = 0.04 + 0.96 * pow(1.0 - facing, 5.0);
         vec3 r = reflect(-v, n);
+        float front = 1.0 - uBack;
+        float strength = uBack > 0.5 ? 0.3 : 1.0;
+        // 가운데에서 가장자리까지의 거리 (0 = 가운데, 1 = 테두리)와 바깥 방향
+        float rim = clamp(length(n.xy), 0.0, 1.0);
+        vec2 side = n.xy / max(rim, 0.0001);
 
-        // 흰 반사광: 왼쪽 위 작은 창, 오른쪽 가는 창, 아래쪽에 비친 눈밭. 가운데는 비워 안이 맑게 보입니다.
-        float windowA = softbox(r, -0.8, 0.7, 0.17, 0.2, 0.018) * 0.7;
+        // 1) 두꺼운 유리의 가장자리 띠: 유리 뒤 배경이 굴절되어 안쪽으로 당겨져 보입니다.
+        //    테두리에 가까울수록 더 많이 당겨져, 띠 안에서 배경이 뒤집힌 채 눌려 보입니다. 빨강과 파랑은 조금 다르게 꺾여 색이 갈라집니다.
+        vec2 point = vClip.xy / vClip.w;
+        float deep = smoothstep(0.8, 1.0, rim);
+        vec2 pull = side * vGlobeSize * (0.1 + 0.34 * deep);
+        vec3 bent = vec3(
+          backdropAt(point - pull * 1.08, 1.0).r,
+          backdropAt(point - pull, 1.0).g,
+          backdropAt(point - pull * 0.92, 1.0).b
+        );
+        vec3 thick = lit(bent, 2.2) * 1.05;
+        float thickAlpha = smoothstep(0.82, 0.955, rim) * 0.9 * uBackdropShow * front;
+
+        // 2) 유리에 비친 배경 그림: 거울 공처럼 반사 방향으로 그림을 읽습니다. 가운데는 거의 비치지 않고 가장자리로 갈수록 진해집니다.
+        float ballM = 2.0 * sqrt(r.x * r.x + r.y * r.y + (r.z + 1.0) * (r.z + 1.0));
+        vec2 ballUv = r.xy / max(ballM, 0.0001) + 0.5;
+        vec3 scene = lit(texture2D(uBackdropMap, ballUv, 2.0).rgb, 3.0);
+        float mirror = (0.04 + 0.96 * pow(1.0 - facing, 2.2)) * uBackdropShow * mix(0.9, 0.22, uBack);
+
+        // 3) 흰 반사광: 왼쪽 위의 넓고 부드러운 창빛과 그 안의 또렷한 창, 오른쪽 가는 창, 아래쪽에 비친 눈밭
+        float sheen = softbox(r, -0.72, 0.62, 0.5, 0.36, 0.1) * 0.11;
+        float windowA = softbox(r, -0.8, 0.7, 0.17, 0.2, 0.018) * 0.62;
         float windowB = softbox(r, 0.98, 0.42, 0.055, 0.4, 0.016) * 0.4;
         float windowC = softbox(r, -0.15, -0.8, 0.5, 0.07, 0.04) * 0.14;
-        float windows = windowA + windowB + windowC;
+        float windows = sheen + windowA + windowB + windowC;
         vec3 windowTint = vec3(1.0, 0.97, 0.95);
         // 창 위쪽이 더 밝고 아래로 갈수록 옅어지게
         float reflection = windows * (0.4 + 0.6 * fresnel) * (0.75 + 0.5 * clamp(r.y, 0.0, 1.0));
 
-        // 유리에 비친 배경 그림: 거울 공처럼 반사 방향으로 그림을 읽습니다. 가운데는 거의 비치지 않고 가장자리로 갈수록 진해집니다.
-        // 그림의 왼쪽은 유리 왼쪽 가장자리에, 오른쪽은 오른쪽 가장자리에 휘어 맺힙니다. 흐릿하게 읽어 은은하게 비칩니다.
-        float ballM = 2.0 * sqrt(r.x * r.x + r.y * r.y + (r.z + 1.0) * (r.z + 1.0));
-        vec2 ballUv = r.xy / max(ballM, 0.0001) + 0.5;
-        vec3 picture = texture2D(uBackdropMap, ballUv, 2.0).rgb;
-        // 가로등 · 창문 같은 불빛은 실제로는 그림에 보이는 것보다 훨씬 밝으므로, 밝은 곳일수록 더 또렷하게 맺히게 합니다.
-        float glow = smoothstep(0.3, 0.85, dot(picture, vec3(0.3, 0.6, 0.1)));
-        vec3 scene = beforeToneMapping(picture) * (1.0 + 3.0 * glow);
-        float mirror = (0.04 + 0.96 * pow(1.0 - facing, 2.2)) * 0.9 * uBackdropShow * (1.0 - uBack);
+        // 4) 유리의 부피: 가장자리로 갈수록 짙어지는 옅은 푸른 기운과, 테두리 안쪽을 따라 도는 밝은 빛
+        float body = (0.012 + 0.075 * pow(rim, 10.0)) * front;
+        vec3 bodyColor = vec3(0.62, 0.74, 1.0);
+        // 빛이 유리를 지나 맺히는 밝은 초승달: 오른쪽 아래가 가장 밝고, 왼쪽 위에 옅게 하나 더
+        float glowR = band(rim, 0.93, 0.03, 0.03) * smoothstep(0.35, 0.95, dot(side, normalize(vec2(0.78, -0.62))));
+        float glowL = band(rim, 0.94, 0.02, 0.025) * smoothstep(0.55, 0.98, dot(side, normalize(vec2(-0.85, 0.5))));
+        vec3 rimLight = (vec3(1.0, 0.95, 0.86) * glowR * 0.75 + vec3(0.86, 0.92, 1.0) * glowL * 0.3) * front;
 
         // 작고 날카로운 반짝임
         float sparkle = pow(max(dot(r, normalize(vec3(-0.5, 0.62, 0.6))), 0.0), 1400.0) * 2.2;
 
-        // 테두리: 얇은 유리처럼 아주 가는 선만. 무지갯빛이 살짝 돌고, 뿌옇게 번지는 빛은 넣지 않습니다.
-        vec2 side = normalize(n.xy + vec2(0.00001));
-        float edgeLine = pow(1.0 - facing, 20.0);
+        // 테두리 선: 무지갯빛이 살짝 도는 밝은 선
+        float edgeLine = pow(1.0 - facing, 14.0);
         vec3 iris = 0.5 + 0.5 * cos(6.2832 * (side.y * 0.35 + 0.92 + vec3(0.0, 0.33, 0.67)));
-        vec3 edgeColor = mix(vec3(0.9, 0.95, 1.0), iris, 0.42);
+        vec3 edgeColor = mix(vec3(0.9, 0.95, 1.0), iris, 0.35);
 
-        float strength = uBack > 0.5 ? 0.3 : 1.0;
-        float front = uBack > 0.5 ? 0.0 : 1.0;
-        vec3 color = (windowTint * reflection + vec3(1.0) * sparkle) * strength
-          + scene * mirror + edgeColor * edgeLine * 0.65 * front;
-        float alpha = (reflection * 0.9 + sparkle) * strength
-          + mirror + (edgeLine * 0.4 + 0.003) * front;
+        // 뒤에서 앞으로 겹칩니다: 굴절된 가장자리 → 비친 배경 → 푸른 기운 · 빛 · 반사광
+        vec3 color = thick * thickAlpha;
+        float alpha = thickAlpha;
+        color = color * (1.0 - mirror) + scene * mirror;
+        alpha = alpha * (1.0 - mirror) + mirror;
+        color += bodyColor * body + rimLight
+          + (windowTint * reflection + vec3(1.0) * sparkle) * strength
+          + edgeColor * edgeLine * 0.7 * front;
+        alpha += body + dot(rimLight, vec3(0.33)) * 0.6
+          + (reflection * 0.9 + sparkle) * strength
+          + (edgeLine * 0.45 + 0.003) * front;
         gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
         #include <colorspace_fragment>
       }
     `,
   });
+}
+
+// 유리 메시의 모양에서 구의 가운데와 반지름을 읽어 재질에 알려 줍니다.
+// 유리는 아래쪽이 받침대에 잘린 구라서, 가장 넓은 곳의 너비가 지름이고 맨 위에서 반지름만큼 내려온 곳이 가운데입니다.
+function fitGlass(mesh: THREE.Mesh, materials: THREE.ShaderMaterial[]) {
+  mesh.geometry.computeBoundingBox();
+  const box = mesh.geometry.boundingBox;
+  if (!box) return;
+  const radius = (box.max.x - box.min.x) / 2;
+  for (const material of materials) {
+    material.uniforms.uCenter.value.set((box.min.x + box.max.x) / 2, box.max.y - radius, (box.min.z + box.max.z) / 2);
+    material.uniforms.uRadius.value = radius;
+  }
 }
 
 type ShaderExtras = {
@@ -544,6 +611,7 @@ export function GlobeModel({ title = "", treeColor, baseColor, showGifts = true,
     });
     // 유리는 건너편 안쪽 면을 먼저, 앞면을 나중에 그립니다.
     for (const mesh of glassMeshes) {
+      fitGlass(mesh, [glassFront, glassBack]);
       const inner = mesh.clone();
       inner.material = glassBack;
       inner.renderOrder = 9;

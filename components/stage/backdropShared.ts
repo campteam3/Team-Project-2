@@ -14,6 +14,8 @@ export const BACKDROP_IMAGES = {
 export const backdropUniforms = {
   uBackdropMap: { value: null as THREE.Texture | null },
   uBackdropShow: { value: 0 }, // 그림이 서서히 나타나는 정도 (0~1)
+  uBackdropViewAspect: { value: 1 }, // 화면의 가로 ÷ 세로
+  uBackdropImageAspect: { value: 1 }, // 그림의 가로 ÷ 세로
 };
 
 // 장면 마지막의 색 보정(NightBloom 의 ACES)을 거꾸로 계산하는 셰이더 함수.
