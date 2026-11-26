@@ -15,7 +15,7 @@ export type SaveResult =
   | { status: "show"; url: string } // 공유 창을 열 수 없어 이미지를 화면에 띄워야 함 (url 은 다 쓰면 URL.revokeObjectURL 로 지웁니다)
   | { status: "failed" };
 
-const BACKDROP = "#1b2a53"; // 3D 배경의 가장자리 색 (globals.css 의 --color-night-sky)
+const BACKDROP = "#020d28"; // 배경 그림의 위쪽 가장자리 색 (globals.css 의 --color-night-sky-top). 그림이 덮지 못한 곳이 있을 때만 보입니다
 const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 // 3D 화면은 한 장을 그린 직후에만 내용을 읽을 수 있습니다. 그리는 순서 바로 뒤에 끼어들어 2D 캔버스로 옮겨 그립니다.

@@ -4,7 +4,10 @@
 @theme {
   --color-night-900: #0b1020;
   --color-night-700: #1a2340;
-  --color-night-sky: #1b2a53; /* 3D 배경의 가장자리 색. 화면 밖(주소창 · 상태 표시줄 뒤)을 이 색으로 칠해 이어 보이게 합니다 */
+  /* 배경 그림(휴대폰용)의 위 · 아래 가장자리 색. 화면 밖(아이폰 상태 표시줄 · 주소창 뒤)을 이 색으로 칠해 그림과 이어 보이게 합니다.
+     배경 그림을 바꾸면 이 두 값과 layout.tsx 의 themeColor 도 함께 바꿉니다 (이슈 #50) */
+  --color-night-sky: #393e70; /* 아래쪽: 눈밭의 보랏빛. 페이지 바탕색으로도 씁니다 */
+  --color-night-sky-top: #020d28; /* 위쪽: 밤하늘의 어두운 남색 */
   --color-ink: #f5f1ea;
   --color-ink-sub: #b8bcc9;
   --color-ink-disabled: #6b7186;

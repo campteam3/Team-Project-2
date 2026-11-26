@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1b2a53", // 3D 배경의 가장자리 색 (globals.css 의 --color-night-sky 와 같은 값)
+  themeColor: "#020d28", // 배경 그림의 위쪽 가장자리 색 (globals.css 의 --color-night-sky-top 과 같은 값)
   viewportFit: "cover",
 };
 
@@ -39,6 +39,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="flex min-h-full flex-col">
         {children}
+        {/* 아이폰 사파리는 화면 맨 위 · 맨 아래에 붙은 띠의 색을 상태 표시줄 · 주소창 뒤에 씁니다.
+            배경 그림의 위(어두운 남색)와 아래(눈밭 보랏빛) 색이 달라서, 얇은 띠 두 개로 각각 알려 줍니다. 그림과 같은 색이라 눈에 띄지 않습니다 (이슈 #50) */}
+        <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-40 h-1 bg-night-sky-top sm:hidden" />
+        <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 bottom-0 z-40 h-1 bg-night-sky sm:hidden" />
         {/* 배경 음악: 처음 화면을 누르면 캐롤이 나옵니다. 끄는 버튼은 화면 오른쪽 위에 있습니다 */}
         <BgmAutoStart />
       </body>
