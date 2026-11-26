@@ -2,6 +2,7 @@
 
 // 화면 전체를 채우는 3D 무대: 마을(배경) + 스노우볼 + 눈.
 //  - 스노우볼만 드래그로 돌아가고, 마을은 움직이지 않습니다.
+//  - 확대한 동안에는 위아래로 끌어 스노우볼을 기울여, 위에서 내려다보거나 아래에서 올려다볼 수 있습니다 (FEEDBACK D3).
 //  - layout 값으로 스노우볼이 화면에서 차지하는 높이와 위치를 정합니다 (DESIGN.md 4-2: 60% 이상).
 //  - 매 프레임 받침대 명판의 화면 좌표를 onPlateMove 로 알려 줍니다.
 //    명판 위 글자 · 닉네임 입력칸은 Stage 가 일반 HTML 로 그 자리에 둡니다
@@ -57,6 +58,11 @@ const SAFE_GAP = 24; // UI 와 스노우볼 사이 최소 간격(px) · DESIGN.m
 const ZOOM_MIN = 0.6;
 const ZOOM_MAX = 2;
 
+// 확대한 동안 위아래로 끌어 기울일 수 있는 범위 (FEEDBACK D3, 이민정). 원래 크기로 돌아오면 똑바로 섭니다.
+const TILT_FROM = 1.03; // 이 배율보다 크게 확대했을 때만 기울일 수 있습니다
+const TILT_UP = 0.6; // 위에서 내려다보는 쪽으로 최대 (약 34도)
+const TILT_DOWN = -0.3; // 아래에서 올려다보는 쪽으로 최대 (약 17도)
+
 function Globe(props: StageSceneProps) {
   const {
     theme,
@@ -77,7 +83,9 @@ function Globe(props: StageSceneProps) {
   const holdRotation = lockFront || focusIndex >= 0; // 정해진 방향으로 돌리는 동안에는 드래그로 돌리지 않습니다
   const group = useRef<THREE.Group>(null);
   const { camera, size, gl } = useThree();
-  const drag = useRef({ active: false, x: 0, velocity: 0 });
+  const drag = useRef({ active: false, x: 0, y: 0, velocity: 0 });
+  const tilt = useRef(0); // 기울인 각도 (0 = 똑바로, + = 위에서 내려다봄)
+  const touchMode = useRef("pan-y"); // 캔버스에 지금 걸어 둔 touch-action 값
   const dragKick = useRef(0);
   const platePoint = useRef(new THREE.Vector3());
   const pin = useRef({ key: -1, index: 0 });
@@ -117,6 +125,7 @@ function Globe(props: StageSceneProps) {
       if (holdRotation) return;
       drag.current.active = true;
       drag.current.x = e.clientX;
+      drag.current.y = e.clientY;
     };
     const move = (e: PointerEvent) => {
       if (!pointers.current.has(e.pointerId)) return;
@@ -129,9 +138,13 @@ function Globe(props: StageSceneProps) {
       }
       if (!drag.current.active || !group.current) return;
       const dx = e.clientX - drag.current.x;
+      const dy = e.clientY - drag.current.y;
       drag.current.x = e.clientX;
+      drag.current.y = e.clientY;
       drag.current.velocity = dx * 0.008;
       group.current.rotation.y += drag.current.velocity;
+      // 확대한 동안: 아래로 끌면 스노우볼 위쪽이 앞으로 기울어 위에서 내려다보게 됩니다
+      if (zoom.current > TILT_FROM) tilt.current = THREE.MathUtils.clamp(tilt.current + dy * 0.006, TILT_DOWN, TILT_UP);
       if (Math.abs(dx) > 14) dragKick.current = Math.min(1, Math.abs(dx) / 40);
     };
     const up = (e: PointerEvent) => {
@@ -162,7 +175,7 @@ function Globe(props: StageSceneProps) {
     };
   }, [gl, holdRotation, lockFront]);
 
-  useFrame((_, delta) => {
+  useFrame((frame, delta) => {
     const g = group.current;
     if (!g) return;
     // 화면 높이 비율 → 3D 크기 · 위치
@@ -226,6 +239,18 @@ function Globe(props: StageSceneProps) {
     const k = 1 - Math.exp(-delta * (reducedMotion ? 60 : 4)); // 부드럽게 따라가기
     g.scale.setScalar(THREE.MathUtils.lerp(g.scale.x || scale, scale, k));
     g.position.y = THREE.MathUtils.lerp(g.position.y, y, k);
+
+    // 기울이기: 확대한 동안에만. 원래 크기로 돌아오거나 방향을 고정하는 단계에서는 똑바로 섭니다.
+    const canTilt = zoom.current > TILT_FROM && !holdRotation;
+    if (!canTilt) tilt.current = 0;
+    const tiltK = drag.current.active ? 1 - Math.exp(-delta * (reducedMotion ? 60 : 16)) : k; // 끄는 동안에는 손을 바로 따라갑니다
+    g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, tilt.current, tiltK);
+    // 확대한 동안에는 위아래로 끄는 손가락을 페이지 스크롤 대신 스노우볼이 받습니다
+    const touch = canTilt ? "none" : "pan-y";
+    if (touchMode.current !== touch) {
+      touchMode.current = touch;
+      frame.gl.domElement.style.touchAction = touch;
+    }
 
     if (focusIndex >= 0 && !lockFront) {
       // 고른 오너먼트가 정면에 오는 각도 중 지금과 가장 가까운 곳으로 돌아갑니다
