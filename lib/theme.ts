@@ -41,7 +41,7 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     key: "base",
     label: "받침대",
     options: [
-      { id: "red", label: "레드", color: "#D9463E" },
+      { id: "red", label: "레드", color: "#E4483D" },
       { id: "wood", label: "나무", color: "#6B4630" },
       { id: "night", label: "남색", color: "#1B3478" },
       { id: "white", label: "흰색", color: "#F2EFE9" },
