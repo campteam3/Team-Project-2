@@ -22,7 +22,7 @@ type Step = "view" | "pick" | "write" | "done";
 
 const PENDING = "pending"; // 고르는 중인 내 오너먼트(아직 저장 전)
 const HINT = "드래그로 돌리고, 스크롤로 크게 볼 수 있어요";
-const HINT_MOBILE = "폰을 흔들면 눈이 내리고, 두 손가락으로 크게 볼 수 있어요";
+const HINT_MOBILE = "폰을 흔들어 눈을 내려 보세요";
 
 // 스노우볼 이름: 이름을 따로 정하지 않았으면(= 닉네임) "○○의 스노우볼"로 보여 줍니다
 export function globeName(globe: Pick<Globe, "title" | "nickname">) {

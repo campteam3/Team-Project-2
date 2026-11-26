@@ -63,6 +63,7 @@ export type StageProps = {
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
   below?: ReactNode; // 도크 아래 작은 글자 링크
+  notice?: string; // 잠깐 뜨는 알림 ("링크를 복사했어요"). 안내 알약 자리에 같은 모양으로 뜹니다 (useNotice). 알림을 쓰는 화면은 없을 때 "" 를 넘깁니다
 };
 
 function supportsWebGL() {
@@ -75,7 +76,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, onSelectOrnament, extraShake = 0 } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, onSelectOrnament, extraShake = 0 } = props;
   // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
   // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
   const engraved = !plate && !!plateText;
@@ -84,6 +85,11 @@ export default function Stage(props: StageProps) {
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  // 스노우볼을 만지기 시작하면(돌리기 · 확대) 안내 문구를 흐리게 물려, 받침대와 명판을 가리지 않게 합니다 (FEEDBACK A4).
+  // 어느 안내 문구에서 물렸는지 기억해서, 문구가 바뀌면(다음 단계) 다시 보입니다.
+  const [quietHint, setQuietHint] = useState<string | null>(null);
+  const hintKey = `${hint ?? ""}|${hintMobile ?? ""}`;
+  const quiet = quietHint === hintKey;
   const [shakeSignal, setShakeSignal] = useState(0);
   const soundOn = useSyncExternalStore(subscribeBgm, isBgmOn, isBgmOnServer); // 배경 음악을 켜 둔 상태인지
   const lastShake = useRef(0);
@@ -378,12 +384,21 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
     ? { ...MOBILE, ...props.layout?.mobile }
     : { ...DESKTOP, ...props.layout?.desktop };
 
+  const mobileHint = hintMobile ?? hint;
+  // 알림이 떠 있을 때는 항상 또렷하게, 안내만 있을 때는 스노우볼을 만지는 동안 흐리게
+  const pillFade = `transition-opacity duration-400 ${quiet && !notice ? "opacity-0" : "opacity-100"}`;
+
   return (
     <main ref={mainEl} data-kb={keyboard ? "" : undefined} className="relative h-dvh w-full overflow-hidden">
       {/* 화면에 고정된 기준점 (키보드에 밀린 정도를 잴 때 씁니다) */}
       <div ref={fixedEl} className="pointer-events-none fixed left-0 top-0 size-0" aria-hidden="true" />
       {/* 뒤: 3D 무대 + 무대를 따라다니는 명판 · 말풍선. 키보드에 밀려 올라간 만큼 내려 제자리에 보이게 합니다 */}
-      <div ref={sceneEl} className="absolute inset-0 z-0 [translate:0_var(--vv-top,0px)]">
+      <div
+        ref={sceneEl}
+        className="absolute inset-0 z-0 [translate:0_var(--vv-top,0px)]"
+        onPointerDown={() => setQuietHint(hintKey)}
+        onWheel={() => setQuietHint(hintKey)}
+      >
       <div className="absolute inset-0 z-0">
         {webgl === false ? (
           <StageFallback plate={plateContent} centerFromTop={layout.centerFromTop} height={layout.height} />
@@ -428,7 +443,8 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
 
       {/* 앞: UI */}
       <div className="pointer-events-none absolute inset-x-0 top-[var(--vv-top,0px)] z-10 flex h-[var(--vv-h,100%)] flex-col [transition:height_var(--vv-t,0ms)_var(--ease-soft)] px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 kb:pb-[calc(0.75rem+var(--kb-clear,0px))] kb:pt-3 sm:px-8 sm:pb-8 sm:pt-8">
-        <div className="pointer-events-auto absolute left-4 top-4 kb:hidden sm:left-8 sm:top-8">
+        {/* 전체 화면 버튼은 넓은 화면에서만 보입니다. 휴대폰은 이미 화면을 꽉 채우고, 아이폰은 전체 화면이 되지 않습니다 (FEEDBACK C6) */}
+        <div className="pointer-events-auto absolute left-8 top-8 max-sm:hidden kb:hidden">
           <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} />
         </div>
         <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 kb:hidden sm:right-8 sm:top-8">
@@ -463,8 +479,29 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
 
         <footer ref={footerEl} className="flex min-h-0 flex-col items-center gap-3">
           {/* 안내 문구는 받침대 위에 겹칠 때가 있어, 어두운 알약 바탕을 깔아 어디서든 읽히게 합니다 */}
-          {(hintMobile ?? hint) && <p className={`${HINT_PILL} kb:hidden sm:hidden`}>{hintMobile ?? hint}</p>}
-          {hint && <p className={`${HINT_PILL} hidden sm:block`}>{hint}</p>}
+          {/* 알림(notice)은 안내 알약 자리에 같은 모양으로 잠깐 떴다가 원래 안내로 돌아옵니다.
+              안내가 없는 화면도 알림을 쓰면 자리를 미리 비워 둡니다. 알림이 뜰 때 스노우볼이 밀리거나 명판을 가리지 않습니다 */}
+          <p role="status" className="sr-only">
+            {notice}
+          </p>
+          {(mobileHint || notice !== undefined) && (
+            <p
+              key={notice ? "notice" : "hint"}
+              aria-hidden={!!notice}
+              className={`${HINT_PILL} ${pillFade} kb:hidden sm:hidden ${notice || mobileHint ? "" : "invisible"}`}
+            >
+              {notice || mobileHint || "\u00a0"}
+            </p>
+          )}
+          {(hint || notice !== undefined) && (
+            <p
+              key={notice ? "notice-wide" : "hint-wide"}
+              aria-hidden={!!notice}
+              className={`${HINT_PILL} ${pillFade} hidden sm:block ${notice || hint ? "" : "invisible"}`}
+            >
+              {notice || hint || "\u00a0"}
+            </p>
+          )}
           {children}
           {below && <div className="contents kb:hidden">{below}</div>}
         </footer>
