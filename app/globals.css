@@ -114,3 +114,62 @@ input {
     transition-duration: 1ms !important;
   }
 }
+
+/* 404 길 잃은 눈사람 (components/LostSnowman.tsx). CSS 모듈 클래스가 적용되지 않아 공용 CSS 로 옮김 */
+.lost-figure {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+.lost-illustration {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1.08;
+  padding: 0;
+  border: 0;
+  border-radius: 40%;
+  background: transparent;
+  color: var(--color-ink-sub);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.lost-canvas, .lost-fallback { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lost-canvas { pointer-events: none; inset: -10%; width: 120%; height: 120%; } /* 떠다니는 물건이 잘리지 않게 여유 */
+.lost-orbit {
+  position: absolute;
+  inset: 13% 6% 14%;
+  border: 1px dashed rgb(184 188 201 / 0.13);
+  border-radius: 50%;
+  transform: rotate(-24deg) scaleY(.85);
+}
+.lost-speech {
+  position: absolute;
+  z-index: 1;
+  top: 3%;
+  right: 2%;
+  padding: 12px 18px;
+  border: 1px solid var(--color-glass-border);
+  border-radius: 18px 18px 18px 4px;
+  background: var(--color-night-700);
+  color: var(--color-ink);
+  font-size: 13px;
+  line-height: 1.5;
+  pointer-events: none;
+  transform: rotate(5deg);
+}
+.lost-hint {
+  position: absolute;
+  bottom: 2%;
+  left: 0;
+  right: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  transition: color 200ms var(--ease-soft);
+}
+.lost-illustration:hover .lost-hint { color: var(--color-ink); }
+@media (max-width: 767px) {
+  .lost-figure { max-width: 320px; }
+  .lost-speech { top: 0; right: -4px; padding: 8px 12px; font-size: 12px; }
+  }
