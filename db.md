@@ -58,7 +58,7 @@
 | `id` | uuid | 기본 키 |
 | `globe_id` | uuid | 어느 스노우볼인지. 스노우볼을 지우면 함께 지워짐 |
 | `sender_name` | text | 보낸 사람 이름. 1~20자 |
-| `message` | text | 메시지. 1~300자. **주인만 읽음** |
+| `message` | text | 메시지. 1~200자(화면과 같은 한도). **주인만 읽음** |
 | `shape` | text | 오너먼트 모양 이름. 기본값 `ball`. 종류는 디자인에서 정함 |
 | `color` | text | 색. `#rrggbb` 형식 |
 | `position` | jsonb | 달린 위치. 비우면 화면에서 자동 배치. 모양은 디자인에서 정함 |
@@ -125,9 +125,10 @@
 | `invalid_theme` | 꾸미기 값이 너무 큼 |
 | `globe_not_found` | 없는 스노우볼 |
 | `invalid_sender_name` | 보낸 사람 이름이 비었거나 20자 초과 |
-| `invalid_message` | 메시지가 비었거나 300자 초과 |
+| `invalid_message` | 메시지가 비었거나 200자 초과 |
 | `invalid_shape` / `invalid_color` / `invalid_position` | 모양 · 색 · 위치 값이 틀림 |
 | `globe_full` | 오너먼트가 39개에 도달 (트리의 자리 수) |
+| `banned_word` | 닉네임 · 스노우볼 이름 · 보낸 사람 이름 · 메시지에 금지어(욕설)가 들어 있음 |
 | `too_many_requests` | 한 스노우볼에 1분 동안 10개 넘게 달림 |
 | `invalid_owner_token` | 주인 토큰이 없거나, 틀렸거나, 만료됨 → 비밀번호 입력 화면으로 |
 
@@ -138,10 +139,11 @@
 - **메시지 엿보기**: 테이블 직접 접근 차단 + 주인 토큰 확인.
 - **비밀번호 찍어 맞히기**: 5번 틀리면 10분 잠금.
 - **닉네임 겹침**: 닉네임은 고유하고(영문 대소문자 구분 없음), 화면 경로와 겹치는 이름은 쓸 수 없습니다.
+- **욕설**: 닉네임 · 스노우볼 이름 · 보낸 사람 이름 · 메시지에 금지어가 들어 있으면 저장하지 않습니다(`banned_word`). 저장 직전에 도는 트리거라 함수를 직접 불러도 막힙니다. 목록은 `supabase/migrations/20261126120000_banned_words.sql` 의 `has_banned_word` 에 있고, 숫자 · 기호를 끼워 넣은 것과 초성 줄임말까지 봅니다. 완벽하지는 않아서 글자를 바꿔 쓴 변형은 새어 나갈 수 있고, 드물게 멀쩡한 문장이 걸릴 수 있습니다.
 - **비밀번호 · 토큰 유출**: DB 에는 해시만 저장합니다. 비밀번호는 느린 해시(bcrypt)를 써서, DB 가 노출돼도 원래 값을 알아내기 어렵습니다.
 
 막지 않은 것
-- 욕설 · 광고 같은 **내용 자체**는 걸러 내지 않습니다. 주인이 `delete_ornament` 로 지울 수 있습니다.
+- 광고나, 금지어 목록에 없는 나쁜 말 같은 **내용 자체**는 걸러 내지 않습니다. 주인이 `delete_ornament` 로 지울 수 있습니다.
 - 누군가 일부러 비밀번호를 계속 틀려서 **주인이 못 열게 잠가 둘 수 있습니다.** 이미 연 기기의 토큰은 영향을 받지 않습니다.
 - 비밀번호 변경과 스노우볼 삭제 기능은 없습니다.
 
@@ -154,9 +156,11 @@ SQL 을 임시 Postgres(PGlite)에 실행해 59가지 경우를 시험했고 모
 ## 9. 실제 DB 적용 상태
 
 1. ✅ **완료** — 마이그레이션 SQL 을 Supabase MCP 로 적용했습니다 (이름 `snowglobe_schema`).
-2. ⬜ **남음** — Supabase 대시보드의 **Project Settings → API → Exposed schemas 에 `snowglobe` 를 추가**합니다. 이것을 하지 않으면 앱에서 함수를 부를 수 없습니다. (대시보드에서 직접 해야 합니다)
-3. ⬜ **남음** — 프로젝트 URL 과 공개 키(anon key)를 `.env.local` 과 Vercel 환경 변수에 넣습니다 (`.env.example` 참고).
+2. ✅ **완료** — Supabase 대시보드의 **Project Settings → API → Exposed schemas 에 `snowglobe` 를 추가**합니다. 이것을 하지 않으면 앱에서 함수를 부를 수 없습니다. (대시보드에서 직접 해야 합니다)
+3. ✅ **완료** — 프로젝트 URL 과 공개 키(anon key)를 `.env.local` 과 Vercel 환경 변수에 넣습니다 (`.env.example` 참고).
 4. ✅ **확인함** — 기존 `public` 스키마의 연습용 테이블 8개는 모두 RLS 가 켜져 있습니다. 다만 연습용 함수 `buy_item`, `paw_balance` 는 공개 키로 누구나 부를 수 있는 상태입니다. 배포하면 공개 키가 브라우저에 노출되므로, 필요 없으면 지우거나 실행 권한을 거두는 것이 좋습니다.
+5. ✅ **완료 (11/26)** — 금지어 막기 마이그레이션을 적용했습니다 (이름 `snowglobe_banned_words`). 배포 주소의 친구 화면에서 욕설이 든 메시지 · 이름은 "금지어가 포함되어 있어 등록할 수 없어요…" 안내가 뜨고, 멀쩡한 글은 저장되는 것을 확인했습니다. 금지어만 되돌리려면 `drop trigger ornaments_block_banned on snowglobe.ornaments; drop trigger globes_block_banned on snowglobe.globes;` 두 줄이면 됩니다.
+6. ✅ **완료 (11/26)** — 메시지 길이 한도를 화면과 같은 200자로 맞췄습니다 (이름 `snowglobe_message_limit_200`). 200자는 저장되고 201자는 `invalid_message` 로 막히는 것을 직접 호출로 확인했습니다.
 
 되돌리기: `drop schema snowglobe cascade;` 한 줄이면 이 프로젝트의 테이블과 함수가 모두 지워지고, 연습용 테이블에는 영향이 없습니다.
 
