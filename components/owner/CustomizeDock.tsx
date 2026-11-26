@@ -2,9 +2,9 @@
 
 // 02 꾸미기 도크 (시안 C = 시안 A 의 02)
 //  - 넓은 화면: 한 줄 도크 (꾸밀 곳 4개 · 선택지 · 완료)
-//  - 휴대폰: 도크 두 개. 위 도크는 꾸밀 곳 4칸, 아래 도크는 고른 곳의 선택지 한 줄 + 완료.
-//    선택지는 넓은 화면처럼 그림(색 동그라미 · 아이콘)만 보여 주고 이름은 뺍니다. 받침대(7색)까지 한 줄에 들어가게
-//    칸 사이를 좁혔습니다 (색이 늘어 도크가 두 줄로 높아진 것을 되돌림, 이슈 #62). 이름은 스크린리더용 aria-label 로 남깁니다.
+//  - 휴대폰: 도크 두 개. 위 도크는 꾸밀 곳 4칸, 아래 도크는 고른 곳의 선택지(그림 + 이름) + 완료.
+//    선택지는 세 개까지 한 줄에 나눠 놓고, 트리(5색) · 받침대(7색)처럼 더 많으면 옆으로 밀어서 넘깁니다 (이슈 #62).
+//    밀어 넘기는 칸은 너비 52px · 사이 10px 입니다. 더 있다는 것을 알 수 있게 끝 칸이 걸쳐 보이고 오른쪽 끝이 흐려집니다.
 //  - 소품은 하나만 고르는 것이 아니라 켜고 끕니다: 선물 상자 · 눈사람을 둘 다, 하나만, 둘 다 없이.
 
 import Image from "next/image";
@@ -25,34 +25,12 @@ type Props = {
 };
 
 // 선택지 하나의 그림 (소품은 아이콘, 나머지는 색 동그라미)
-// size 를 주면 그 크기(px)로, 안 주면 놓인 칸에 맞춰 그립니다 (휴대폰 도크: 화면 너비에 따라 칸 크기가 달라짐)
-function OptionMark({ part, option, size }: { part: ThemePart; option: ThemeOption; size?: number }) {
+function OptionMark({ part, option, size }: { part: ThemePart; option: ThemeOption; size: number }) {
   if (part === "prop") {
-    const px = size ? size + 4 : 48;
-    return (
-      <Image
-        src={PROP_ICON[option.id] ?? PROP_ICON.gift}
-        alt=""
-        width={px}
-        height={px}
-        loading="eager"
-        unoptimized
-        className={size ? undefined : "size-[88%]"}
-      />
-    );
+    return <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size + 4} height={size + 4} loading="eager" unoptimized />;
   }
-  return (
-    <span
-      className={`rounded-full border border-glass-border ${size ? "" : "size-[78%]"}`}
-      style={{ background: option.color, ...(size ? { width: size, height: size } : {}) }}
-    />
-  );
+  return <span className="rounded-full border border-glass-border" style={{ background: option.color, width: size, height: size }} />;
 }
-
-// 휴대폰 도크의 선택지 한 칸 너비: 선택지가 가장 많은 곳(받침대 7색)이 한 줄에 꼭 맞게 들어가는 크기.
-// 어느 곳을 고르든 그림 크기가 같도록, 선택지가 적은 곳도 같은 칸 크기를 씁니다.
-const MOST_OPTIONS = Math.max(...THEME_PARTS.map((p) => p.options.length));
-const OPTION_CELL = `calc(100% / ${MOST_OPTIONS})`;
 
 // "눈 색깔"처럼 이름에 이미 색이 들어 있으면 "색"을 한 번 더 붙이지 않습니다
 const sheetTitle = (part: ThemePart, label: string) => (part === "prop" ? "소품 고르기" : label.includes("색") ? `${label} 고르기` : `${label} 색 고르기`);
@@ -65,6 +43,7 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
   // 소품은 여러 개를 켜고 끄고, 나머지는 하나만 고릅니다
   const isOn = (id: string) => (part === "prop" ? hasProp(theme.prop, id as PropItem) : theme[part] === id);
   const pick = (id: string) => onPick(part, part === "prop" ? toggleProp(theme.prop, id as PropItem) : id);
+  const slides = current.options.length > 3; // 휴대폰: 세 칸을 넘으면 옆으로 밀어서 넘깁니다
   const groupLabel = part === "prop" ? "소품 고르기 (여러 개 고를 수 있어요)" : sheetTitle(part, current.label);
 
   return (
@@ -140,8 +119,16 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
           </div>
         </Dock>
 
-        <Dock label={groupLabel} className="w-full">
-          <div className="flex min-w-0 flex-1 items-center" role="group" aria-label={groupLabel}>
+        <Dock label={groupLabel} className="w-full !rounded-[28px]">
+          {/* key: 꾸밀 곳을 바꾸면 밀어 둔 자리를 처음으로 되돌립니다 */}
+          <div
+            key={part}
+            className={`flex min-w-0 flex-1 snap-x gap-2.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+              slides ? "[mask-image:linear-gradient(to_right,black_calc(100%-28px),transparent)]" : ""
+            }`}
+            role="group"
+            aria-label={groupLabel}
+          >
             {current.options.map((o) => {
               const selected = isOn(o.id);
               return (
@@ -149,23 +136,21 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
                   key={o.id}
                   type="button"
                   aria-pressed={selected}
-                  aria-label={`${current.label}: ${o.label}`}
                   onClick={() => pick(o.id)}
-                  className="flex h-12 max-w-12 shrink-0 items-center justify-center"
-                  style={{ width: OPTION_CELL }}
+                  className={`flex min-h-[62px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-2xl px-1 transition duration-200 ease-soft ${
+                    selected ? "bg-glass-strong ring-2 ring-inset ring-accent" : ""
+                  }`}
+                  style={{ width: slides ? 52 : `calc((100% - ${(current.options.length - 1) * 10}px) / ${current.options.length})` }}
                 >
-                  <span
-                    className={`flex aspect-square w-full items-center justify-center rounded-full transition duration-200 ease-soft ${
-                      selected ? "bg-glass-strong ring-2 ring-inset ring-accent" : ""
-                    }`}
-                  >
-                    <OptionMark part={part} option={o} />
-                  </span>
+                  <OptionMark part={part} option={o} size={28} />
+                  <span className={`max-w-full truncate text-xs ${selected ? "font-bold text-ink" : "text-ink-sub"}`}>{o.label}</span>
                 </button>
               );
             })}
+            {/* 끝까지 밀었을 때 마지막 칸이 흐려진 가장자리 밖으로 나오게 하는 여백 */}
+            {slides && <span className="w-4 shrink-0" aria-hidden="true" />}
           </div>
-          <Button onClick={onNext} className="ml-0.5 !px-4">
+          <Button onClick={onNext} className="ml-1 !h-[62px] !rounded-[20px] !px-4">
             {DONE_LABEL}
           </Button>
         </Dock>
