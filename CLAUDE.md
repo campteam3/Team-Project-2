@@ -53,6 +53,7 @@ Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니�
 | `lib/kakao.ts` | 카카오톡 공유. 배포 주소에서만 카카오 공유 창이 열리고, 로컬 · PR 미리보기 주소에서는 기본 공유 창이나 링크 복사로 넘어갑니다 |
 | `lib/site.ts`, `app/opengraph-image.jpg` | 링크 미리보기(제목 · 설명 · 이미지). 페이지에서 `openGraph` 를 따로 정하면 `OG_IMAGE` 를 함께 넣어야 이미지가 빠지지 않습니다 |
 | `public/models/`, `scripts/compress-models.mjs` | 3D 모델과 압축 스크립트. `npm run build` 때 모델이 자동으로 압축됩니다(약 4MB → 0.9MB). Blender 에서 다시 내보낸 뒤에도 평소처럼 build 하고, 바뀐 모델 파일을 함께 커밋하면 됩니다 |
+| `lib/bgm.ts`, `components/BgmAutoStart.tsx`, `public/audio/` | 배경 음악(캐롤 두 곡을 무작위로). 처음 화면을 누를 때 시작하고, 화면 오른쪽 위 소리 버튼(`Stage.tsx`)으로 끕니다. 곡을 바꾸려면 파일을 넣고 `lib/bgm.ts` 의 `TRACKS` 를 고칩니다 |
 | `lib/sample-data.ts` | `/globe/demo` 용 샘플 스노우볼 |
 | `lib/supabase.ts`, `.env.example` | Supabase 연결 자리. 키가 없어도 앱은 실행됩니다 |
 | `db.md`, `supabase/migrations/` | DB 설계와 SQL. 테이블은 직접 못 읽고 `supabase.rpc()` 로 함수만 부릅니다. 함수 목록과 오류 이름은 `db.md` 6번 |

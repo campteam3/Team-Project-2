@@ -6,16 +6,17 @@
 // UI 는 위쪽 띠와 아래쪽에만 두고, 스노우볼 위에 겹치지 않습니다.
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import type { Ornament } from "@/lib/api";
 import type { GlobeTheme } from "@/lib/theme";
+import { isBgmOn, isBgmOnServer, subscribeBgm, toggleBgm } from "@/lib/bgm";
 import { IconButton } from "@/components/ui/Button";
 import StageFallback from "./StageFallback";
 import type { GlobeLayout } from "./StageScene";
 
-// 음악 파일이 생기면 true 로 바꿉니다. 지금은 버튼을 숨겨 둡니다.
-const SHOW_SOUND = false;
+// 소리 버튼 (차명근 연결): 배경 음악을 켜고 끕니다. 재생은 lib/bgm.ts 가 맡습니다.
+const SHOW_SOUND = true;
 
 const StageScene = dynamic(() => import("./StageScene"), {
   ssr: false,
@@ -71,6 +72,7 @@ export default function Stage(props: StageProps) {
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [shakeSignal, setShakeSignal] = useState(0);
+  const soundOn = useSyncExternalStore(subscribeBgm, isBgmOn, isBgmOnServer); // 배경 음악을 켜 둔 상태인지
   const lastShake = useRef(0);
   const plateEl = useRef<HTMLDivElement>(null);
   const mainEl = useRef<HTMLElement>(null);
@@ -282,7 +284,14 @@ export default function Stage(props: StageProps) {
           <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} />
         </div>
         <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 kb:hidden sm:right-8 sm:top-8">
-          {SHOW_SOUND && <IconButton icon="volume" label="소리" />}
+          {SHOW_SOUND && (
+            <IconButton
+              icon={soundOn ? "volume" : "volume-off"}
+              label={soundOn ? "소리 끄기" : "소리 켜기"}
+              aria-pressed={soundOn}
+              onClick={toggleBgm}
+            />
+          )}
           <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />
         </div>
 
