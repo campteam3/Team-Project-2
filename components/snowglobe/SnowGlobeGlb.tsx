@@ -250,9 +250,8 @@ function makeMatte(material: THREE.MeshStandardMaterial, roughness: number, refl
 }
 
 // 받침대와 빨간 선물 상자가 함께 쓰는 부드러운 빨강
-const SOFT_RED = "#dc4f45";
-// 받침대의 빨강: 위의 빨강에서 채도만 조금 올린 색 (이민정)
-const BASE_RED = "#e4483d";
+// 받침대와 빨간 선물 상자의 빨강. 예전 값(#dc4f45)에서 밝기는 그대로 두고 채도를 올렸습니다 (이민정)
+const SOFT_RED = "#ed4034";
 
 // 아주 약한 유광: 클레이 느낌은 그대로 두고, 빛을 받는 곳에만 부드러운 윤기가 돕니다.
 function makeSoftGloss(material: THREE.MeshStandardMaterial) {
@@ -304,13 +303,13 @@ const MATERIAL_TUNES: Record<string, Tune> = {
   },
   // 받침대: 트리와 같은 질감
   W_Base_RedMat: (material) => {
-    material.color.set(BASE_RED);
+    material.color.set(SOFT_RED);
     makeSoftGloss(material);
     material.emissive.set("#521512");
     material.emissiveIntensity = 0.3;
     applyShaderExtras(material, { rim: { color: "#ffb0a2", strength: 0.15 } });
   },
-  // 빨간 선물 상자: 받침대와 같은 계열의 빨강 (받침대는 채도가 조금 더 높습니다)
+  // 빨간 선물 상자: 받침대와 같은 빨강
   W_Gift_Red: (material) => {
     material.color.set(SOFT_RED);
   },
