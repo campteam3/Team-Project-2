@@ -208,7 +208,9 @@ export default function Stage(props: StageProps) {
     };
   }, []);
 
-  // 휴대폰 흔들기. 아이폰은 처음 화면을 누를 때 권한을 한 번 묻습니다.
+  // 휴대폰 흔들기. 아이폰은 화면을 눌렀다 뗄 때 "동작 및 방향 접근" 권한을 묻습니다. (FEEDBACK A3)
+  // 아이폰 사파리는 손이 닿는 순간(pointerdown · touchstart)에는 권한 창을 띄워 주지 않고,
+  // 눌렀다 뗀 동작(touchend · click)에서만 띄워 줍니다. 허용이든 거부든 답이 정해질 때까지 누를 때마다 다시 묻습니다.
   useEffect(() => {
     const onMotion = (e: DeviceMotionEvent) => {
       const a = e.acceleration ?? e.accelerationIncludingGravity;
@@ -216,17 +218,31 @@ export default function Stage(props: StageProps) {
       const force = Math.hypot(a.x ?? 0, a.y ?? 0, a.z ?? 0);
       if (force > (e.acceleration ? 14 : 24)) shake();
     };
-    const ask = () => {
-      const Motion = (window as unknown as { DeviceMotionEvent?: MotionPermission }).DeviceMotionEvent;
-      Motion?.requestPermission?.().catch(() => {
-        // 거부해도 드래그와 눈 버튼으로 눈을 내릴 수 있습니다
-      });
+    const stopAsking = () => {
+      window.removeEventListener("touchend", ask);
+      window.removeEventListener("click", ask);
     };
+    let asking = false; // 권한 창이 떠 있는 동안에는 다시 묻지 않습니다 (한 번 누르면 touchend 와 click 이 연달아 옵니다)
+    function ask() {
+      const Motion = (window as unknown as { DeviceMotionEvent?: MotionPermission }).DeviceMotionEvent;
+      if (!Motion?.requestPermission) return stopAsking(); // 권한을 묻지 않는 기기(안드로이드 · PC)
+      if (asking) return;
+      asking = true;
+      Motion.requestPermission()
+        .then(stopAsking) // 허용 · 거부가 정해졌습니다. 거부해도 드래그와 눈 버튼으로 눈을 내릴 수 있습니다
+        .catch(() => {
+          // 브라우저가 이번 동작을 "누른 것"으로 인정하지 않았습니다. 다음에 누를 때 다시 묻습니다
+        })
+        .finally(() => {
+          asking = false;
+        });
+    }
     window.addEventListener("devicemotion", onMotion);
-    window.addEventListener("pointerdown", ask, { once: true });
+    window.addEventListener("touchend", ask);
+    window.addEventListener("click", ask);
     return () => {
       window.removeEventListener("devicemotion", onMotion);
-      window.removeEventListener("pointerdown", ask);
+      stopAsking();
     };
   }, [shake]);
 
