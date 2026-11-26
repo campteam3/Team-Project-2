@@ -91,7 +91,6 @@ export default function OwnerFlow() {
         theme={theme}
         title="마지막으로 알려 주세요"
         subtitle="2 / 2 단계"
-        hintMobile="받침대 명판에 닉네임을 새겨 주세요"
         plate={<NameplateInput value={nickname} onChange={setNickname} />}
         lockFront
         layout={{ desktop: { centerFromTop: 0.4 }, mobile: { centerFromTop: 0.4 } }}

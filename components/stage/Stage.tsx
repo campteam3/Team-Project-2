@@ -6,7 +6,7 @@
 // UI 는 위쪽 띠와 아래쪽에만 두고, 스노우볼 위에 겹치지 않습니다.
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import type { Ornament } from "@/lib/api";
 import type { GlobeTheme } from "@/lib/theme";
@@ -50,6 +50,7 @@ export type StageProps = {
   arrivingId?: string; // 지금 막 달리는 오너먼트
   focusId?: string; // 이 오너먼트가 정면에 오도록 스노우볼을 돌립니다
   lockFront?: boolean;
+  holdGlobe?: boolean; // 휴대폰에서 스노우볼을 직전 크기 · 자리에 그대로 두고, 아래쪽 UI 가 그 위로 올라오게 합니다 (12 메시지 쓰기)
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
   below?: ReactNode; // 도크 아래 작은 글자 링크
@@ -65,22 +66,93 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, children, below, onSelectOrnament, extraShake = 0 } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, pin, pinKey, pinId, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, onSelectOrnament, extraShake = 0 } = props;
   const [webgl, setWebgl] = useState<boolean | null>(null);
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [shakeSignal, setShakeSignal] = useState(0);
   const lastShake = useRef(0);
   const plateEl = useRef<HTMLDivElement>(null);
+  const mainEl = useRef<HTMLElement>(null);
+  const sceneEl = useRef<HTMLDivElement>(null);
   const headerEl = useRef<HTMLElement>(null);
   const footerEl = useRef<HTMLElement>(null);
+  const [keyboard, setKeyboard] = useState(false); // 휴대폰 화면 키보드가 올라와 있는지
+  const hold = useRef(false);
+  const heldArea = useRef<{ top: number; bottom: number; plateHalf: number; width: number } | null>(null);
 
-  // 3D 장면이 매 프레임 묻는 "UI 사이 빈 공간" (제목 아래 끝 ~ 아래쪽 UI 위 끝, px)
+  // 아래쪽 UI 가 바뀐 화면이 그려지기 전에 켜야, 바뀐 UI 로 빈 공간을 다시 재지 않습니다
+  useLayoutEffect(() => {
+    hold.current = !!holdGlobe && mobile;
+  }, [holdGlobe, mobile]);
+
+  // 3D 장면이 매 프레임 묻는 "UI 사이 빈 공간" (제목 아래 끝 ~ 아래쪽 UI 위 끝, 3D 무대 위 끝에서부터 px)
   const getSafeArea = useCallback(() => {
+    // 스노우볼을 그대로 두는 단계: 직전에 잰 빈 공간을 그대로 돌려줍니다 (화면 너비가 바뀌면 다시 잽니다)
+    const held = heldArea.current;
+    if (hold.current && held && held.width === window.innerWidth) return held;
     const head = headerEl.current?.getBoundingClientRect();
     const foot = footerEl.current?.getBoundingClientRect();
     if (!head || !foot) return null;
-    return { top: head.bottom, bottom: foot.top, plateHalf: (plateEl.current?.offsetHeight ?? 0) / 2 };
+    const sceneTop = sceneEl.current?.getBoundingClientRect().top ?? 0;
+    const area = {
+      top: head.bottom - sceneTop,
+      bottom: foot.top - sceneTop,
+      plateHalf: (plateEl.current?.offsetHeight ?? 0) / 2,
+      width: window.innerWidth,
+    };
+    if (!hold.current) heldArea.current = area;
+    return area;
+  }, []);
+
+  // 화면 키보드 (FEEDBACK A2).
+  // 아이폰은 키보드가 올라와도 화면 높이(dvh)가 그대로이고, 대신 보이는 영역이 입력칸 쪽으로 밀려 올라갑니다.
+  // 그래서 보이는 영역(visualViewport)의 위치 · 높이를 읽어,
+  //   - UI 층은 보이는 영역 안에 다시 맞추고 (--vv-top · --vv-h)
+  //   - 3D 무대는 밀려 올라간 만큼 내려서 제자리에 보이게 합니다.
+  // 키보드가 올라온 동안 main 에 data-kb 가 붙고, 덜 중요한 요소는 kb: 로 숨겨 자리를 만듭니다 (globals.css).
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = mainEl.current;
+    if (!vv || !el) return;
+    let width = vv.width;
+    let full = vv.height; // 키보드가 없을 때의 높이
+    let frame = 0;
+    const apply = () => {
+      frame = 0;
+      if (Math.abs(vv.width - width) > 1) {
+        width = vv.width; // 화면을 돌렸으면 다시 잽니다
+        full = vv.height;
+      }
+      const zoomed = vv.scale > 1.01; // 페이지를 손가락으로 확대한 경우는 키보드가 아닙니다
+      if (!zoomed) full = Math.max(full, vv.height);
+      const active = document.activeElement;
+      const typing = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+      const open = typing && !zoomed && full - vv.height > 120;
+      if (open) {
+        const top = Math.max(0, vv.offsetTop - el.getBoundingClientRect().top);
+        el.style.setProperty("--vv-top", `${top}px`);
+        el.style.setProperty("--vv-h", `${vv.height}px`);
+      } else {
+        el.style.removeProperty("--vv-top");
+        el.style.removeProperty("--vv-h");
+      }
+      setKeyboard(open);
+    };
+    const queue = () => {
+      if (!frame) frame = requestAnimationFrame(apply);
+    };
+    vv.addEventListener("resize", queue);
+    vv.addEventListener("scroll", queue);
+    window.addEventListener("focusin", queue);
+    window.addEventListener("focusout", queue);
+    return () => {
+      cancelAnimationFrame(frame);
+      vv.removeEventListener("resize", queue);
+      vv.removeEventListener("scroll", queue);
+      window.removeEventListener("focusin", queue);
+      window.removeEventListener("focusout", queue);
+    };
   }, []);
   const pinEl = useRef<HTMLDivElement>(null);
 
@@ -160,8 +232,9 @@ export default function Stage(props: StageProps) {
     : { ...DESKTOP, ...props.layout?.desktop };
 
   return (
-    <main className="relative h-dvh w-full overflow-hidden">
-      {/* 뒤: 3D 무대 */}
+    <main ref={mainEl} data-kb={keyboard ? "" : undefined} className="relative h-dvh w-full overflow-hidden">
+      {/* 뒤: 3D 무대 + 무대를 따라다니는 명판 · 말풍선. 키보드에 밀려 올라간 만큼 내려 제자리에 보이게 합니다 */}
+      <div ref={sceneEl} className="absolute inset-0 z-0 [translate:0_var(--vv-top,0px)]">
       <div className="absolute inset-0 z-0">
         {webgl === false ? (
           <StageFallback plate={plate} centerFromTop={layout.centerFromTop} height={layout.height} />
@@ -201,18 +274,20 @@ export default function Stage(props: StageProps) {
           {pin}
         </div>
       )}
+      </div>
 
       {/* 앞: UI */}
-      <div className="pointer-events-none relative z-10 flex h-full flex-col px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 sm:px-8 sm:pb-8 sm:pt-8">
-        <div className="pointer-events-auto absolute left-4 top-4 sm:left-8 sm:top-8">
+      <div className="pointer-events-none absolute inset-x-0 top-[var(--vv-top,0px)] z-10 flex h-[var(--vv-h,100%)] flex-col px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 kb:pb-3 kb:pt-3 sm:px-8 sm:pb-8 sm:pt-8">
+        <div className="pointer-events-auto absolute left-4 top-4 kb:hidden sm:left-8 sm:top-8">
           <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} />
         </div>
-        <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 sm:right-8 sm:top-8">
+        <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 kb:hidden sm:right-8 sm:top-8">
           {SHOW_SOUND && <IconButton icon="volume" label="소리" />}
           <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />
         </div>
 
-        <header ref={headerEl} key={title} className="mx-auto mt-14 max-w-[900px] animate-fade text-center sm:mt-1.5">
+        {/* 키보드가 올라오면 제목은 접어 둡니다 (자리는 남겨 스노우볼 위치 계산에 씁니다) */}
+        <header ref={headerEl} key={title} className="mx-auto mt-14 max-w-[900px] animate-fade text-center kb:mt-0 kb:h-0 kb:overflow-hidden sm:mt-1.5">
           <h1
             className={`text-balance font-bold tracking-[-0.02em] text-ink ${
               display ? "text-[28px] leading-[1.3] sm:text-[40px]" : "text-[22px] leading-[1.3] sm:text-[28px]"
@@ -229,12 +304,12 @@ export default function Stage(props: StageProps) {
 
         <div className="flex-1" />
 
-        <footer ref={footerEl} className="flex flex-col items-center gap-3">
+        <footer ref={footerEl} className="flex min-h-0 flex-col items-center gap-3">
           {/* 안내 문구는 받침대 위에 겹칠 때가 있어, 어두운 알약 바탕을 깔아 어디서든 읽히게 합니다 */}
-          {(hintMobile ?? hint) && <p className={`${HINT_PILL} sm:hidden`}>{hintMobile ?? hint}</p>}
+          {(hintMobile ?? hint) && <p className={`${HINT_PILL} kb:hidden sm:hidden`}>{hintMobile ?? hint}</p>}
           {hint && <p className={`${HINT_PILL} hidden sm:block`}>{hint}</p>}
           {children}
-          {below}
+          {below && <div className="contents kb:hidden">{below}</div>}
         </footer>
       </div>
     </main>
