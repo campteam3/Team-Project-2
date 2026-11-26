@@ -30,7 +30,8 @@ function OptionMark({ part, option, size, outlined }: { part: ThemePart; option:
   if (part === "prop" && outlined) {
     return (
       <span className="flex items-center justify-center rounded-full border border-glass-border" style={{ width: size, height: size }}>
-        <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size - 10} height={size - 10} loading="eager" unoptimized />
+        {/* 아이콘 파일은 그림 둘레에 여백이 있어, 동그라미보다 크게 놓아야 그림이 색 동그라미만큼 차 보입니다 */}
+        <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size + 8} height={size + 8} loading="eager" unoptimized className="max-w-none shrink-0" />
       </span>
     );
   }
