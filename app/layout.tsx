@@ -31,6 +31,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ko" className="h-full antialiased">
       <head>
+        {/* 3D 모델을 화면 코드보다 먼저 받기 시작합니다. 첫 화면이 뜨는 시간을 줄입니다 (FEEDBACK A8) */}
+        <link rel="preload" href="/models/snowglobe.glb" as="fetch" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
         <link rel="stylesheet" href={PRETENDARD} />
       </head>
