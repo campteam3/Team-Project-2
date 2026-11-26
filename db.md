@@ -156,9 +156,10 @@ SQL 을 임시 Postgres(PGlite)에 실행해 59가지 경우를 시험했고 모
 ## 9. 실제 DB 적용 상태
 
 1. ✅ **완료** — 마이그레이션 SQL 을 Supabase MCP 로 적용했습니다 (이름 `snowglobe_schema`).
-2. ⬜ **남음** — Supabase 대시보드의 **Project Settings → API → Exposed schemas 에 `snowglobe` 를 추가**합니다. 이것을 하지 않으면 앱에서 함수를 부를 수 없습니다. (대시보드에서 직접 해야 합니다)
-3. ⬜ **남음** — 프로젝트 URL 과 공개 키(anon key)를 `.env.local` 과 Vercel 환경 변수에 넣습니다 (`.env.example` 참고).
+2. ✅ **완료** — Supabase 대시보드의 **Project Settings → API → Exposed schemas 에 `snowglobe` 를 추가**합니다. 이것을 하지 않으면 앱에서 함수를 부를 수 없습니다. (대시보드에서 직접 해야 합니다)
+3. ✅ **완료** — 프로젝트 URL 과 공개 키(anon key)를 `.env.local` 과 Vercel 환경 변수에 넣습니다 (`.env.example` 참고).
 4. ✅ **확인함** — 기존 `public` 스키마의 연습용 테이블 8개는 모두 RLS 가 켜져 있습니다. 다만 연습용 함수 `buy_item`, `paw_balance` 는 공개 키로 누구나 부를 수 있는 상태입니다. 배포하면 공개 키가 브라우저에 노출되므로, 필요 없으면 지우거나 실행 권한을 거두는 것이 좋습니다.
+5. ✅ **완료 (11/26)** — 금지어 막기 마이그레이션을 적용했습니다 (이름 `snowglobe_banned_words`). 배포 주소의 친구 화면에서 욕설이 든 메시지 · 이름은 "금지어가 포함되어 있어 등록할 수 없어요…" 안내가 뜨고, 멀쩡한 글은 저장되는 것을 확인했습니다. 금지어만 되돌리려면 `drop trigger ornaments_block_banned on snowglobe.ornaments; drop trigger globes_block_banned on snowglobe.globes;` 두 줄이면 됩니다.
 
 되돌리기: `drop schema snowglobe cascade;` 한 줄이면 이 프로젝트의 테이블과 함수가 모두 지워지고, 연습용 테이블에는 영향이 없습니다.
 
