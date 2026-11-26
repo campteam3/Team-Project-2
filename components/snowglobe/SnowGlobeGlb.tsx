@@ -366,9 +366,42 @@ const BULB_COLORS: [string, number][] = [
   ["#ff7fb5", 1.55],
 ];
 
-const BULB_SCALE = 1.7;
+// 전구 크기: 모델의 구슬을 이만큼 키웁니다. 전구마다 크기가 조금씩 달라서 가장 작은 것과 가장 큰 것 사이에서 정해집니다. (이민정)
+const BULB_SCALE_MIN = 1.15;
+const BULB_SCALE_MAX = 2.35;
 
-// 전구 줄은 구슬 수백 개가 한 덩어리로 붙어 있습니다. 서로 이어진 면끼리 묶어 구슬을 구분하고 구슬마다 색을 줍니다.
+// 전구마다 정해진 0~1 사이의 값 (볼 때마다 같은 전구가 같은 크기 · 같은 박자로 반짝이도록)
+const bulbRandom = (bulb: number, salt: number) => {
+  const x = Math.sin(bulb * 12.9898 + salt * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+// 전구가 반짝이는 박자를 흘려보내는 시계. 전구 줄을 그릴 때마다 지금 시각을 넣습니다.
+const bulbClock = { value: 0 };
+
+// 전구 재질: 스스로 빛나고(빛 번짐이 걸립니다), 전구마다 다른 박자로 이따금 잠깐 밝게 반짝입니다.
+// 평소에는 조금 차분하게 켜져 있다가, 3~10초에 한 번쯤 반짝였다 돌아옵니다. '움직임 줄이기'에서는 반짝이지 않습니다.
+function createBulbMaterial() {
+  const material = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uBulbClock = bulbClock;
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute float aTwinkle;\nuniform float uBulbClock;\nvarying float vBulbGlow;")
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        float bulbWave = 0.5 + 0.5 * sin(uBulbClock * (0.6 + fract(aTwinkle * 7.31) * 1.4) + aTwinkle * 6.2832);
+        vBulbGlow = 0.78 + 1.5 * pow(bulbWave, 10.0);`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying float vBulbGlow;")
+      .replace("#include <color_fragment>", "#include <color_fragment>\ndiffuseColor.rgb *= vBulbGlow;");
+  };
+  material.customProgramCacheKey = () => "tree-bulbs-twinkle";
+  return material;
+}
+
+// 전구 줄은 구슬 수백 개가 한 덩어리로 붙어 있습니다. 서로 이어진 면끼리 묶어 구슬을 구분하고 구슬마다 색 · 크기 · 반짝이는 박자를 줍니다.
 function colorBulbs(source: THREE.BufferGeometry) {
   const geometry = source.clone();
   const index = geometry.getIndex();
@@ -409,24 +442,28 @@ function colorBulbs(source: THREE.BufferGeometry) {
     sizes[bulb] += 1;
   }
   const colors = new Float32Array(count * 3);
+  const twinkles = new Float32Array(count);
   const color = new THREE.Color();
   for (let i = 0; i < count; i++) {
     const bulb = bulbIndex[i];
+    twinkles[i] = bulbRandom(bulb, 2);
     const [hex, brightness] = BULB_COLORS[bulb % BULB_COLORS.length];
     color.set(hex).multiplyScalar(brightness);
     colors.set([color.r, color.g, color.b], i * 3);
-    // 색이 보이도록 구슬을 제자리에서 조금 키웁니다.
+    // 색이 보이도록 구슬을 제자리에서 키웁니다. 전구마다 크기가 조금씩 다릅니다.
+    const scale = BULB_SCALE_MIN + (BULB_SCALE_MAX - BULB_SCALE_MIN) * bulbRandom(bulb, 1);
     const cx = centers[bulb * 3] / sizes[bulb];
     const cy = centers[bulb * 3 + 1] / sizes[bulb];
     const cz = centers[bulb * 3 + 2] / sizes[bulb];
     position.setXYZ(
       i,
-      cx + (position.getX(i) - cx) * BULB_SCALE,
-      cy + (position.getY(i) - cy) * BULB_SCALE,
-      cz + (position.getZ(i) - cz) * BULB_SCALE,
+      cx + (position.getX(i) - cx) * scale,
+      cy + (position.getY(i) - cy) * scale,
+      cz + (position.getZ(i) - cz) * scale,
     );
   }
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute("aTwinkle", new THREE.BufferAttribute(twinkles, 1));
   return geometry;
 }
 
@@ -562,8 +599,9 @@ export function GlobeModel({ title = "", treeColor, trunkColor, baseColor, showG
     const copy = scene.clone(true);
     const glassFront = createGlassMaterial(false);
     const glassBack = createGlassMaterial(true);
-    // 트리에 두른 점 줄은 여러 색의 작은 전구처럼 스스로 빛나게 (빛 번짐이 걸립니다)
-    const bulbs = new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false });
+    // 트리에 두른 점 줄은 여러 색의 작은 전구처럼 스스로 빛나고, 이따금 반짝입니다
+    const bulbs = createBulbMaterial();
+    const stillBulbs = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const tuned = new Map<string, THREE.MeshStandardMaterial>();
     const glassMeshes: THREE.Mesh[] = [];
 
@@ -583,6 +621,10 @@ export function GlobeModel({ title = "", treeColor, trunkColor, baseColor, showG
       if (mesh.name.startsWith("w_Tree_Garland")) {
         mesh.geometry = colorBulbs(mesh.geometry);
         mesh.material = bulbs;
+        // 그릴 때마다 반짝임의 시계를 지금 시각으로 맞춥니다 (움직임 줄이기에서는 멈춰 둡니다)
+        mesh.onBeforeRender = () => {
+          if (!stillBulbs) bulbClock.value = performance.now() / 1000;
+        };
         return;
       }
       if (mesh.name.startsWith("w_Base_Nameplate") && !mesh.name.startsWith("w_Base_NameplateFrame")) {
