@@ -23,10 +23,6 @@ type Step = "customize" | "info" | "share";
 
 const NICKNAME_PATTERN = /^[0-9A-Za-z가-힣_-]{2,20}$/;
 
-function plateLabel(text: string) {
-  return <span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{text}</span>;
-}
-
 export default function OwnerFlow() {
   const preview = useSearchParams().get("preview") === "1";
   const [step, setStep] = useState<Step>("customize");
@@ -70,7 +66,7 @@ export default function OwnerFlow() {
         subtitle="1 / 2 단계"
         hint="고르는 대로 바로 바뀌어요. 드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
         hintMobile="고르는 대로 바로 바뀌어요"
-        plate={plateLabel("내 스노우볼")}
+        plateText="내 스노우볼"
       >
         <div key={step} className="flex w-full animate-rise justify-center">
           <CustomizeDock
@@ -119,7 +115,7 @@ export default function OwnerFlow() {
       theme={theme}
       title="스노우볼이 완성됐어요"
       subtitle="링크를 보내면 친구들이 오너먼트에 마음을 담아 달아 줘요"
-      plate={plateLabel(`${created}의 스노우볼`)}
+      plateText={`${created}의 스노우볼`}
       below={
         <Link
           href={globePath(created)}

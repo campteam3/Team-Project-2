@@ -32,6 +32,7 @@ export type StageSceneProps = {
   theme: GlobeTheme;
   ornaments?: (Pick<Ornament, "id" | "color"> & { shape?: string })[];
   layout: GlobeLayout;
+  plateText?: string; // 받침대 명판에 새길 이름 (3D 명판 면에 그립니다)
   onPlateMove?: (x: number, y: number, visibility: number, width: number) => void; // 명판 가운데의 화면 좌표(px)와 보이는 정도(0~1)
   pinKey?: number; // 값이 바뀔 때마다 앞쪽을 향한 오너먼트 하나를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때 (pinKey 보다 우선)
@@ -309,6 +310,7 @@ function Globe(props: StageSceneProps) {
           selectedId={props.onSelectOrnament ? (props.highlightId ?? null) : undefined}
           onSelect={props.onSelectOrnament}
           arrivingId={props.arrivingId}
+          plateText={props.plateText}
           reducedMotion={reducedMotion}
         />
         <Snow

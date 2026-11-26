@@ -74,7 +74,7 @@ export default function OpeningView() {
       hintMobile="폰을 흔들면 눈이 내리고, 두 손가락으로 크게 볼 수 있어요"
       layout={{ desktop: { centerFromTop: 0.47 }, mobile: { centerFromTop: 0.48 } }}
       // 명판에 실제 이름처럼 보여 줘서 "여기에 내 이름이 새겨진다"를 처음부터 알게 합니다
-      plate={<span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">지수의 스노우볼</span>}
+      plateText="지수의 스노우볼"
       pinKey={turn}
       pin={shown ? <ExampleBubble key={turn} sender={current.sender} message={current.message} /> : undefined}
       below={

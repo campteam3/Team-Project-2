@@ -356,7 +356,8 @@ function colorBulbs(source: THREE.BufferGeometry) {
   return geometry;
 }
 
-// 받침대 명패에 들어갈 글자 그림. 스노우볼 이름이 길면 글자를 줄여서 한 줄에 맞춥니다.
+// 받침대 명패에 새길 글자 그림. 명패 면에 입혀서 스노우볼과 함께 돕니다 (FEEDBACK B4).
+// 이름이 길면 글자를 줄이고, 가장 작은 크기에서도 넘치면 뒤를 "…"으로 줄입니다.
 function createNameplateTexture(title: string) {
   // 명패 모양(가로 0.84, 세로 0.17)과 같은 비율입니다.
   const width = 1536;
@@ -381,15 +382,28 @@ function createNameplateTexture(title: string) {
     const text = title.trim();
     if (text) {
       const family = getComputedStyle(document.body).fontFamily || "sans-serif";
-      let size = 156;
-      do {
+      const limit = width * 0.84;
+      const fits = (value: string) => context.measureText(value).width <= limit;
+      let size = 152;
+      context.font = `700 ${size}px ${family}`;
+      while (!fits(text) && size > 84) {
+        size -= 4;
         context.font = `700 ${size}px ${family}`;
-        size -= 6;
-      } while (context.measureText(text).width > width * 0.8 && size > 36);
-      context.fillStyle = "#7a1a22";
+      }
+      let shown = text;
+      if (!fits(text)) {
+        const letters = Array.from(text);
+        while (letters.length > 1 && !fits(letters.join("").trimEnd() + "…")) letters.pop();
+        shown = letters.join("").trimEnd() + "…";
+      }
       context.textAlign = "center";
       context.textBaseline = "middle";
-      context.fillText(text, width / 2, height / 2 + size * 0.04);
+      const y = height / 2 + size * 0.04;
+      // 새긴 글자처럼 보이게: 아래쪽에 밝은 턱을 먼저 그리고 그 위에 어두운 글자를 얹습니다
+      context.fillStyle = "rgba(255, 255, 255, 0.85)";
+      context.fillText(shown, width / 2, y + size * 0.035);
+      context.fillStyle = "#141b33";
+      context.fillText(shown, width / 2, y);
     }
   }
   const texture = new THREE.CanvasTexture(canvas);
