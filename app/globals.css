@@ -53,6 +53,9 @@
   }
 }
 
+/* 화면 키보드가 올라와 있는 동안만 적용 (Stage 가 main 에 data-kb 를 붙입니다). 예: kb:hidden */
+@custom-variant kb (&:where([data-kb], [data-kb] *));
+
 /* 유리 면: 3D 위에 놓이는 UI (DESIGN.md 7-2) */
 @utility glass {
   background-color: var(--color-glass);

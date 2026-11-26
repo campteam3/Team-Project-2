@@ -51,7 +51,8 @@ Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니�
 | `lib/api.ts` | **DB 함수 호출 모음.** 화면에서는 `supabase` 를 직접 쓰지 말고 여기 함수를 씁니다. 오류 안내 문구도 여기 있습니다 |
 | `lib/owner-token.ts` | 주인 토큰을 브라우저에 저장 · 읽기 |
 | `lib/kakao.ts` | 카카오톡 공유. 배포 주소에서만 카카오 공유 창이 열리고, 로컬 · PR 미리보기 주소에서는 기본 공유 창이나 링크 복사로 넘어갑니다 |
-| `lib/site.ts`, `app/opengraph-image.png` | 링크 미리보기(제목 · 설명 · 이미지). 페이지에서 `openGraph` 를 따로 정하면 `OG_IMAGE` 를 함께 넣어야 이미지가 빠지지 않습니다 |
+| `lib/site.ts`, `app/opengraph-image.jpg` | 링크 미리보기(제목 · 설명 · 이미지). 페이지에서 `openGraph` 를 따로 정하면 `OG_IMAGE` 를 함께 넣어야 이미지가 빠지지 않습니다 |
+| `public/models/`, `scripts/compress-models.mjs` | 3D 모델과 압축 스크립트. `npm run build` 때 모델이 자동으로 압축됩니다(약 4MB → 0.9MB). Blender 에서 다시 내보낸 뒤에도 평소처럼 build 하고, 바뀐 모델 파일을 함께 커밋하면 됩니다 |
 | `lib/sample-data.ts` | `/globe/demo` 용 샘플 스노우볼 |
 | `lib/supabase.ts`, `.env.example` | Supabase 연결 자리. 키가 없어도 앱은 실행됩니다 |
 | `db.md`, `supabase/migrations/` | DB 설계와 SQL. 테이블은 직접 못 읽고 `supabase.rpc()` 로 함수만 부릅니다. 함수 목록과 오류 이름은 `db.md` 6번 |
