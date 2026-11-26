@@ -490,7 +490,12 @@ function colorBulbs(source: THREE.BufferGeometry, seat?: BulbSeat) {
       parent[find(index.getX(i + 2))] = a;
     }
   }
-  const position = geometry.getAttribute("position");
+  // 모델은 압축되어 있어서 좌표가 -1~1 범위의 정수로 들어 있습니다. 그대로 고치면 범위를 넘는 값이 잘려서,
+  // 바깥으로 옮기거나 키운 전구가 벽에 눌린 것처럼 길게 찌그러집니다. 자유롭게 고칠 수 있는 실수 좌표로 바꿔 둡니다.
+  const packed = geometry.getAttribute("position");
+  const position = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
+  for (let i = 0; i < count; i++) position.setXYZ(i, packed.getX(i), packed.getY(i), packed.getZ(i));
+  geometry.setAttribute("position", position);
   const bulbOf = new Map<number, number>();
   const bulbIndex = new Int32Array(count);
   const centers: number[] = [];
@@ -595,6 +600,9 @@ function colorBulbs(source: THREE.BufferGeometry, seat?: BulbSeat) {
   }
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   geometry.setAttribute("aTwinkle", new THREE.BufferAttribute(twinkles, 1));
+  // 전구를 옮겼으니 화면 밖 판정에 쓰는 둘레도 다시 잽니다
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
   return geometry;
 }
 
