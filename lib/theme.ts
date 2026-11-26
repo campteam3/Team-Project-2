@@ -1,6 +1,8 @@
 // 스노우볼 꾸미기 선택지와 기본값.
 // DB 의 globes.theme(jsonb)에 { tree, prop, base, snow } 모양으로 저장합니다. (이슈 #10)
-// 색 값은 3D 스노우볼(이민정) 작업이 나오면 그 모델에 맞춰 바꿉니다.
+// 트리 · 받침대의 색 값은 3D 스노우볼에 그대로 입히는 색이고, 고르기 버튼의 동그라미에도 같은 색을 칠합니다. (FEEDBACK E2, 이민정)
+// 기본값(초록 트리, 레드 받침대)만 모델 원래 색을 쓰므로, 그 둘의 값은 버튼에 칠하는 색입니다.
+// 이미 저장된 스노우볼이 있으니 선택지의 id 는 바꾸지 않습니다. 선택지를 늘리면 휴대폰 꾸미기 도크가 3칸씩 여러 줄로 놓입니다.
 
 export type ThemePart = "tree" | "prop" | "base" | "snow";
 
@@ -13,9 +15,12 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     key: "tree",
     label: "트리",
     options: [
-      { id: "green", label: "초록", color: "#3C8E63" },
-      { id: "deep", label: "짙은 초록", color: "#1F5A40" },
-      { id: "frost", label: "눈 덮인", color: "#D7E6E4" },
+      { id: "green", label: "초록", color: "#38B562" },
+      { id: "deep", label: "짙은 초록", color: "#1C7A53" },
+      { id: "frost", label: "눈 덮인", color: "#DCE9EA" },
+      { id: "mint", label: "민트", color: "#86D8C4" },
+      { id: "pink", label: "분홍", color: "#F4A9C2" },
+      { id: "lavender", label: "보라", color: "#B9A6F2" },
     ],
   },
   {
@@ -34,9 +39,12 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     key: "base",
     label: "받침대",
     options: [
-      { id: "red", label: "레드", color: "#7A3434" },
-      { id: "wood", label: "나무", color: "#7A5233" },
-      { id: "night", label: "밤하늘", color: "#2B3760" },
+      { id: "red", label: "레드", color: "#D9463E" },
+      { id: "wood", label: "나무", color: "#8F5B3A" },
+      { id: "night", label: "밤하늘", color: "#2D3C80" },
+      { id: "cream", label: "크림", color: "#EDE1CC" },
+      { id: "pink", label: "분홍", color: "#E08FA8" },
+      { id: "green", label: "초록", color: "#1F7558" },
     ],
   },
   {
