@@ -41,7 +41,7 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
   },
   {
     key: "snow",
-    label: "눈",
+    label: "눈 색깔", // "눈"만 적으면 처음 보는 사람이 무엇을 고르는지 알기 어려워서 바꿨습니다
     options: [
       { id: "white", label: "하얀 눈", color: "#FFFFFF" },
       { id: "gold", label: "금빛 눈", color: "#F6D79A" },

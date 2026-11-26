@@ -30,7 +30,8 @@ function OptionMark({ part, option, size }: { part: ThemePart; option: ThemeOpti
   return <span className="rounded-full border border-glass-border" style={{ background: option.color, width: size, height: size }} />;
 }
 
-const sheetTitle = (part: ThemePart, label: string) => (part === "prop" ? "소품 고르기" : `${label} 색 고르기`);
+// "눈 색깔"처럼 이름에 이미 색이 들어 있으면 "색"을 한 번 더 붙이지 않습니다
+const sheetTitle = (part: ThemePart, label: string) => (part === "prop" ? "소품 고르기" : label.includes("색") ? `${label} 고르기` : `${label} 색 고르기`);
 
 // 꾸미기를 마치는 버튼. "다음"은 다음 꾸밀 곳으로 넘어가는 버튼처럼 읽혀서 바꿨습니다 (FEEDBACK B3)
 const DONE_LABEL = "완료";
