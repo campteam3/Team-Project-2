@@ -22,12 +22,25 @@ type Props = {
   busy: boolean;
   onBack: () => void; // 색 바꾸기 (11 로 돌아가기)
   onSubmit: () => void;
+  submitLabel?: string; // 제출 버튼 글자. 기념 메시지 보내기(F1)는 "보내기" (차명근)
+  busyLabel?: string;
 };
 
 const field =
   "glass w-full px-5 text-base text-ink outline-none placeholder:text-ink-sub/70 focus:ring-2 focus:ring-ink";
 
-export default function MessageCard({ sender, onSender, message, onMessage, error, busy, onBack, onSubmit }: Props) {
+export default function MessageCard({
+  sender,
+  onSender,
+  message,
+  onMessage,
+  error,
+  busy,
+  onBack,
+  onSubmit,
+  submitLabel = "오너먼트 달기",
+  busyLabel = "달고 있어요",
+}: Props) {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSubmit();
@@ -144,7 +157,7 @@ export default function MessageCard({ sender, onSender, message, onMessage, erro
         </Button>
         {/* 좁은 휴대폰(320px)에서도 "오너먼트 달기"가 여유 있게 들어오도록 좌우 여백을 줄입니다 (FEEDBACK C1) */}
         <Button type="submit" disabled={busy} className="min-w-0 flex-1 !px-3">
-          {busy ? "달고 있어요" : "오너먼트 달기"}
+          {busy ? busyLabel : submitLabel}
         </Button>
       </div>
     </form>

@@ -62,7 +62,20 @@
 | `shape` | text | 오너먼트 모양 이름. 기본값 `ball`. 종류는 디자인에서 정함 |
 | `color` | text | 색. `#rrggbb` 형식 |
 | `position` | jsonb | 달린 위치. 비우면 화면에서 자동 배치. 모양은 디자인에서 정함 |
-| `created_at` | timestamptz | 단 시각 |
+| `created_at` | timestamptz | 단 시각 (기념 메시지에서 온 것은 보관한 시각) |
+| `gift_id` | uuid | 기념 메시지에서 온 오너먼트면 그 번호, 아니면 비움. 같은 스노우볼에 같은 기념 메시지는 한 번만 (`unique (globe_id, gift_id)`) |
+
+### `snowglobe.gifts` — 먼저 보내는 기념 메시지 (FEEDBACK F1, 11/27)
+
+| 열 | 형식 | 설명 |
+| --- | --- | --- |
+| `id` | uuid | 기본 키이자 링크 번호(`/gift/<id>`). 짐작할 수 없는 무작위 번호라 링크를 가진 사람만 열 수 있음 |
+| `sender_name` | text | 보내는 사람 이름. 1~20자 |
+| `message` | text | 메시지. 1~200자. **링크를 가진 누구나 읽음** |
+| `shape`, `color` | text | 오너먼트 모양 · 색 (`ornaments` 와 같은 규칙) |
+| `created_at` | timestamptz | 만든 시각 |
+
+받는 사람은 정하지 않습니다. 링크를 연 사람은 누구나 각자 자기 스노우볼에 달 수 있고, 달면 내용을 복사해 `ornaments` 에 넣습니다. 금지어 트리거도 걸려 있습니다.
 
 ### `snowglobe.owner_sessions` — 주인 토큰
 
@@ -77,8 +90,8 @@
 
 ## 5. 권한 (RLS)
 
-- 세 테이블 모두 **RLS 를 켜고 정책을 하나도 만들지 않았습니다.** 그래서 브라우저에 노출되는 공개 키(anon)로는 테이블을 직접 읽거나 쓸 수 없습니다.
-- 공개 키로 할 수 있는 일은 아래 9개 함수를 부르는 것뿐입니다. 함수가 입력을 검사하고, 주인 기능은 주인 토큰을 확인합니다.
+- 네 테이블 모두 **RLS 를 켜고 정책을 하나도 만들지 않았습니다.** 그래서 브라우저에 노출되는 공개 키(anon)로는 테이블을 직접 읽거나 쓸 수 없습니다.
+- 공개 키로 할 수 있는 일은 아래 12개 함수를 부르는 것뿐입니다. 함수가 입력을 검사하고, 주인 기능은 주인 토큰을 확인합니다.
 - 내부 도우미 함수 4개(`is_valid_nickname`, `hash_token`, `new_owner_token`, `owner_globe_id`)는 공개 키로 부를 수 없습니다.
 
 **시연할 수 있는 장면**: 공개 키로 `ornaments` 테이블을 직접 읽으면 거부되고, 토큰 없이 `get_messages` 를 부르면 오류가 나고, 비밀번호로 연 뒤에만 메시지가 나옵니다. 비밀번호를 5번 틀리면 잠기는 것도 보여 줄 수 있습니다.
@@ -98,6 +111,9 @@
 | `update_globe(p_nickname, p_owner_token, p_title?, p_theme?)` | 주인 | 이름 · 꾸미기 변경 | 바뀐 스노우볼 |
 | `delete_ornament(p_nickname, p_owner_token, p_ornament_id)` | 주인 | 오너먼트 하나 삭제 | 지웠으면 `true` |
 | `close_globe(p_owner_token)` | 주인 | 이 기기의 주인 토큰 없애기 (닫기) | 없앴으면 `true` |
+| `create_gift(p_sender_name, p_message, p_shape?, p_color?)` | 누구나 | 기념 메시지 만들기 (F1) | `{ id }` |
+| `get_gift(p_id)` | 링크를 가진 누구나 | 기념 메시지 읽기. 형식이 틀리거나 없는 번호는 오류 없이 `null` | `{ id, sender_name, message, shape, color, created_at }` |
+| `add_gift_to_globe(p_id, p_nickname, p_owner_token)` | 주인 | 기념 메시지를 내 스노우볼에 달기. 이미 달았으면 그 오너먼트를 돌려줌 | `{ ornament_id, already }` |
 
 `ornaments` 배열의 항목: `{ id, sender_name, shape, color, position, created_at }`
 
@@ -129,6 +145,7 @@
 | `invalid_shape` / `invalid_color` / `invalid_position` | 모양 · 색 · 위치 값이 틀림 |
 | `globe_full` | 오너먼트가 39개에 도달 (트리의 자리 수) |
 | `banned_word` | 닉네임 · 스노우볼 이름 · 보낸 사람 이름 · 메시지에 금지어(욕설)가 들어 있음 |
+| `gift_not_found` | 없거나 형식이 틀린 기념 메시지 번호 (`add_gift_to_globe`) |
 | `too_many_requests` | 한 스노우볼에 1분 동안 10개 넘게 달림 |
 | `invalid_owner_token` | 주인 토큰이 없거나, 틀렸거나, 만료됨 → 비밀번호 입력 화면으로 |
 
@@ -161,6 +178,7 @@ SQL 을 임시 Postgres(PGlite)에 실행해 59가지 경우를 시험했고 모
 4. ✅ **확인함** — 기존 `public` 스키마의 연습용 테이블 8개는 모두 RLS 가 켜져 있습니다. 다만 연습용 함수 `buy_item`, `paw_balance` 는 공개 키로 누구나 부를 수 있는 상태입니다. 배포하면 공개 키가 브라우저에 노출되므로, 필요 없으면 지우거나 실행 권한을 거두는 것이 좋습니다.
 5. ✅ **완료 (11/26)** — 금지어 막기 마이그레이션을 적용했습니다 (이름 `snowglobe_banned_words`). 배포 주소의 친구 화면에서 욕설이 든 메시지 · 이름은 "금지어가 포함되어 있어 등록할 수 없어요…" 안내가 뜨고, 멀쩡한 글은 저장되는 것을 확인했습니다. 금지어만 되돌리려면 `drop trigger ornaments_block_banned on snowglobe.ornaments; drop trigger globes_block_banned on snowglobe.globes;` 두 줄이면 됩니다.
 6. ✅ **완료 (11/26)** — 메시지 길이 한도를 화면과 같은 200자로 맞췄습니다 (이름 `snowglobe_message_limit_200`). 200자는 저장되고 201자는 `invalid_message` 로 막히는 것을 직접 호출로 확인했습니다.
+7. ✅ **완료 (11/27)** — 기념 메시지 마이그레이션을 적용했습니다 (이름 `snowglobe_gifts`). 공개 키로 16가지(만들기 · 읽기 · 없는 번호 · 형식이 틀린 번호 · 금지어 · 200자 초과 · 보관 · 두 번 보관 · 틀린 토큰 · 표 직접 읽기 차단 등)와 가득 찬 스노우볼(`globe_full`)을 확인하고 확인용 데이터는 지웠습니다.
 
 되돌리기: `drop schema snowglobe cascade;` 한 줄이면 이 프로젝트의 테이블과 함수가 모두 지워지고, 연습용 테이블에는 영향이 없습니다.
 
