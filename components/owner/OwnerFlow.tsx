@@ -13,7 +13,8 @@ import { useState } from "react";
 import Stage from "@/components/stage/Stage";
 import { useNotice } from "@/components/stage/useNotice";
 import { Icon } from "@/components/ui/Icons";
-import { NICKNAME_RULE, createGlobe } from "@/lib/api";
+import { NICKNAME_RULE, addGiftToGlobe, createGlobe, getGlobe, type Ornament } from "@/lib/api";
+import { giftParam } from "@/lib/gift-link";
 import { globePath, saveOwnerToken } from "@/lib/owner-token";
 import { DEFAULT_THEME, type GlobeTheme, type ThemePart } from "@/lib/theme";
 import CustomizeDock from "./CustomizeDock";
@@ -25,7 +26,11 @@ type Step = "customize" | "info" | "share";
 const NICKNAME_PATTERN = /^[0-9A-Za-z가-힣_-]{2,20}$/;
 
 export default function OwnerFlow() {
-  const preview = useSearchParams().get("preview") === "1";
+  const search = useSearchParams();
+  const preview = search.get("preview") === "1";
+  // 받은 기념 메시지에서 왔으면(/new?gift=<번호>) 다 만든 뒤 그 오너먼트를 답니다 (FEEDBACK F1, 차명근)
+  const gift = giftParam(search);
+  const [giftOrnaments, setGiftOrnaments] = useState<Ornament[] | undefined>(undefined);
   const [step, setStep] = useState<Step>("customize");
   const [theme, setTheme] = useState<GlobeTheme>(DEFAULT_THEME);
   const [part, setPart] = useState<ThemePart>("tree");
@@ -58,6 +63,14 @@ export default function OwnerFlow() {
     setPassword("");
     setCreated(result.data.nickname);
     setStep("share");
+    if (gift) {
+      // 스노우볼은 이미 만들어졌으므로, 달지 못해도 완성 화면으로 가고 알림만 띄웁니다
+      const added = await addGiftToGlobe(gift, result.data.nickname, result.data.owner_token);
+      if (!added.ok) return say(added.message);
+      const globe = await getGlobe(result.data.nickname);
+      if (globe.ok && globe.data) setGiftOrnaments(globe.data.ornaments);
+      say("받은 오너먼트를 달았어요");
+    }
   };
 
   if (step === "customize") {
@@ -65,7 +78,7 @@ export default function OwnerFlow() {
       <Stage
         theme={theme}
         title="스노우볼을 꾸며 주세요"
-        subtitle="1 / 2 단계"
+        subtitle={gift ? "1 / 2 단계 · 다 만들면 받은 오너먼트가 달려요" : "1 / 2 단계"}
         hint="고르는 대로 바로 바뀌어요. 드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
         hintMobile="고르는 대로 바로 바뀌어요"
         plateText="내 스노우볼"
@@ -116,6 +129,7 @@ export default function OwnerFlow() {
     <Stage
       theme={theme}
       title="스노우볼이 완성됐어요"
+      ornaments={giftOrnaments}
       subtitle="링크를 보내면 친구들이 오너먼트에 마음을 담아 달아 줘요"
       notice={notice}
       saveAs={`${created}의 스노우볼`}

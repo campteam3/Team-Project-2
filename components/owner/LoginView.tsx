@@ -12,7 +12,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
 import Stage from "@/components/stage/Stage";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { getGlobe, openFailureMessage, openGlobe, type Globe } from "@/lib/api";
+import { addGiftToGlobe, getGlobe, openFailureMessage, openGlobe, type Globe } from "@/lib/api";
+import { giftParam } from "@/lib/gift-link";
 import { globePath, saveOwnerToken } from "@/lib/owner-token";
 import { DEFAULT_THEME, parseTheme } from "@/lib/theme";
 import { globeName } from "@/components/friend/FriendFlow";
@@ -25,7 +26,10 @@ const linkClass =
 
 export default function LoginView() {
   const router = useRouter();
-  const known = (useSearchParams().get("nickname") ?? "").trim();
+  const search = useSearchParams();
+  const known = (search.get("nickname") ?? "").trim();
+  // 받은 기념 메시지에서 왔으면(/login?gift=<번호>) 들어간 뒤 그 오너먼트를 답니다 (FEEDBACK F1, 차명근)
+  const gift = giftParam(search);
   const [globe, setGlobe] = useState<Globe | null>(null);
   const [missing, setMissing] = useState(false); // 주소의 닉네임으로 스노우볼을 찾지 못함
   const [nickname, setNickname] = useState("");
@@ -84,15 +88,28 @@ export default function LoginView() {
       return setError(openFailureMessage(result.data));
     }
     saveOwnerToken(name, result.data.owner_token);
+    if (gift) {
+      // 달지 못하면(가득 참 등) 이 화면에 머물며 이유를 보여 줍니다. 이미 달려 있으면 그대로 스노우볼로 갑니다
+      const added = await addGiftToGlobe(gift, name, result.data.owner_token);
+      if (!added.ok) {
+        setBusy(false);
+        setPassword("");
+        return setError(added.message);
+      }
+    }
     router.push(globePath(name));
   };
 
   const title = askName ? "내 스노우볼로 들어가기" : globe ? globeName(globe) : known;
   const subtitle = missing
     ? "이 닉네임의 스노우볼을 찾지 못했어요. 닉네임을 다시 적어 주세요"
-    : askName
-      ? "만들 때 정한 닉네임과 비밀번호를 적어 주세요"
-      : "만들 때 정한 비밀번호를 적어 주세요";
+    : gift
+      ? askName
+        ? "닉네임과 비밀번호를 넣으면 받은 오너먼트가 달려요"
+        : "비밀번호를 넣으면 받은 오너먼트가 달려요"
+      : askName
+        ? "만들 때 정한 닉네임과 비밀번호를 적어 주세요"
+        : "만들 때 정한 비밀번호를 적어 주세요";
 
   return (
     <Stage
