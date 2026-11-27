@@ -63,7 +63,7 @@ export function ornamentPosition(index: number, shape: OrnamentShape = "ball"): 
 const NONE: OrnamentLike[] = [];
 
 // [테스트용] 추가 소품(루돌프 · 과자집) 미리 보기. 주소 끝에 ?props=test 를 붙이면 눈사람 자리에 루돌프, 선물 자리에 과자집이 보입니다 (?props=off 로 끔).
-// 켠 것은 그 탭에서 기억합니다. 꾸미기 화면에서 고르는 방법이 정해지면 이 부분은 지웁니다. (이민정)
+// 켠 것은 그 탭에서 기억합니다. 꾸미기 화면에 고르기 버튼이 생기면(이슈 #75) 이 부분은 지웁니다. (이민정)
 const PROPS_TEST_KEY = "props-test";
 const noSubscribe = () => () => {};
 function readPropsTest() {
@@ -96,15 +96,13 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
   // 꾸미기: 기본값(초록 트리, 레드 받침대)은 모델 원래 색을 쓰고, 다른 선택지는 lib/theme.ts 의 색을 입힙니다.
   const treeColor = theme.tree === "green" ? undefined : themeColor(theme, "tree");
   const baseColor = theme.base === "red" ? undefined : themeColor(theme, "base");
-  // 소품: 별은 항상 트리 꼭대기에 있습니다. "gift" 는 선물만, "snowman" 은 눈사람만, "none" 은 둘 다 없이, 그 밖의 값은 둘 다 보입니다.
-  const wantGifts = hasProp(theme.prop, "gift");
-  const wantSnowman = hasProp(theme.prop, "snowman");
-  // [테스트용] 켜면 선물 대신 과자집, 눈사람 대신 루돌프를 보입니다
+  // 소품: 별은 항상 트리 꼭대기에 있습니다. 눈사람 자리에는 눈사람이나 루돌프, 선물 자리에는 선물 상자나 과자집이 놓입니다 (lib/theme.ts 의 hasProp).
+  // [테스트용] 스위치를 켜면 고른 것과 상관없이 눈사람 대신 루돌프, 선물 대신 과자집을 보입니다
   const extras = useSyncExternalStore(noSubscribe, readPropsTest, () => false);
-  const showGifts = wantGifts && !extras;
-  const showSnowman = wantSnowman && !extras;
-  const showGingerHouse = wantGifts && extras;
-  const showReindeer = wantSnowman && extras;
+  const showSnowman = hasProp(theme.prop, "snowman") && !extras;
+  const showGifts = hasProp(theme.prop, "gift") && !extras;
+  const showReindeer = hasProp(theme.prop, "reindeer") || (extras && hasProp(theme.prop, "snowman"));
+  const showGingerHouse = hasProp(theme.prop, "house") || (extras && hasProp(theme.prop, "gift"));
 
   return (
     <group {...group}>
