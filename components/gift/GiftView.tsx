@@ -50,14 +50,14 @@ export default function GiftView() {
   if (view.status === "loading") {
     return (
       <main className="relative h-dvh w-full overflow-hidden">
-        <StageFallback message="기념 메시지를 불러오고 있어요" />
+        <StageFallback poster={false} message="기념 메시지를 불러오고 있어요" />
       </main>
     );
   }
   if (view.status === "missing") return <NotFoundView kind="gift" />;
   if (view.status === "error") {
     return (
-      <Stage theme={DEFAULT_THEME} scene={<StageFallback />} title="기념 메시지를 불러오지 못했어요" subtitle={view.message}>
+      <Stage theme={DEFAULT_THEME} scene={<StageFallback poster={false} />} title="기념 메시지를 불러오지 못했어요" subtitle={view.message}>
         <Dock label="다시 시도">
           <Button onClick={load}>다시 시도하기</Button>
         </Dock>

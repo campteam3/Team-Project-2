@@ -33,8 +33,11 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     // 저장하는 값은 예전과 같은 글자 하나입니다: "both"(둘 다, 기본) · "gift" · "snowman" · "none"(없음). 아래 hasProp · toggleProp 참고
     // 루돌프("reindeer") · 과자집("house")도 hasProp · toggleProp 가 받습니다. 여기 options 에 넣으면 고르기 버튼이 생깁니다 (이슈 #75).
     options: [
+      // 버튼 순서: 선물 자리 둘(선물 상자 · 과자집), 눈사람 자리 둘(눈사람 · 루돌프). 같은 자리끼리 붙여 둡니다 (김미영, 이슈 #75)
       { id: "gift", label: "선물 상자", color: "#C8363D" },
+      { id: "house", label: "과자집", color: "#BD7D4D" },
       { id: "snowman", label: "눈사람", color: "#F5F1EA" },
+      { id: "reindeer", label: "루돌프", color: "#DFA682" },
     ],
   },
   {

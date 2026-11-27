@@ -14,7 +14,13 @@ import { hasProp, THEME_PARTS, toggleProp, type GlobeTheme, type PropItem, type 
 
 // 소품은 색이 아니라 모양으로 고르므로 그림 아이콘으로 보여 줍니다 (처음 보는 사람도 눌러 보지 않고 알 수 있게)
 // 아이콘: public/icons/prop-*.svg (Figma AI 벡터, Figma 파일의 "Icons · 꾸미기 소품" 판)
-const PROP_ICON: Record<string, string> = { gift: "/icons/prop-gift.svg", snowman: "/icons/prop-snowman.svg" };
+// 과자집(house) · 루돌프(reindeer)는 lib/theme.ts 의 소품 선택지에 들어오면 보입니다 (이슈 #75)
+const PROP_ICON: Record<string, string> = {
+  gift: "/icons/prop-gift.svg",
+  house: "/icons/prop-gingerhouse.svg",
+  snowman: "/icons/prop-snowman.svg",
+  reindeer: "/icons/prop-reindeer.svg",
+};
 
 type Props = {
   theme: GlobeTheme;
@@ -43,8 +49,10 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
   // 소품은 여러 개를 켜고 끄고, 나머지는 하나만 고릅니다
   const isOn = (id: string) => (part === "prop" ? hasProp(theme.prop, id as PropItem) : theme[part] === id);
   const pick = (id: string) => onPick(part, part === "prop" ? toggleProp(theme.prop, id as PropItem) : id);
-  const slides = current.options.length > 3; // 휴대폰: 세 칸을 넘으면 옆으로 밀어서 넘깁니다
-  const groupLabel = part === "prop" ? "소품 고르기 (여러 개 고를 수 있어요)" : sheetTitle(part, current.label);
+  // 휴대폰: 네 칸까지는 줄을 꽉 채워 똑같은 너비로 나누고(소품 4개), 그보다 많으면 옆으로 밀어서 넘깁니다(트리 · 받침대 색)
+  const slides = current.options.length > 4;
+  // 소품은 자리 두 곳(선물 자리 · 눈사람 자리)에 하나씩 놓습니다. 같은 자리의 것을 켜면 원래 있던 것은 꺼집니다 (이슈 #75)
+  const groupLabel = part === "prop" ? "소품 고르기 (자리마다 하나씩 고를 수 있어요)" : sheetTitle(part, current.label);
 
   return (
     <>
@@ -137,13 +145,14 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
                   type="button"
                   aria-pressed={selected}
                   onClick={() => pick(o.id)}
-                  className={`flex min-h-[62px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-2xl px-1 transition duration-200 ease-soft ${
-                    selected ? "bg-glass-strong ring-2 ring-inset ring-accent" : ""
-                  }`}
+                  className={`flex min-h-[62px] shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-2xl transition duration-200 ease-soft ${
+                    slides ? "px-1" : ""
+                  } ${selected ? "bg-glass-strong ring-2 ring-inset ring-accent" : ""}`}
                   style={{ width: slides ? 52 : `calc((100% - ${(current.options.length - 1) * 10}px) / ${current.options.length})` }}
                 >
                   <OptionMark part={part} option={o} size={28} />
-                  <span className={`max-w-full truncate text-xs ${selected ? "font-bold text-ink" : "text-ink-sub"}`}>{o.label}</span>
+                  {/* 꽉 채운 줄(네 칸 이하)은 이름이 잘리지 않게 한 줄로 그대로 둡니다 ("선물 상자") */}
+                  <span className={`text-xs ${slides ? "max-w-full truncate" : "whitespace-nowrap"} ${selected ? "font-bold text-ink" : "text-ink-sub"}`}>{o.label}</span>
                 </button>
               );
             })}

@@ -177,6 +177,34 @@ input {
   transition: color 200ms var(--ease-soft);
 }
 .lost-illustration:hover .lost-hint { color: var(--color-ink); }
+
+/* 3D 를 불러오는 동안의 대체 화면 (components/stage/StageFallback.tsx)
+   마을 배경은 3D 배경(PhotoBackdrop)과 같은 그림 · 같은 맞춤(꽉 채우고 가운데 기준으로 자름)이라, 3D 로 바뀔 때 배경이 움직이지 않습니다. */
+.stage-backdrop {
+  background: var(--color-night-sky) url("/backgrounds/village-web.webp") center / cover no-repeat;
+}
+@media (orientation: portrait) {
+  .stage-backdrop { background-image: url("/backgrounds/village-mobile.webp"); }
+}
+/* 기본 스노우볼을 흐리게 한 그림. 자리와 크기는 3D 스노우볼이 놓이는 곳에 맞춘 값입니다 */
+.stage-poster {
+  position: absolute;
+  left: 50%;
+  top: 49%;
+  width: min(92vw, 62dvh);
+  aspect-ratio: 480 / 494;
+  translate: -50% -50%;
+}
+.stage-loading-text {
+  position: absolute;
+  inset-inline: 0;
+  top: 72%;
+  display: flex;
+  justify-content: center;
+  padding-inline: 16px;
+  animation: fade 400ms var(--ease-soft) 1200ms both;
+}
+.stage-loading-text-on-poster { top: 40%; }
 @media (max-width: 767px) {
   .lost-figure { max-width: 320px; }
   .lost-speech { top: 0; right: -4px; padding: 8px 12px; font-size: 12px; }
