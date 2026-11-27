@@ -64,7 +64,8 @@ export function loadKakao(): Promise<KakaoSdk | null> {
 }
 
 // 카카오톡 공유 창을 엽니다. 열었으면 true.
-export async function shareKakao(url: string, title: string): Promise<boolean> {
+// options: 카드의 설명 · 버튼 글자. 주지 않으면 "오너먼트 달러 가기" 카드입니다 (기념 메시지는 다른 글자를 씁니다)
+export async function shareKakao(url: string, title: string, options?: { description?: string; button?: string }): Promise<boolean> {
   // 카카오에 등록한 주소가 아니면 공유 창에서 오류가 나므로 시도하지 않습니다.
   if (!url.startsWith(SITE_URL)) return false;
 
@@ -77,11 +78,11 @@ export async function shareKakao(url: string, title: string): Promise<boolean> {
       objectType: "feed",
       content: {
         title,
-        description: "스노우볼에 마음을 담은 오너먼트를 달아 주세요.",
+        description: options?.description ?? "스노우볼에 마음을 담은 오너먼트를 달아 주세요.",
         imageUrl: `${SITE_URL}${OG_IMAGE.url}`,
         link,
       },
-      buttons: [{ title: "오너먼트 달러 가기", link }],
+      buttons: [{ title: options?.button ?? "오너먼트 달러 가기", link }],
     });
     return true;
   } catch {
