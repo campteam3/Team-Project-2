@@ -8,7 +8,7 @@ import { Button, IconButton } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { Icon } from "@/components/ui/Icons";
 import { ORNAMENT_SHAPES, type OrnamentShape } from "@/lib/snowglobe";
-import { ORNAMENT_OPTIONS } from "@/lib/theme";
+import { ORNAMENT_OPTIONS, ornamentSwatch } from "@/lib/theme";
 
 const SHAPE_LABEL: Record<OrnamentShape, string> = { ball: "볼", star: "별", heart: "하트" };
 
@@ -65,7 +65,8 @@ export default function OrnamentPickDock({ shape, onShape, colorId, onPick, onBa
             >
               <span
                 className="size-8 rounded-full border border-glass-border"
-                style={{ background: `radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.7), ${o.color} 45%)` }}
+                // 색 버튼은 3D 오너먼트의 실제 모습에 맞춘 색으로 보여 줍니다 (lib/theme.ts 의 ornamentSwatch, 이민정)
+                style={{ background: ornamentSwatch(o.color, true) }}
               />
             </button>
           );

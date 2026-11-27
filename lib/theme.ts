@@ -129,11 +129,60 @@ export function parseTheme(value: unknown): GlobeTheme {
 
 // 친구가 다는 오너먼트 색 6가지 (와이어프레임 11 "모양 6개" 자리).
 // 모양은 3D 모델(이민정)과 api(addOrnament 의 shape)가 준비되면 추가합니다.
+// color 는 DB 에 저장하는 값이라 바꾸지 않습니다 (이미 달린 오너먼트가 이 값으로 저장되어 있음).
+// 3D 오너먼트의 실제 모습은 이 순서대로 정해집니다 (components/snowglobe/OrnamentGlb.tsx): 빨강, 금색, 빨강 + 금색, 파랑, 초록, 분홍.
+// 화면에 보이는 색 버튼은 아래 ornamentSwatch 가 그 모습에 맞춰 그립니다 (이민정).
 export const ORNAMENT_OPTIONS: ThemeOption[] = [
   { id: "red", label: "빨강", color: "#C8363D" },
-  { id: "gold", label: "금빛", color: "#F2C46D" },
-  { id: "snow", label: "눈빛", color: "#F5F1EA" },
-  { id: "sky", label: "하늘", color: "#8FB8E8" },
+  { id: "gold", label: "금색", color: "#F2C46D" },
+  { id: "snow", label: "빨강과 금색", color: "#F5F1EA" },
+  { id: "sky", label: "파랑", color: "#8FB8E8" },
   { id: "pine", label: "초록", color: "#3C8E63" },
   { id: "rose", label: "분홍", color: "#E58FA8" },
 ];
+
+// 저장된 색이 몇 번째 선택지인지. 목록에 없는 색(예전 데이터 · 샘플)은 가장 가까운 색을 따릅니다.
+// 3D 쪽과 같은 답이 나오도록, 3D 가 쓰는 방식(빛의 세기로 바꾼 값)으로 거리를 잽니다.
+function channels(hex: string): [number, number, number] {
+  const value = hex.replace("#", "");
+  const full = value.length === 3 ? [...value].map((c) => c + c).join("") : value;
+  const linear = (index: number) => {
+    const c = parseInt(full.slice(index, index + 2), 16) / 255;
+    if (Number.isNaN(c)) return 0;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return [linear(0), linear(2), linear(4)];
+}
+export function ornamentOptionIndex(color: string): number {
+  const [r, g, b] = channels(color);
+  let best = 0;
+  let bestGap = Infinity;
+  ORNAMENT_OPTIONS.forEach((option, index) => {
+    const [or, og, ob] = channels(option.color);
+    const gap = (or - r) ** 2 + (og - g) ** 2 + (ob - b) ** 2;
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = index;
+    }
+  });
+  return best;
+}
+
+// 색 버튼 · 메시지 카드의 색 점에 보여 줄 색. 3D 오너먼트의 모습에 맞춥니다 (비어 있으면 저장된 색 그대로)
+const ORNAMENT_SWATCHES: (string | [string, string] | undefined)[] = [
+  undefined, // 빨강
+  "#DDB04E", // 금색
+  ["#B3101D", "#DDB04E"], // 빨강 + 금색 줄무늬
+  "#7FA8F0", // 파랑
+];
+
+// 색 버튼 · 색 점의 CSS 배경. shine: 왼쪽 위에 흰 빛을 얹습니다 (색 버튼)
+export function ornamentSwatch(color: string, shine = false): string {
+  const look = ORNAMENT_SWATCHES[ornamentOptionIndex(color)];
+  const base = Array.isArray(look)
+    ? `repeating-linear-gradient(135deg, ${look[0]} 0 14%, ${look[1]} 14% 28%)`
+    : (look ?? color);
+  if (!shine) return base;
+  if (Array.isArray(look)) return `radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.5), transparent 45%), ${base}`;
+  return `radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.7), ${base} 45%)`;
+}

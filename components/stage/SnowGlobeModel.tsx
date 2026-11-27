@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { type ThreeElements } from "@react-three/fiber";
-import { Suspense, useEffect, useSyncExternalStore } from "react";
+import { Suspense, useEffect } from "react";
 import { GlowDust } from "@/components/SnowGlobeAtmosphere";
 import { GlobeExtras, GlobeInnerLights, GlobeModel, Ornaments } from "@/components/snowglobe/SnowGlobeGlb";
 import { GLASS, ornamentSpot, placeOrnaments, type OrnamentLike, type OrnamentShape } from "@/lib/snowglobe";
@@ -62,21 +62,6 @@ export function ornamentPosition(index: number, shape: OrnamentShape = "ball"): 
 
 const NONE: OrnamentLike[] = [];
 
-// [테스트용] 추가 소품(루돌프 · 과자집) 미리 보기. 주소 끝에 ?props=test 를 붙이면 눈사람 자리에 루돌프, 선물 자리에 과자집이 보입니다 (?props=off 로 끔).
-// 켠 것은 그 탭에서 기억합니다. 꾸미기 화면에 고르기 버튼이 생기면(이슈 #75) 이 부분은 지웁니다. (이민정)
-const PROPS_TEST_KEY = "props-test";
-const noSubscribe = () => () => {};
-function readPropsTest() {
-  try {
-    const asked = new URLSearchParams(window.location.search).get("props");
-    if (asked === "test") window.sessionStorage.setItem(PROPS_TEST_KEY, "1");
-    if (asked === "off") window.sessionStorage.removeItem(PROPS_TEST_KEY);
-    return window.sessionStorage.getItem(PROPS_TEST_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 type Props = ThreeElements["group"] & {
   theme: GlobeTheme;
   ornaments?: OrnamentLike[]; // DB 의 오너먼트를 그대로 넣으면 모양(shape)대로 그립니다. id 와 색만 있으면 볼입니다.
@@ -97,12 +82,10 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
   const treeColor = theme.tree === "green" ? undefined : themeColor(theme, "tree");
   const baseColor = theme.base === "red" ? undefined : themeColor(theme, "base");
   // 소품: 별은 항상 트리 꼭대기에 있습니다. 눈사람 자리에는 눈사람이나 루돌프, 선물 자리에는 선물 상자나 과자집이 놓입니다 (lib/theme.ts 의 hasProp).
-  // [테스트용] 스위치를 켜면 고른 것과 상관없이 눈사람 대신 루돌프, 선물 대신 과자집을 보입니다
-  const extras = useSyncExternalStore(noSubscribe, readPropsTest, () => false);
-  const showSnowman = hasProp(theme.prop, "snowman") && !extras;
-  const showGifts = hasProp(theme.prop, "gift") && !extras;
-  const showReindeer = hasProp(theme.prop, "reindeer") || (extras && hasProp(theme.prop, "snowman"));
-  const showGingerHouse = hasProp(theme.prop, "house") || (extras && hasProp(theme.prop, "gift"));
+  const showSnowman = hasProp(theme.prop, "snowman");
+  const showGifts = hasProp(theme.prop, "gift");
+  const showReindeer = hasProp(theme.prop, "reindeer");
+  const showGingerHouse = hasProp(theme.prop, "house");
 
   return (
     <group {...group}>

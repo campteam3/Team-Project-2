@@ -4,6 +4,7 @@
 // 보낸 사람 · 단 날짜 · 메시지, 그리고 지우기. 이전 · 다음 · 닫기는 아래 도크에 있습니다.
 
 import type { Ornament } from "@/lib/api";
+import { ornamentSwatch } from "@/lib/theme";
 
 type Props = {
   ornament: Ornament;
@@ -29,7 +30,7 @@ export default function MessageViewer({ ornament, index, total, canDelete, delet
       className="glass glass-shadow pointer-events-auto flex w-full max-w-[480px] animate-rise flex-col gap-3 rounded-3xl p-5 sm:p-6"
     >
       <header className="flex items-center gap-3">
-        <span className="size-4 shrink-0 rounded-full border border-glass-border" style={{ backgroundColor: ornament.color }} aria-hidden="true" />
+        <span className="size-4 shrink-0 rounded-full border border-glass-border" style={{ background: ornamentSwatch(ornament.color) }} aria-hidden="true" />
         <p className="min-w-0 flex-1 truncate text-base font-bold text-ink">{ornament.sender_name}</p>
         <p className="shrink-0 text-[13px] tabular-nums text-ink-sub">
           {date && <span>{date} · </span>}
