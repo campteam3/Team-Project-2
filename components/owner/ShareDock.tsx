@@ -52,11 +52,13 @@ export default function ShareDock({
   title,
   onNotice: show,
   share,
+  onShared,
 }: {
   url: string;
   title: string;
   onNotice: (message: string) => void;
   share?: ShareText;
+  onShared?: () => void; // 링크 복사나 카카오톡 보내기를 누른 뒤에 부릅니다 (기념 메시지 완료 화면에서 다음 할 일을 강조할 때)
 }) {
 
   // 카카오 SDK 를 미리 불러 둡니다. 버튼을 누른 뒤에 불러오면 브라우저가 공유 창을 막을 수 있습니다.
@@ -68,12 +70,15 @@ export default function ShareDock({
   const onCopy = async () => {
     if (await copyText(url)) show("링크를 복사했어요");
     else showLinkToCopy(url);
+    onShared?.();
   };
 
   const onKakao = async () => {
-    if (await shareToKakao(url, title, share)) return;
-    if (await copyText(url)) show("링크를 복사했어요. 카카오톡에 붙여 넣어 주세요");
-    else showLinkToCopy(url);
+    if (!(await shareToKakao(url, title, share))) {
+      if (await copyText(url)) show("링크를 복사했어요. 카카오톡에 붙여 넣어 주세요");
+      else showLinkToCopy(url);
+    }
+    onShared?.();
   };
 
   return (

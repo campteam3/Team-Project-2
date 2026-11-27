@@ -57,7 +57,7 @@ export type StageProps = {
   theme: GlobeTheme;
   ornaments?: (Pick<Ornament, "id" | "color"> & { shape?: string })[];
   title: string;
-  subtitle?: string;
+  subtitle?: string; // "\n" 을 넣으면 그 자리에서 줄을 바꿉니다
   display?: boolean; // 오프닝처럼 큰 제목
   hint?: string;
   hintMobile?: string;
@@ -583,7 +583,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             {title}
           </h1>
           {subtitle && (
-            <p className={`mt-2 text-pretty text-ink-sub ${display ? "text-[15px] sm:mt-3.5 sm:text-[17px]" : "text-[15px]"}`}>
+            <p className={`mt-2 whitespace-pre-line text-pretty text-ink-sub ${display ? "text-[15px] sm:mt-3.5 sm:text-[17px]" : "text-[15px]"}`}>
               {subtitle}
             </p>
           )}
