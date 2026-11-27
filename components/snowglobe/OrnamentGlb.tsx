@@ -11,7 +11,7 @@ import type { OrnamentShape } from "@/lib/snowglobe";
 import { ornamentOptionIndex } from "@/lib/theme";
 
 export const ORNAMENT_URL = "/models/ornaments.glb";
-const TEMPLATE_NAMES: Record<OrnamentShape, string> = { ball: "t_Orn_Ball", star: "t_Orn_Star", heart: "t_Orn_Heart" };
+const TEMPLATE_NAMES: Record<OrnamentShape, string> = { ball: "t_Orn_Ball", star: "t_Orn_Star", heart: "t_Orn_Heart", cane: "t_Orn_Cane", gift: "t_Orn_Gift" };
 
 export type TemplatePart = {
   shape: OrnamentShape;
@@ -20,11 +20,11 @@ export type TemplatePart = {
   material: THREE.MeshStandardMaterial;
 };
 
-// 오너먼트 원형(볼·별·하트)을 부분별로 꺼냅니다. 본체 색과 무늬 색은 오너먼트마다 바꿉니다.
+// 오너먼트 원형(볼 · 별 · 하트 · 지팡이 사탕 · 선물 상자)을 부분별로 꺼냅니다. 본체 색과 무늬 색은 오너먼트마다 바꿉니다.
 export function useOrnamentTemplates() {
   const { scene } = useGLTF(ORNAMENT_URL);
   return useMemo(() => {
-    const templates: Record<OrnamentShape, TemplatePart[]> = { ball: [], star: [], heart: [] };
+    const templates: Record<OrnamentShape, TemplatePart[]> = { ball: [], star: [], heart: [], cane: [], gift: [] };
     for (const shape of Object.keys(TEMPLATE_NAMES) as OrnamentShape[]) {
       scene.getObjectByName(TEMPLATE_NAMES[shape])?.traverse((child) => {
         const mesh = child as THREE.Mesh;
@@ -56,26 +56,29 @@ export function pastel(color: string) {
 // 볼 오너먼트의 무늬 (이민정). 모델은 민무늬 공이고, 무늬는 그릴 때 색으로 입힙니다.
 //  - swirl: 두 색이 같은 굵기로 비스듬히 감기는 줄무늬 (사탕 지팡이처럼)
 //  - bands: 두 번째 색 바탕에 본체 색 세로 띠 (띠 가장자리는 조금 짙게)
-export type BallPattern = "swirl" | "bands";
+//  - plain: 무늬 없이 본체 색 하나 (표면 재질만 입힙니다)
+export type BallPattern = "swirl" | "bands" | "plain";
 
 const GOLD = "#e3bd74"; // 금색. 반짝이 가루를 입힌 듯한 차분한 금색입니다
 const DEEP_RED = "#b3101d"; // 금색과 짝을 이루는 짙은 빨강
 
-// 볼의 모습. 고르는 색(lib/theme.ts 의 ORNAMENT_OPTIONS)의 순서와 같고, 줄무늬와 띠를 번갈아 답니다.
+// 볼의 모습. 고르는 색(lib/theme.ts 의 ORNAMENT_OPTIONS)의 순서와 같습니다.
+// 빨강 · 금색 · 빨강 + 금색에만 무늬가 있고, 파랑 · 초록 · 분홍은 민무늬입니다 (여섯 색 모두 무늬가 있으면 트리가 어지러워 보여서)
 //  - color: 본체 색. 비우면 고른 색을 그대로 씁니다(화사하게 보정)
-//  - second: 무늬의 두 번째 색. gold: 금속처럼 반짝이는 부분("body" 본체, "second" 두 번째 색)
+//  - second: 무늬의 두 번째 색(민무늬에는 없음). gold: 금속처럼 반짝이는 부분("body" 본체, "second" 두 번째 색)
 //  - satin: 유리 같은 광택 대신, 빛이 넓고 부드럽게 퍼지는 고운 펄(새틴) 표면
-type BallLook = { pattern: BallPattern; color?: string; second: string; gold?: "body" | "second"; satin?: boolean };
+type BallLook = { pattern: BallPattern; color?: string; second?: string; gold?: "body" | "second"; satin?: boolean };
 const BALL_LOOKS: BallLook[] = [
   { pattern: "swirl", second: WHITE }, // 빨강: 빨강 + 흰색 줄무늬
   { pattern: "bands", color: GOLD, second: WHITE, gold: "body" }, // 금색: 흰 바탕에 금색 띠
   { pattern: "swirl", color: DEEP_RED, second: GOLD, gold: "second" }, // 짙은 빨강 + 금색 줄무늬
-  { pattern: "bands", color: "#6f9cf2", second: WHITE, satin: true }, // 펄이 들어간 파랑: 흰 바탕에 파스텔 파랑 띠, 고운 펄 표면
-  { pattern: "swirl", second: WHITE, satin: true }, // 초록: 초록 + 흰색 줄무늬, 고운 펄 표면
-  { pattern: "bands", second: WHITE, satin: true }, // 분홍: 흰 바탕에 분홍 띠, 고운 펄 표면
+  { pattern: "plain", color: "#6f9cf2", satin: true }, // 펄이 들어간 파랑: 민무늬 파스텔 파랑, 고운 펄 표면
+  { pattern: "plain", satin: true }, // 초록: 민무늬, 고운 펄 표면
+  { pattern: "plain", satin: true }, // 분홍: 민무늬, 고운 펄 표면
 ];
 
-// 별 · 하트(쿠키 모양)의 모습. 순서는 볼과 같습니다. 금색과 빨강 + 금색만 따로 정하고, 나머지는 고른 색 그대로입니다 (본체는 고른 색, 아이싱은 크림색)
+// 볼이 아닌 모양(별 · 하트 · 지팡이 사탕 · 선물 상자)의 모습. 순서는 볼과 같습니다.
+// 본체는 별 · 하트의 쿠키, 지팡이 사탕의 색 줄, 선물 상자의 상자이고, 무늬는 아이싱, 지팡이 사탕의 흰 줄, 선물 상자의 리본입니다. 금색과 빨강 + 금색만 따로 정하고, 나머지는 고른 색 그대로입니다 (본체는 고른 색, 아이싱은 크림색)
 //  - color: 본체 색. gold: 금색으로 그릴 부분("body" 본체, "accent" 아이싱)
 type CookieLook = { color: string; gold: "body" | "accent" };
 const COOKIE_LOOKS: (CookieLook | undefined)[] = [
@@ -139,6 +142,7 @@ function applyBallPattern(
         "float ballSecond = 1.0 - ballBand;",
         "float ballEdge = ballBand * (1.0 - smoothstep(" + inner + " - ballSoft, " + inner + " + ballSoft, ballWave));",
       ],
+      plain: ["float ballSecond = 0.0;", "float ballEdge = 0.0;"],
     }[pattern];
     // 새틴: 빛 받는 가운데가 넓고 부드럽게 밝아지고, 아주 고운 입자가 보는 각도에 따라 은은하게 반짝입니다.
     // 화면에서 작게 보일 때는 입자를 끕니다(지글거림 방지). 그때도 넓은 광택은 남습니다
@@ -243,7 +247,7 @@ export function useOrnamentMaterials(parts: TemplatePart[], color: string, metal
     const mainPart = parts.find((part) => part.role === "main");
     const option = ornamentOptionIndex(color);
     const look = mainPart?.shape === "ball" ? BALL_LOOKS[option] : undefined;
-    // 별 · 하트는 금색과 빨강 + 금색만 따로 정합니다 (COOKIE_LOOKS)
+    // 볼이 아닌 모양은 금색과 빨강 + 금색만 따로 정합니다 (COOKIE_LOOKS)
     const cookie = mainPart && mainPart.shape !== "ball" ? COOKIE_LOOKS[option] : undefined;
     const fixed = look?.color ?? cookie?.color;
     const body = fixed ? new THREE.Color(fixed) : pastel(color);
@@ -288,7 +292,7 @@ export function useOrnamentMaterials(parts: TemplatePart[], color: string, metal
             coated.clearcoatRoughness = 0.45;
           }
         }
-        const second = new THREE.Color(look.second);
+        const second = new THREE.Color(look.second ?? WHITE);
         applyBallPattern(main, mainPart.geometry, {
           pattern: look.pattern,
           second,
