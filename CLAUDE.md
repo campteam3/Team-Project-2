@@ -55,6 +55,7 @@ Next.js(App Router) + Tailwind + Three.js(React Three Fiber) + Supabase 입니�
 | `public/models/`, `scripts/compress-models.mjs` | 3D 모델과 압축 스크립트. `npm run build` 때 모델이 자동으로 압축됩니다(약 4MB → 0.9MB). Blender 에서 다시 내보낸 뒤에도 평소처럼 build 하고, 바뀐 모델 파일을 함께 커밋하면 됩니다 |
 | `lib/bgm.ts`, `components/BgmAutoStart.tsx`, `public/audio/` | 배경 음악(캐롤 두 곡을 무작위로). 처음 화면을 누를 때 시작하고, 화면 오른쪽 위 소리 버튼(`Stage.tsx`)으로 끕니다. 곡을 바꾸려면 파일을 넣고 `lib/bgm.ts` 의 `TRACKS` 를 고칩니다 |
 | `lib/save-image.ts`, `components/stage/SavedImage.tsx` | 스노우볼을 이미지로 저장. `Stage` 에 `saveAs`(파일 이름)를 주면 위쪽에 저장 버튼이 생깁니다. PC 는 내려받기, 휴대폰은 공유 창(안 되면 이미지를 띄워 길게 눌러 저장) |
+| `lib/message-templates.ts` | 메시지 기본 문구(연말 인사 · 고마워 등 6개). 메시지 쓰기 화면에서 골라 시작합니다. 문구를 바꾸면 금지어에 걸리지 않는지 한 번 달아 봅니다 |
 | `lib/sample-data.ts` | `/globe/demo` 용 샘플 스노우볼 |
 | `lib/supabase.ts`, `.env.example` | Supabase 연결 자리. 키가 없어도 앱은 실행됩니다 |
 | `db.md`, `supabase/migrations/` | DB 설계와 SQL. 테이블은 직접 못 읽고 `supabase.rpc()` 로 함수만 부릅니다. 함수 목록과 오류 이름은 `db.md` 6번 |
