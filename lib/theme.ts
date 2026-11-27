@@ -8,11 +8,22 @@
 export type ThemePart = "tree" | "prop" | "base" | "snow";
 
 // trunk: 트리 색에만 씁니다. 그 트리 색에 어울리는 나무 기둥 색 (없으면 모델 원래 기둥 색)
-export type ThemeOption = { id: string; label: string; color: string; trunk?: string };
+// icon: 소품 고르기 버튼에 보일 그림 (없으면 꾸미기 도크가 id 로 찾습니다)
+export type ThemeOption = { id: string; label: string; color: string; trunk?: string; icon?: string };
 
-export type GlobeTheme = Record<ThemePart, string>;
+// 스노우볼 주제. DB 의 theme 에 kind 로 저장하고, 없거나 모르는 값이면 크리스마스입니다. (새해 스노우볼, 차명근 · 이슈 #83)
+export const GLOBE_KINDS = ["christmas", "birthday", "newyear"] as const;
+export type GlobeKind = (typeof GLOBE_KINDS)[number];
+export const KIND_LABEL: Record<GlobeKind, string> = { christmas: "크리스마스", birthday: "생일", newyear: "새해" };
+// 지금 고를 수 있는 주제. 생일 스노우볼이 들어오면 "birthday" 를 더합니다.
+export const AVAILABLE_KINDS: GlobeKind[] = ["christmas", "newyear"];
+export const toKind = (value: unknown): GlobeKind => ((GLOBE_KINDS as readonly unknown[]).includes(value) ? (value as GlobeKind) : "christmas");
 
-export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[] }[] = [
+export type GlobeTheme = Record<ThemePart, string> & { kind: GlobeKind };
+
+type ThemePartInfo = { key: ThemePart; label: string; options: ThemeOption[] };
+
+export const THEME_PARTS: ThemePartInfo[] = [
   {
     key: "tree",
     label: "트리",
@@ -61,7 +72,27 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
   },
 ];
 
-export const DEFAULT_THEME: GlobeTheme = { tree: "green", prop: "both", base: "red", snow: "white" };
+export const DEFAULT_THEME: GlobeTheme = { tree: "green", prop: "both", base: "red", snow: "white", kind: "christmas" };
+
+// 그 주제로 처음 만들 때의 테마
+export const defaultTheme = (kind: GlobeKind): GlobeTheme => ({ ...DEFAULT_THEME, kind });
+
+// 새해 스노우볼의 꾸미기: 트리 · 눈이 없어서 소품과 받침대만 고릅니다.
+// 소품 값은 크리스마스와 같은 것을 씁니다: 담장(+까치) = 눈사람 자리("snowman"), 떡국(+소반) = 선물 자리("gift").
+const NEWYEAR_PARTS: ThemePartInfo[] = [
+  {
+    key: "prop",
+    label: "소품",
+    options: [
+      { id: "snowman", label: "담장", color: "#4A4B52", icon: "/icons/prop-wall.svg" },
+      { id: "gift", label: "떡국", color: "#F5F1EA", icon: "/icons/prop-tteokguk.svg" },
+    ],
+  },
+  THEME_PARTS.find((p) => p.key === "base")!,
+];
+
+// 그 주제의 꾸미기 화면에 보일 선택지
+export const themeParts = (kind: GlobeKind): ThemePartInfo[] => (kind === "newyear" ? NEWYEAR_PARTS : THEME_PARTS);
 
 export function themeOption(part: ThemePart, id: string): ThemeOption {
   const options = THEME_PARTS.find((p) => p.key === part)!.options;
@@ -115,7 +146,7 @@ export const trunkColor = (theme: GlobeTheme) => themeOption("tree", theme.tree)
 // DB 에서 읽은 값(모양을 믿을 수 없음)을 안전한 테마로 바꿉니다.
 export function parseTheme(value: unknown): GlobeTheme {
   const source = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
-  const theme = { ...DEFAULT_THEME };
+  const theme = { ...DEFAULT_THEME, kind: toKind(source.kind) };
   for (const part of THEME_PARTS) {
     const id = source[part.key];
     const known = part.key === "prop" ? PROP_VALUES.includes(id as string) : part.options.some((o) => o.id === id);

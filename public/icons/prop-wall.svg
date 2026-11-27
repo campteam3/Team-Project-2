@@ -1,0 +1,10 @@
+<!-- 꾸미기 소품 아이콘: 새해 스노우볼의 한옥 담장 (기와 위 눈) · 차명근 -->
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M16 50H80V84H16V50Z" fill="#E8D6B4"/>
+<path d="M16 66H80V84H16V66Z" fill="#8E7F70"/>
+<path d="M16 66H80V70H16V66Z" fill="#7A6C5F"/>
+<path d="M8 50L18 30H78L88 50C88 52.2 86.2 54 84 54H12C9.8 54 8 52.2 8 50Z" fill="#3A3C44"/>
+<path d="M28 30L24 54M40 30L38 54M56 30L58 54M68 30L72 54M48 30V54" stroke="#262830" stroke-width="3" stroke-linecap="round"/>
+<path d="M20 30C20 24 26 21 31 23C34 18 43 17 47 21C51 17 60 18 63 22C69 20 76 24 76 30C76 32.2 74.2 34 72 34H24C21.8 34 20 32.2 20 30Z" fill="#F5F1EA"/>
+<path d="M30 76H40M52 76H64M22 80H30M44 80H54M68 80H76" stroke="#6C5F53" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

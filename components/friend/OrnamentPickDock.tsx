@@ -1,18 +1,17 @@
 "use client";
 
-// 11 오너먼트 고르기 도크: 돌아가기 · 모양 3개(볼 · 별 · 하트) · 색 6개 · 다음
+// 11 오너먼트 고르기 도크: 돌아가기 · 모양 3개(볼 · 별 · 하트, 새해 스노우볼은 복주머니 · 방패연 · 노리개) · 색 6개 · 다음
 // 넓은 화면에서는 한 줄, 휴대폰에서는 세 줄(모양 / 색 / 돌아가기 + 다음)로 놓입니다.
 // 모양 이름은 이민정 님의 lib/snowglobe.ts 의 ORNAMENT_SHAPES 를 그대로 씁니다.
 
 import { Button, IconButton } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { Icon } from "@/components/ui/Icons";
-import { ORNAMENT_SHAPES, type OrnamentShape } from "@/lib/snowglobe";
-import { ORNAMENT_OPTIONS } from "@/lib/theme";
-
-const SHAPE_LABEL: Record<OrnamentShape, string> = { ball: "볼", star: "별", heart: "하트" };
+import { SHAPE_LABEL, shapesFor, type OrnamentShape } from "@/lib/snowglobe";
+import { ORNAMENT_OPTIONS, type GlobeKind } from "@/lib/theme";
 
 type Props = {
+  kind?: GlobeKind; // 오너먼트를 달 스노우볼의 주제. 주제마다 고를 수 있는 모양이 다릅니다 (안 넘기면 볼 · 별 · 하트)
   shape: OrnamentShape;
   onShape: (shape: OrnamentShape) => void;
   colorId: string;
@@ -21,13 +20,13 @@ type Props = {
   onNext: () => void;
 };
 
-export default function OrnamentPickDock({ shape, onShape, colorId, onPick, onBack, onNext }: Props) {
+export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick, onBack, onNext }: Props) {
   return (
     <Dock label="오너먼트 고르기" className="max-sm:w-full max-sm:flex-col max-sm:items-stretch max-sm:rounded-[28px]">
       <IconButton icon="arrow-left" label="돌아가기" onClick={onBack} className="max-sm:hidden" />
 
       <div className="flex items-center justify-between gap-1 sm:ml-1 sm:justify-start" role="group" aria-label="오너먼트 모양">
-        {ORNAMENT_SHAPES.map((s) => {
+        {shapesFor(kind).map((s) => {
           const selected = s === shape;
           return (
             <button
@@ -35,7 +34,7 @@ export default function OrnamentPickDock({ shape, onShape, colorId, onPick, onBa
               type="button"
               aria-pressed={selected}
               onClick={() => onShape(s)}
-              className={`inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[15px] transition duration-200 ease-soft sm:flex-none ${
+              className={`inline-flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[15px] sm:px-4 transition duration-200 ease-soft sm:flex-none ${
                 selected ? "bg-glass-strong font-bold text-ink ring-2 ring-inset ring-accent" : "font-medium text-ink-sub hover:text-ink"
               }`}
             >

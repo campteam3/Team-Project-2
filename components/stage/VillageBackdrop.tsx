@@ -9,6 +9,7 @@
 
 import PhotoBackdrop from "./PhotoBackdrop";
 
-export default function VillageBackdrop() {
-  return <PhotoBackdrop />;
+// sunrise: 새해 스노우볼은 눈 내린 마을 대신 일출 그림을 깝니다 (차명근)
+export default function VillageBackdrop({ sunrise = false }: { sunrise?: boolean }) {
+  return <PhotoBackdrop sunrise={sunrise} />;
 }

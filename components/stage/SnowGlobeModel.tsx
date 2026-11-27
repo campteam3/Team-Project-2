@@ -12,8 +12,8 @@ import { type ThreeElements } from "@react-three/fiber";
 import { Suspense, useEffect, useSyncExternalStore } from "react";
 import { GlowDust } from "@/components/SnowGlobeAtmosphere";
 import { GlobeExtras, GlobeInnerLights, GlobeModel, Ornaments } from "@/components/snowglobe/SnowGlobeGlb";
-import { GLASS, ornamentSpot, placeOrnaments, type OrnamentLike, type OrnamentShape } from "@/lib/snowglobe";
-import { hasProp, themeColor, trunkColor, type GlobeTheme } from "@/lib/theme";
+import { GLASS, ornamentSpot, placeOrnaments, shapesFor, type OrnamentLike, type OrnamentShape } from "@/lib/snowglobe";
+import { hasProp, themeColor, trunkColor, type GlobeKind, type GlobeTheme } from "@/lib/theme";
 
 // 모델 원본은 유리 구의 가운데가 y = 0.55 입니다. 이만큼 내려서 구의 가운데를 원점에 둡니다.
 const LIFT = -GLASS.center[1];
@@ -32,6 +32,7 @@ export const NAMEPLATE_WIDTH = 0.76; // 명판 가로 길이 (글자가 이보�
 
 // 지금 그리고 있는 오너먼트들의 자리. 바깥에서 ornamentPosition 으로 물어볼 때 씁니다.
 const spots = {
+  kind: "christmas" as GlobeKind, // 스노우볼 주제 (자리 묶음이 주제마다 다릅니다)
   ornaments: [] as OrnamentLike[],
   placed: [] as [number, number, number][],
   next: new Map<OrnamentShape, [number, number, number]>(),
@@ -39,22 +40,23 @@ const spots = {
 const FALLBACK: [number, number, number] = [0, 0.3, 0.4];
 const lifted = ([x, y, z]: [number, number, number]): [number, number, number] => [x, y + LIFT, z];
 
-function remember(ornaments: OrnamentLike[]) {
+function remember(ornaments: OrnamentLike[], kind: GlobeKind) {
+  spots.kind = kind;
   spots.ornaments = ornaments;
   spots.placed = [];
   spots.next.clear();
-  const byOrnament = new Map(placeOrnaments(ornaments).map((item) => [item.ornament, item.position]));
+  const byOrnament = new Map(placeOrnaments(ornaments, kind).map((item) => [item.ornament, item.position]));
   for (const ornament of ornaments) spots.placed.push(lifted(byOrnament.get(ornament) ?? FALLBACK));
 }
 
 // index 번째 오너먼트가 달린 자리입니다. 순서(먼저 달린 것부터)대로 자리가 정해지고, 새 오너먼트가 달려도 기존 것은 움직이지 않습니다.
-// 아직 달리지 않은 다음 오너먼트(index 가 지금 개수와 같을 때)는 shape 모양으로 달린다고 보고 알려 줍니다. shape 를 안 넘기면 볼입니다.
-export function ornamentPosition(index: number, shape: OrnamentShape = "ball"): [number, number, number] {
+// 아직 달리지 않은 다음 오너먼트(index 가 지금 개수와 같을 때)는 shape 모양으로 달린다고 보고 알려 줍니다. shape 를 안 넘기면 그 주제의 첫 모양(볼 · 복주머니)입니다.
+export function ornamentPosition(index: number, shape: OrnamentShape = shapesFor(spots.kind)[0]): [number, number, number] {
   const known = spots.placed[index];
   if (known) return known;
   let next = spots.next.get(shape);
   if (!next) {
-    next = lifted(ornamentSpot(spots.ornaments, spots.ornaments.length, shape) ?? FALLBACK);
+    next = lifted(ornamentSpot(spots.ornaments, spots.ornaments.length, shape, spots.kind) ?? FALLBACK);
     spots.next.set(shape, next);
   }
   return next;
@@ -89,9 +91,10 @@ type Props = ThreeElements["group"] & {
 };
 
 export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, selectedId, onSelect, arrivingId, plateText, reducedMotion = false, ...group }: Props) {
+  const kind = theme.kind;
   useEffect(() => {
-    remember(ornaments);
-  }, [ornaments]);
+    remember(ornaments, kind);
+  }, [ornaments, kind]);
 
   // 꾸미기: 기본값(초록 트리, 레드 받침대)은 모델 원래 색을 쓰고, 다른 선택지는 lib/theme.ts 의 색을 입힙니다.
   const treeColor = theme.tree === "green" ? undefined : themeColor(theme, "tree");
@@ -101,15 +104,16 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
   const extras = useSyncExternalStore(noSubscribe, readPropsTest, () => false);
   const showSnowman = hasProp(theme.prop, "snowman") && !extras;
   const showGifts = hasProp(theme.prop, "gift") && !extras;
-  const showReindeer = hasProp(theme.prop, "reindeer") || (extras && hasProp(theme.prop, "snowman"));
-  const showGingerHouse = hasProp(theme.prop, "house") || (extras && hasProp(theme.prop, "gift"));
+  // 루돌프 · 과자집은 크리스마스 스노우볼에만 있습니다
+  const showReindeer = kind !== "newyear" && (hasProp(theme.prop, "reindeer") || (extras && hasProp(theme.prop, "snowman")));
+  const showGingerHouse = kind !== "newyear" && (hasProp(theme.prop, "house") || (extras && hasProp(theme.prop, "gift")));
 
   return (
     <group {...group}>
       <group position={[0, LIFT, 0]}>
         <Suspense fallback={null}>
-          <GlobeModel title={plateText} treeColor={treeColor} trunkColor={trunkColor(theme)} baseColor={baseColor} showGifts={showGifts} showSnowman={showSnowman} />
-          <Ornaments ornaments={ornaments} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} reducedMotion={reducedMotion} />
+          <GlobeModel kind={kind} title={plateText} treeColor={treeColor} trunkColor={trunkColor(theme)} baseColor={baseColor} showGifts={kind === "newyear" ? hasProp(theme.prop, "gift") : showGifts} showSnowman={kind === "newyear" ? hasProp(theme.prop, "snowman") : showSnowman} />
+          <Ornaments ornaments={ornaments} kind={kind} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} reducedMotion={reducedMotion} />
         </Suspense>
         {/* 추가 소품은 보일 때에만 파일을 내려받고, 받는 동안 스노우볼은 그대로 보입니다 */}
         {(showReindeer || showGingerHouse) && (

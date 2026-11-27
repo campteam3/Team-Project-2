@@ -9,7 +9,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { BACKDROP_IMAGES, BEFORE_TONE_MAPPING_GLSL, backdropUniforms } from "./backdropShared";
+import { BACKDROP_IMAGES, BEFORE_TONE_MAPPING_GLSL, SUNRISE_IMAGES, backdropUniforms } from "./backdropShared";
 
 // 그림을 받기 전에 보이는 밤하늘 색 (그림 위쪽 하늘과 비슷한 색)
 const NIGHT = "#0b1635";
@@ -53,9 +53,11 @@ function createParameters(): THREE.ShaderMaterialParameters {
   };
 }
 
-export default function PhotoBackdrop() {
+// sunrise: 새해 스노우볼의 일출 배경 (차명근)
+export default function PhotoBackdrop({ sunrise = false }: { sunrise?: boolean }) {
   const size = useThree((state) => state.size);
   const kind = size.width < size.height ? "mobile" : "web";
+  const picture = (sunrise ? SUNRISE_IMAGES : BACKDROP_IMAGES)[kind];
   const material = useRef<THREE.ShaderMaterial>(null);
   const parameters = useMemo(() => createParameters(), []);
   // 받아 온 그림. 다음 프레임에 재질에 끼웁니다.
@@ -65,7 +67,7 @@ export default function PhotoBackdrop() {
   useEffect(() => {
     let cancelled = false;
     let loaded: THREE.Texture | null = null;
-    new THREE.TextureLoader().load(BACKDROP_IMAGES[kind].url, (texture) => {
+    new THREE.TextureLoader().load(picture.url, (texture) => {
       if (cancelled) {
         texture.dispose();
         return;
@@ -75,7 +77,7 @@ export default function PhotoBackdrop() {
       texture.generateMipmaps = true;
       texture.minFilter = THREE.LinearMipmapLinearFilter;
       loaded = texture;
-      image.current = { texture, aspect: BACKDROP_IMAGES[kind].aspect };
+      image.current = { texture, aspect: picture.aspect };
     });
     return () => {
       cancelled = true;
@@ -86,7 +88,7 @@ export default function PhotoBackdrop() {
       }
       loaded?.dispose();
     };
-  }, [kind]);
+  }, [picture]);
 
   useFrame((state, delta) => {
     const uniforms = material.current?.uniforms;

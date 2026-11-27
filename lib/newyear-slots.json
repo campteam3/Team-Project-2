@@ -1,0 +1,715 @@
+{
+ "note": "Blender design/blender/newyear.blend 에서 내보낸 값 (scripts/blender/export_newyear.py). 단위 m, Y가 위.",
+ "glass": {
+  "center": [
+   0,
+   0.55,
+   0
+  ],
+  "radius": 1.0
+ },
+ "slots": [
+  {
+   "id": 0,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.1037,
+    0.9735,
+    -0.0503
+   ],
+   "quaternion": [
+    -0.69466,
+    -0.05972,
+    0.0614,
+    0.71422
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 1,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.1013,
+    0.9912,
+    -0.0011
+   ],
+   "quaternion": [
+    -0.67055,
+    0.05486,
+    -0.06033,
+    0.73737
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 2,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.0092,
+    0.8987,
+    -0.2852
+   ],
+   "quaternion": [
+    -0.81747,
+    -0.00734,
+    0.00517,
+    0.57591
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 3,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.231,
+    0.926,
+    0.0092
+   ],
+   "quaternion": [
+    -0.58424,
+    -0.31707,
+    -0.06489,
+    0.74426
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 4,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.1534,
+    0.9541,
+    -0.2086
+   ],
+   "quaternion": [
+    -0.7673,
+    0.10185,
+    -0.08331,
+    0.62764
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 5,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.2576,
+    0.9214,
+    -0.1429
+   ],
+   "quaternion": [
+    -0.5938,
+    -0.44807,
+    -0.12479,
+    0.65655
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 6,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.2655,
+    0.885,
+    -0.0462
+   ],
+   "quaternion": [
+    -0.56465,
+    0.40346,
+    0.08377,
+    0.7151
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 7,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.1102,
+    0.8494,
+    -0.4352
+   ],
+   "quaternion": [
+    -0.32809,
+    -0.82717,
+    -0.36759,
+    0.27022
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 8,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.2651,
+    0.8587,
+    -0.3056
+   ],
+   "quaternion": [
+    -0.50203,
+    -0.65728,
+    -0.20363,
+    0.52391
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 9,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.3547,
+    0.8677,
+    0.0173
+   ],
+   "quaternion": [
+    -0.48514,
+    -0.44593,
+    -0.04933,
+    0.75057
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 10,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.2645,
+    0.8663,
+    -0.2724
+   ],
+   "quaternion": [
+    -0.5277,
+    0.61581,
+    0.18893,
+    0.55373
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 11,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.0956,
+    0.8537,
+    -0.4656
+   ],
+   "quaternion": [
+    -0.25921,
+    0.86181,
+    0.37925,
+    0.21507
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 12,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.3967,
+    0.7988,
+    -0.1594
+   ],
+   "quaternion": [
+    -0.42938,
+    -0.62246,
+    -0.07512,
+    0.65003
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 13,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.3762,
+    0.8136,
+    0.092
+   ],
+   "quaternion": [
+    -0.41945,
+    0.4428,
+    0.01028,
+    0.79239
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 14,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.3827,
+    0.818,
+    -0.1469
+   ],
+   "quaternion": [
+    -0.45243,
+    0.59689,
+    0.08363,
+    0.65729
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 15,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.0065,
+    0.7522,
+    -0.5446
+   ],
+   "quaternion": [
+    -0.00936,
+    -0.95508,
+    -0.29605,
+    0.00977
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 16,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.3895,
+    0.7738,
+    0.1545
+   ],
+   "quaternion": [
+    -0.3613,
+    -0.43392,
+    0.0221,
+    0.82504
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 17,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.2644,
+    0.7847,
+    -0.4174
+   ],
+   "quaternion": [
+    -0.3562,
+    0.81362,
+    0.21115,
+    0.40813
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 18,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.3019,
+    0.7188,
+    -0.4436
+   ],
+   "quaternion": [
+    -0.28568,
+    -0.86056,
+    -0.13709,
+    0.39879
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 19,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.4144,
+    0.735,
+    -0.2859
+   ],
+   "quaternion": [
+    -0.34528,
+    0.74777,
+    0.06458,
+    0.56343
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 20,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.4086,
+    0.7015,
+    -0.3132
+   ],
+   "quaternion": [
+    -0.31124,
+    -0.78119,
+    -0.04686,
+    0.53914
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 21,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.4769,
+    0.6882,
+    -0.1502
+   ],
+   "quaternion": [
+    -0.29885,
+    -0.69092,
+    0.02571,
+    0.65777
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 22,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.4746,
+    0.6694,
+    0.0304
+   ],
+   "quaternion": [
+    -0.26396,
+    -0.58784,
+    0.07668,
+    0.76084
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 23,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.4834,
+    0.6788,
+    -0.0801
+   ],
+   "quaternion": [
+    -0.28539,
+    0.65346,
+    -0.04988,
+    0.69932
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 24,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.3669,
+    0.6432,
+    -0.4156
+   ],
+   "quaternion": [
+    -0.23575,
+    0.86518,
+    0.02279,
+    0.442
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 25,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.2317,
+    0.6246,
+    -0.526
+   ],
+   "quaternion": [
+    -0.16044,
+    0.946,
+    0.06117,
+    0.27495
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 26,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.1882,
+    0.6153,
+    -0.5317
+   ],
+   "quaternion": [
+    -0.13498,
+    -0.9616,
+    -0.06435,
+    0.23013
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 27,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.455,
+    0.623,
+    0.1441
+   ],
+   "quaternion": [
+    -0.19229,
+    0.52827,
+    -0.12516,
+    0.81749
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 28,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.077,
+    0.6122,
+    -0.6122
+   ],
+   "quaternion": [
+    -0.05063,
+    0.99235,
+    0.07403,
+    0.08482
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 29,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.4774,
+    0.5418,
+    -0.2402
+   ],
+   "quaternion": [
+    -0.16153,
+    -0.78735,
+    0.15139,
+    0.57539
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 30,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.4397,
+    0.5797,
+    0.1657
+   ],
+   "quaternion": [
+    -0.1376,
+    -0.52264,
+    0.16084,
+    0.82586
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 31,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.4975,
+    0.5251,
+    -0.0544
+   ],
+   "quaternion": [
+    -0.12562,
+    -0.68617,
+    0.19961,
+    0.68815
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 32,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.3682,
+    0.4842,
+    -0.4397
+   ],
+   "quaternion": [
+    -0.11105,
+    -0.89811,
+    0.16943,
+    0.39033
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 33,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.31,
+    0.4909,
+    0.3722
+   ],
+   "quaternion": [
+    0.03569,
+    0.3438,
+    -0.18892,
+    0.91915
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 34,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.3978,
+    0.4821,
+    0.2103
+   ],
+   "quaternion": [
+    -0.00444,
+    0.49991,
+    -0.24662,
+    0.83021
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 35,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.4634,
+    0.4645,
+    0.0461
+   ],
+   "quaternion": [
+    -0.04149,
+    0.63083,
+    -0.27158,
+    0.72566
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 36,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.4673,
+    0.4704,
+    -0.2461
+   ],
+   "quaternion": [
+    -0.10219,
+    0.799,
+    -0.22876,
+    0.54665
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 37,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    0.3083,
+    0.4809,
+    -0.4902
+   ],
+   "quaternion": [
+    -0.09775,
+    0.92745,
+    -0.15961,
+    0.32375
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  },
+  {
+   "id": 38,
+   "kind": "slope",
+   "tier": 0,
+   "position": [
+    -0.2999,
+    0.4535,
+    0.3088
+   ],
+   "quaternion": [
+    0.08507,
+    -0.38449,
+    0.24065,
+    0.88714
+   ],
+   "ballScale": null,
+   "cookieScale": 0.058
+  }
+ ]
+}

@@ -11,6 +11,12 @@ export const BACKDROP_IMAGES = {
   mobile: { url: "/backgrounds/village-mobile.webp", aspect: 941 / 1672 },
 };
 
+// 새해 스노우볼의 배경: 일출. 코드로 그린 그림입니다 (scripts/make-sunrise-backdrop.mjs, 차명근)
+export const SUNRISE_IMAGES = {
+  web: { url: "/backgrounds/sunrise-web.svg", aspect: 1672 / 941 },
+  mobile: { url: "/backgrounds/sunrise-mobile.svg", aspect: 941 / 1672 },
+};
+
 export const backdropUniforms = {
   uBackdropMap: { value: null as THREE.Texture | null },
   uBackdropShow: { value: 0 }, // 그림이 서서히 나타나는 정도 (0~1)

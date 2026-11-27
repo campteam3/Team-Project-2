@@ -13,7 +13,7 @@ import Stage from "@/components/stage/Stage";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { addOrnament, type Globe, type Ornament } from "@/lib/api";
-import { MAX_ORNAMENTS, type OrnamentShape } from "@/lib/snowglobe";
+import { MAX_ORNAMENTS, shapesFor, type OrnamentShape } from "@/lib/snowglobe";
 import { ORNAMENT_OPTIONS, parseTheme } from "@/lib/theme";
 import MessageCard from "./MessageCard";
 import OrnamentPickDock from "./OrnamentPickDock";
@@ -48,7 +48,7 @@ type Props = {
 export default function FriendFlow({ nickname, globe, preview = false, onAdded }: Props) {
   const [step, setStep] = useState<Step>("view");
   const [colorId, setColorId] = useState(ORNAMENT_OPTIONS[0].id);
-  const [shape, setShape] = useState<OrnamentShape>("ball");
+  const [shape, setShape] = useState<OrnamentShape>(() => shapesFor(parseTheme(globe.theme).kind)[0]); // 새해 스노우볼은 복주머니부터
   const [sender, setSender] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -108,7 +108,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
     setStep("done");
   };
 
-  const common = { theme, ornaments, plateText: name, hint: HINT, hintMobile: HINT_MOBILE };
+  const common = { theme, ornaments, plateText: name, hint: HINT, hintMobile: theme.kind === "newyear" ? "폰을 흔들어 폭죽을 터뜨려 보세요" : HINT_MOBILE };
 
   if (step === "view") {
     return (
@@ -168,6 +168,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
       >
         <div key={step} className="flex w-full animate-rise justify-center">
           <OrnamentPickDock
+            kind={theme.kind}
             shape={shape}
             onShape={setShape}
             colorId={colorId}

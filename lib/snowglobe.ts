@@ -2,29 +2,37 @@
 // 자리 값은 Blender 원본(design/blender/snowglobe.blend)에서 내보낸 lib/snowglobe-slots.json 에 있습니다.
 // 좌표는 모델 원본 그대로입니다: 유리 구의 가운데가 (0, 0.55, 0), 반지름 1.
 
+import newyearSlotData from "@/lib/newyear-slots.json";
 import slotData from "@/lib/snowglobe-slots.json";
+import type { GlobeKind } from "@/lib/theme";
 
-// DB 의 shape 칸에 들어가는 이름. 모르는 이름이 오면 볼로 그립니다.
-export const ORNAMENT_SHAPES = ["ball", "star", "heart"] as const;
+// DB 의 shape 칸에 들어가는 이름. 볼 · 별 · 하트는 크리스마스 · 생일, 복주머니 · 방패연 · 노리개는 새해 스노우볼 전용입니다.
+export const ORNAMENT_SHAPES = ["ball", "star", "heart", "pouch", "kite", "norigae"] as const;
 export type OrnamentShape = (typeof ORNAMENT_SHAPES)[number];
+export const SHAPE_LABEL: Record<OrnamentShape, string> = { ball: "볼", star: "별", heart: "하트", pouch: "복주머니", kite: "방패연", norigae: "노리개" };
 
-export function toShape(value: string | undefined): OrnamentShape {
-  return value !== undefined && (ORNAMENT_SHAPES as readonly string[]).includes(value) ? (value as OrnamentShape) : "ball";
+const BASIC_SHAPES: readonly OrnamentShape[] = ["ball", "star", "heart"];
+const NEWYEAR_SHAPES: readonly OrnamentShape[] = ["pouch", "kite", "norigae"];
+
+// 그 주제의 스노우볼에서 고를 수 있는 모양
+export const shapesFor = (kind: GlobeKind = "christmas"): readonly OrnamentShape[] => (kind === "newyear" ? NEWYEAR_SHAPES : BASIC_SHAPES);
+
+// 모르는 이름이나 그 주제에 없는 모양이 오면 그 주제의 첫 모양(크리스마스는 볼, 새해는 복주머니)으로 그립니다.
+// kind 를 안 넘기면 이름만 확인합니다 (오너먼트 하나만 보여 주는 화면).
+// 다른 주제의 모양은 같은 순서의 모양으로 바꿉니다 (볼 ↔ 복주머니, 별 ↔ 방패연, 하트 ↔ 노리개). 기념 메시지로 받은 오너먼트를 다른 주제의 스노우볼에 달 때 씁니다.
+export function toShape(value: string | undefined, kind?: GlobeKind): OrnamentShape {
+  const allowed = kind ? shapesFor(kind) : ORNAMENT_SHAPES;
+  if (value !== undefined && (allowed as readonly string[]).includes(value)) return value as OrnamentShape;
+  const order = Math.max(BASIC_SHAPES.indexOf(value as OrnamentShape), NEWYEAR_SHAPES.indexOf(value as OrnamentShape));
+  return allowed[Math.max(order, 0)];
 }
 
 // 트리에 달 오너먼트. DB 의 오너먼트(lib/api 의 Ornament)를 그대로 넣을 수 있고, id 와 색만 있어도 됩니다.
 export type OrnamentLike = { id: string; color: string; shape?: string; position?: unknown };
 
-// DB 의 position 칸: 비어 있으면 자동 배치, { slot: 자리번호 } 가 있으면 그 자리를 먼저 씁니다.
-function wantedSlot(position: unknown): Slot | undefined {
-  const value =
-    typeof position === "number" ? position : position && typeof position === "object" ? (position as { slot?: unknown }).slot : undefined;
-  return typeof value === "number" && Number.isInteger(value) ? SLOTS[value] : undefined;
-}
-
 export type Slot = {
   id: number;
-  // hang: 갈래 끝에 매다는 자리, slope: 경사면에 얹는 자리
+  // hang: 갈래 끝에 매다는 자리, slope: 경사면에 얹는 자리 (새해 스노우볼의 양 몸통은 모두 slope)
   kind: "hang" | "slope";
   tier: number;
   position: [number, number, number];
@@ -59,22 +67,43 @@ export const MAX_ORNAMENTS = SLOTS.length;
 const offFront = (slot: Slot) => Math.abs(Math.atan2(slot.position[0], slot.position[2]));
 // 0: 앞쪽(정면에서 60도 안), 1: 옆, 2: 뒤
 const side = (slot: Slot) => (offFront(slot) < Math.PI / 3 ? 0 : offFront(slot) < (Math.PI * 2) / 3 ? 1 : 2);
-// 자리 사이의 거리 (자리 번호는 SLOTS 의 순서와 같습니다)
-const APART = SLOTS.map((a) => SLOTS.map((b) => Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1], a.position[2] - b.position[2])));
-// 자리마다의 기본 점수: 앞쪽일수록, 모양에 맞는 종류(kind)일수록, 정면에 가까울수록 높습니다.
-// 볼은 매다는 자리가, 별 · 하트는 얹는 자리가 맞는 자리입니다. 앞쪽에 맞는 자리가 없으면 앞쪽의 다른 종류 자리를 쓰고, 그다음에 옆 · 뒤로 넘어갑니다.
-const baseScore = (kind: Slot["kind"]) => SLOTS.map((slot) => -side(slot) * 10 - Number(slot.kind !== kind) * 5 - offFront(slot) * 0.3);
-const BASE_SCORE = { hang: baseScore("hang"), slope: baseScore("slope") };
+
+// 한 스노우볼의 자리 묶음: 자리, 자리 사이의 거리, 자리마다의 기본 점수
+type SlotSet = { slots: Slot[]; apart: number[][]; score: Record<Slot["kind"], number[]> };
+
+function createSlotSet(slots: Slot[]): SlotSet {
+  // 자리 사이의 거리 (자리 번호는 slots 의 순서와 같습니다)
+  const apart = slots.map((a) => slots.map((b) => Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1], a.position[2] - b.position[2])));
+  // 자리마다의 기본 점수: 앞쪽일수록, 모양에 맞는 종류(kind)일수록, 정면에 가까울수록 높습니다.
+  // 볼은 매다는 자리가, 별 · 하트는 얹는 자리가 맞는 자리입니다. 앞쪽에 맞는 자리가 없으면 앞쪽의 다른 종류 자리를 쓰고, 그다음에 옆 · 뒤로 넘어갑니다.
+  const baseScore = (kind: Slot["kind"]) => slots.map((slot) => -side(slot) * 10 - Number(slot.kind !== kind) * 5 - offFront(slot) * 0.3);
+  return { slots, apart, score: { hang: baseScore("hang"), slope: baseScore("slope") } };
+}
+
+const TREE_SET = createSlotSet(SLOTS);
+// 새해 스노우볼: 양 몸통의 자리 (design/blender/newyear.blend 의 Slot_00 ~ Slot_38)
+const NEWYEAR_SET = createSlotSet(newyearSlotData.slots as unknown as Slot[]);
+const slotSet = (kind: GlobeKind = "christmas") => (kind === "newyear" ? NEWYEAR_SET : TREE_SET);
+
+// 그 주제 스노우볼의 오너먼트 자리
+export const slotsFor = (kind?: GlobeKind) => slotSet(kind).slots;
+
+// DB 의 position 칸: 비어 있으면 자동 배치, { slot: 자리번호 } 가 있으면 그 자리를 먼저 씁니다.
+function wantedSlot(position: unknown, slots: Slot[]): Slot | undefined {
+  const value =
+    typeof position === "number" ? position : position && typeof position === "object" ? (position as { slot?: unknown }).slot : undefined;
+  return typeof value === "number" && Number.isInteger(value) ? slots[value] : undefined;
+}
 
 // 비어 있는 자리 중 가장 좋은 자리. 한곳에 몰리지 않게, 이미 달린 오너먼트에서 먼 자리에 점수를 더 줍니다.
-function pickSlot(kind: Slot["kind"], used: Set<number>): Slot | undefined {
+function pickSlot(set: SlotSet, kind: Slot["kind"], used: Set<number>): Slot | undefined {
   let best: Slot | undefined;
   let bestScore = -Infinity;
-  for (const slot of SLOTS) {
+  for (const slot of set.slots) {
     if (used.has(slot.id)) continue;
     let near = 0.6;
-    for (const id of used) near = Math.min(near, APART[slot.id][id]);
-    const score = BASE_SCORE[kind][slot.id] + near;
+    for (const id of used) near = Math.min(near, set.apart[slot.id][id]);
+    const score = set.score[kind][slot.id] + near;
     if (score > bestScore) {
       bestScore = score;
       best = slot;
@@ -103,14 +132,16 @@ function fit(slot: Slot, shape: OrnamentShape): { position: [number, number, num
 
 // 메시지 오너먼트를 자리에 배치합니다. 순서(먼저 달린 것부터)대로 자리를 고르므로, 새 오너먼트가 달려도 기존 것은 움직이지 않습니다.
 // 트리에는 메시지 오너먼트만 달립니다. 자리 수(MAX_ORNAMENTS)를 넘는 메시지는 달지 않습니다.
-export function placeOrnaments<T extends OrnamentLike>(ornaments: T[]): PlacedOrnament<T>[] {
+// kind: 스노우볼 주제. 주제마다 자리 묶음과 달 수 있는 모양이 다릅니다 (안 넘기면 크리스마스).
+export function placeOrnaments<T extends OrnamentLike>(ornaments: T[], kind: GlobeKind = "christmas"): PlacedOrnament<T>[] {
+  const set = slotSet(kind);
   const used = new Set<number>();
   const placed: PlacedOrnament<T>[] = [];
 
   for (const ornament of ornaments) {
-    const shape = toShape(ornament.shape);
-    const wanted = wantedSlot(ornament.position);
-    const slot = (wanted && !used.has(wanted.id) ? wanted : undefined) ?? pickSlot(shape === "ball" ? "hang" : "slope", used);
+    const shape = toShape(ornament.shape, kind);
+    const wanted = wantedSlot(ornament.position, set.slots);
+    const slot = (wanted && !used.has(wanted.id) ? wanted : undefined) ?? pickSlot(set, shape === "ball" ? "hang" : "slope", used);
     if (!slot) continue;
 
     used.add(slot.id);
@@ -121,9 +152,9 @@ export function placeOrnaments<T extends OrnamentLike>(ornaments: T[]): PlacedOr
 }
 
 // index 번째 메시지 오너먼트가 놓이는 위치. 아직 달리지 않은 다음 오너먼트(index 가 개수와 같을 때)는 shape 모양으로 달린다고 보고 계산합니다.
-export function ornamentSpot(ornaments: OrnamentLike[], index: number, shape: OrnamentShape = "ball"): [number, number, number] | null {
-  const list = index < ornaments.length ? ornaments : [...ornaments.slice(0, index), { id: "__next", color: "#ffffff", shape }];
+export function ornamentSpot(ornaments: OrnamentLike[], index: number, shape?: OrnamentShape, kind: GlobeKind = "christmas"): [number, number, number] | null {
+  const list = index < ornaments.length ? ornaments : [...ornaments.slice(0, index), { id: "__next", color: "#ffffff", shape: shape ?? shapesFor(kind)[0] }];
   const target = list[index];
   if (!target) return null;
-  return placeOrnaments(list).find((item) => item.ornament === target)?.position ?? null;
+  return placeOrnaments(list, kind).find((item) => item.ornament === target)?.position ?? null;
 }

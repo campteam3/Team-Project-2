@@ -10,10 +10,15 @@ import * as THREE from "three";
 import { BEFORE_TONE_MAPPING_GLSL, backdropUniforms } from "@/components/stage/backdropShared";
 import bakedBulbSeats from "@/lib/tree-bulb-seats.json";
 import { placeOrnaments, type OrnamentLike, type PlacedOrnament } from "@/lib/snowglobe";
+import type { GlobeKind } from "@/lib/theme";
 // 오너먼트 모델을 읽고 색을 입히는 부분은 OrnamentGlb.tsx 로 옮겼습니다 (기념 메시지 화면도 함께 씀, 차명근)
-import { OrnamentParts, useOrnamentMaterials, useOrnamentTemplates, type TemplatePart } from "./OrnamentGlb";
+import { NEWYEAR_ORNAMENT_URL, ORNAMENT_URL, OrnamentParts, useOrnamentMaterials, useOrnamentTemplates, type TemplatePart } from "./OrnamentGlb";
 
 const MODEL_URL = "/models/snowglobe.glb";
+// 새해 스노우볼(2027 정미년): 양 · 2027 · 한옥 담장 · 소반 위 떡국 · 황토 마당. 유리 · 받침대 · 명판은 크리스마스 모델과 같은 모양입니다.
+// 원본은 design/blender/newyear.blend, 만드는 스크립트는 scripts/blender/ 에 있습니다. (차명근)
+const NEWYEAR_URL = "/models/newyear.glb";
+export const globeModelUrl = (kind: GlobeKind = "christmas") => (kind === "newyear" ? NEWYEAR_URL : MODEL_URL);
 // 추가 소품(루돌프 · 과자집). 고른 사람만 내려받도록 스노우볼 본체와 다른 파일에 둡니다 (이민정)
 const PROPS_URL = "/models/props.glb";
 
@@ -368,6 +373,76 @@ const MATERIAL_TUNES: Record<string, Tune> = {
   W_Gold: (material) => makeGold(material, 0.16),
   W_Base_ReliefGold: (material) => makeGold(material, 0.24),
   W_Base_HollyRed: (material) => makeMatte(material, 0.6, 0.35),
+  // ── 새해 스노우볼 (차명근) ──
+  // 양털: 광택 없이 포근하게. 따뜻한 조명 아래에서 누렇게 죽지 않도록 제 색으로 살짝 밝힙니다.
+  W_Sheep_Wool: (material) => {
+    material.color.set("#fffaf2");
+    makeMatte(material, 1, 0.12);
+    material.emissive.set("#4a3c30");
+    material.emissiveIntensity = 0.16;
+    applyShaderExtras(material, { grain: { scale: 70, strength: 0.18 }, rim: { color: "#fff1dc", strength: 0.22 } });
+  },
+  W_Sheep_Face: (material) => {
+    makeSatin(material);
+    material.emissive.set("#5a3423");
+    material.emissiveIntensity = 0.16;
+  },
+  W_Sheep_Blush: (material) => makeMatte(material, 0.8, 0.15),
+  W_Sheep_Horn: (material) => makeSatin(material),
+  W_Sheep_Hoof: (material) => makeSatin(material),
+  // 황토 마당: 고운 흙처럼 광택 없이
+  W_Yard: (material) => {
+    material.color.set("#cf9560");
+    makeMatte(material, 1, 0.1);
+    material.emissive.set("#4a260e");
+    material.emissiveIntensity = 0.22;
+    applyShaderExtras(material, { grain: { scale: 85, strength: 0.4 } });
+  },
+  // 붉은 2027: 일출 배경 위에서도 묻히지 않게 스스로 빛납니다
+  W_Year_Red: (material) => {
+    material.color.set("#e02d3f");
+    makeSoftGloss(material);
+    material.emissive.set("#ff2a3c");
+    material.emissiveIntensity = 0.55;
+  },
+  // 한옥 담장: 돌 · 회벽은 광택 없이, 기와는 먹색에 아주 약한 윤기
+  W_Wall_Stone: (material) => {
+    makeMatte(material, 0.95, 0.1);
+    applyShaderExtras(material, { grain: { scale: 60, strength: 0.45 } });
+  },
+  W_Wall_Plaster: (material) => {
+    makeMatte(material, 0.95, 0.1);
+    material.emissive.set("#3d2f1c");
+    material.emissiveIntensity = 0.15;
+  },
+  W_Wall_Tile: (material) => {
+    makeSatin(material);
+    material.emissive.set("#12141c");
+    material.emissiveIntensity = 0.3;
+  },
+  W_Magpie_Black: (material) => makeSatin(material),
+  W_Magpie_White: (material) => makeMatte(material, 0.8, 0.15),
+  W_Magpie_Blue: (material) => {
+    makeSoftGloss(material);
+    material.emissive.set("#16306e");
+    material.emissiveIntensity = 0.35;
+  },
+  // 소반은 옻칠한 나무, 그릇은 흰 사기
+  W_Soban_Wood: (material) => {
+    makeSoftGloss(material);
+    material.emissive.set("#2a100b");
+    material.emissiveIntensity = 0.3;
+  },
+  W_Bowl_White: (material) => {
+    makeSoftGloss(material);
+    material.emissive.set("#3a3630");
+    material.emissiveIntensity = 0.15;
+  },
+  W_Tteokguk_Soup: (material) => makeSoftGloss(material),
+  W_Tteokguk_Tteok: (material) => makeSatin(material),
+  W_Tteokguk_Egg: (material) => makeMatte(material, 0.8, 0.15),
+  W_Tteokguk_Gim: (material) => makeMatte(material, 0.8, 0.15),
+  W_Tteokguk_Green: (material) => makeMatte(material, 0.8, 0.15),
   // 눈: 광택 없이 포슬포슬하게
   W_Snow_Sparkle: (material) => {
     material.color.set("#f1f5ff");
@@ -768,6 +843,8 @@ function createNameplateTexture(title: string) {
 }
 
 export type GlobeLook = {
+  // 스노우볼 주제. 새해면 새해 모델을 그립니다 (안 넘기면 크리스마스).
+  kind?: GlobeKind;
   // 받침대 명패에 그릴 글자. 비우면 빈 명패입니다 (글자를 화면에서 따로 얹을 때).
   title?: string;
   // 꾸미기 색. 비우면 모델 기본색입니다.
@@ -775,6 +852,7 @@ export type GlobeLook = {
   trunkColor?: string; // 트리 색에 어울리는 나무 기둥 색
   baseColor?: string;
   // 꾸미기 소품. 별은 항상 트리 꼭대기에 있습니다.
+  // 새해 스노우볼에서는 선물 자리가 떡국(+소반), 눈사람 자리가 담장(+까치)입니다.
   showGifts?: boolean;
   showSnowman?: boolean;
 };
@@ -799,8 +877,8 @@ function recolor(material: THREE.MeshStandardMaterial, color: string, rimStrengt
 }
 
 // 스노우볼 본체. 유리, 전구 줄, 별, 명패와 재질 값을 웹에 맞게 바꿉니다.
-export function GlobeModel({ title = "", treeColor, trunkColor, baseColor, showGifts = true, showSnowman = true }: GlobeLook) {
-  const { scene } = useGLTF(MODEL_URL);
+export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkColor, baseColor, showGifts = true, showSnowman = true }: GlobeLook) {
+  const { scene } = useGLTF(globeModelUrl(kind));
 
   // 글꼴이 늦게 불러와지면 명패 글자를 그 글꼴로 다시 그립니다.
   const [fontsReady, setFontsReady] = useState(false);
@@ -854,6 +932,9 @@ export function GlobeModel({ title = "", treeColor, trunkColor, baseColor, showG
       // 꾸미기 소품: 고른 것만 보입니다.
       if (child.name.startsWith("w_Gift_")) child.visible = showGifts;
       if (child.name.startsWith("w_Snowman")) child.visible = showSnowman;
+      // 새해 스노우볼의 소품: 담장(+까치), 떡국(+소반)
+      if (child.name.startsWith("w_HanokWall") || child.name.startsWith("w_Magpie")) child.visible = showSnowman;
+      if (child.name.startsWith("w_Soban") || child.name.startsWith("w_Tteokguk")) child.visible = showGifts;
       // 트리에 미리 붙어 있던 고리는 숨깁니다. 오너먼트는 제 꼭지(금속 부분)를 달고 걸립니다. (FEEDBACK B1)
       if (child.name.startsWith("w_Tree_Hooks")) child.visible = false;
 
@@ -929,8 +1010,25 @@ export function GlobeModel({ title = "", treeColor, trunkColor, baseColor, showG
     return copy;
   }, [scene, nameplate, treeColor, trunkColor, baseColor, showGifts, showSnowman]);
 
+  // 새해 스노우볼의 2027: 스노우볼을 돌려도 늘 화면 쪽을 보고, 공중에서 천천히 살짝 오르내립니다.
+  const year = useRef<{ object: THREE.Object3D; y: number } | null>(null);
+  useEffect(() => {
+    const object = model.getObjectByName("w_Year2027");
+    year.current = object ? { object, y: object.position.y } : null;
+  }, [model]);
+  useFrame(({ camera, clock }) => {
+    const item = year.current;
+    if (!item?.object.parent) return;
+    const toCamera = item.object.parent.worldToLocal(yearTarget.copy(camera.position));
+    item.object.rotation.set(0, Math.atan2(toCamera.x - item.object.position.x, toCamera.z - item.object.position.z), 0);
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    item.object.position.y = item.y + (still ? 0 : Math.sin(clock.elapsedTime * 0.9) * 0.012);
+  });
+
   return <primitive object={model} />;
 }
+
+const yearTarget = new THREE.Vector3();
 
 type ExtraLook = { showReindeer?: boolean; showGingerHouse?: boolean };
 
@@ -1044,6 +1142,7 @@ function OrnamentItem({
 // 메시지 오너먼트와 기본 장식을 트리 자리에 답니다.
 export function Ornaments({
   ornaments,
+  kind = "christmas",
   selectedId = null,
   highlightId,
   arrivingId,
@@ -1051,14 +1150,15 @@ export function Ornaments({
   onSelect,
 }: {
   ornaments: OrnamentLike[];
+  kind?: GlobeKind; // 스노우볼 주제: 자리 묶음과 오너먼트 원형 파일이 주제마다 다릅니다
   selectedId?: string | null;
   highlightId?: string;
   arrivingId?: string;
   reducedMotion?: boolean;
   onSelect?: (id: string) => void;
 }) {
-  const templates = useOrnamentTemplates();
-  const placed = useMemo(() => placeOrnaments(ornaments), [ornaments]);
+  const templates = useOrnamentTemplates(kind === "newyear" ? NEWYEAR_ORNAMENT_URL : ORNAMENT_URL);
+  const placed = useMemo(() => placeOrnaments(ornaments, kind), [ornaments, kind]);
 
   return (
     <>
