@@ -9,9 +9,9 @@
 // ─────────────────────────────────────────────────────────────
 
 import { type ThreeElements } from "@react-three/fiber";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useSyncExternalStore } from "react";
 import { GlowDust } from "@/components/SnowGlobeAtmosphere";
-import { GlobeInnerLights, GlobeModel, Ornaments } from "@/components/snowglobe/SnowGlobeGlb";
+import { GlobeExtras, GlobeInnerLights, GlobeModel, Ornaments } from "@/components/snowglobe/SnowGlobeGlb";
 import { GLASS, ornamentSpot, placeOrnaments, type OrnamentLike, type OrnamentShape } from "@/lib/snowglobe";
 import { hasProp, themeColor, trunkColor, type GlobeTheme } from "@/lib/theme";
 
@@ -62,6 +62,21 @@ export function ornamentPosition(index: number, shape: OrnamentShape = "ball"): 
 
 const NONE: OrnamentLike[] = [];
 
+// [테스트용] 추가 소품(루돌프 · 과자집) 미리 보기. 주소 끝에 ?props=test 를 붙이면 눈사람 자리에 루돌프, 선물 자리에 과자집이 보입니다 (?props=off 로 끔).
+// 켠 것은 그 탭에서 기억합니다. 꾸미기 화면에서 고르는 방법이 정해지면 이 부분은 지웁니다. (이민정)
+const PROPS_TEST_KEY = "props-test";
+const noSubscribe = () => () => {};
+function readPropsTest() {
+  try {
+    const asked = new URLSearchParams(window.location.search).get("props");
+    if (asked === "test") window.sessionStorage.setItem(PROPS_TEST_KEY, "1");
+    if (asked === "off") window.sessionStorage.removeItem(PROPS_TEST_KEY);
+    return window.sessionStorage.getItem(PROPS_TEST_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 type Props = ThreeElements["group"] & {
   theme: GlobeTheme;
   ornaments?: OrnamentLike[]; // DB 의 오너먼트를 그대로 넣으면 모양(shape)대로 그립니다. id 와 색만 있으면 볼입니다.
@@ -82,8 +97,14 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
   const treeColor = theme.tree === "green" ? undefined : themeColor(theme, "tree");
   const baseColor = theme.base === "red" ? undefined : themeColor(theme, "base");
   // 소품: 별은 항상 트리 꼭대기에 있습니다. "gift" 는 선물만, "snowman" 은 눈사람만, "none" 은 둘 다 없이, 그 밖의 값은 둘 다 보입니다.
-  const showGifts = hasProp(theme.prop, "gift");
-  const showSnowman = hasProp(theme.prop, "snowman");
+  const wantGifts = hasProp(theme.prop, "gift");
+  const wantSnowman = hasProp(theme.prop, "snowman");
+  // [테스트용] 켜면 선물 대신 과자집, 눈사람 대신 루돌프를 보입니다
+  const extras = useSyncExternalStore(noSubscribe, readPropsTest, () => false);
+  const showGifts = wantGifts && !extras;
+  const showSnowman = wantSnowman && !extras;
+  const showGingerHouse = wantGifts && extras;
+  const showReindeer = wantSnowman && extras;
 
   return (
     <group {...group}>
@@ -92,6 +113,12 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
           <GlobeModel title={plateText} treeColor={treeColor} trunkColor={trunkColor(theme)} baseColor={baseColor} showGifts={showGifts} showSnowman={showSnowman} />
           <Ornaments ornaments={ornaments} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} reducedMotion={reducedMotion} />
         </Suspense>
+        {/* 추가 소품은 보일 때에만 파일을 내려받고, 받는 동안 스노우볼은 그대로 보입니다 */}
+        {(showReindeer || showGingerHouse) && (
+          <Suspense fallback={null}>
+            <GlobeExtras showReindeer={showReindeer} showGingerHouse={showGingerHouse} />
+          </Suspense>
+        )}
         <GlobeInnerLights />
         <GlowDust still={reducedMotion} />
       </group>
