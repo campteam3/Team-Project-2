@@ -61,6 +61,11 @@ function FloatingOrnament({ shape, color, onOpen }: Props) {
     group.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
   }, [shape, color]);
 
+  // 모양을 바꾸면 앞면부터 다시 돕니다. 별 · 하트는 앞뒤가 있는 모양이라, 돌던 각도 그대로 바뀌면 옆이나 뒤부터 보입니다 (이슈 #73, 이민정)
+  useLayoutEffect(() => {
+    if (spin.current) spin.current.rotation.y = 0;
+  }, [shape]);
+
   useFrame(({ clock }, delta) => {
     const item = spin.current;
     if (!item) return;
