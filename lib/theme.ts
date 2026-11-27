@@ -31,6 +31,7 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     // 별은 트리 꼭대기에 항상 있고, 트리 아래 소품만 고릅니다 (#14 에서 이민정 님과 정함)
     // 소품은 하나만 고르는 것이 아니라 켜고 끄는 것입니다: 둘 다 · 하나만 · 둘 다 없이 (김미영).
     // 저장하는 값은 예전과 같은 글자 하나입니다: "both"(둘 다, 기본) · "gift" · "snowman" · "none"(없음). 아래 hasProp · toggleProp 참고
+    // 루돌프("reindeer") · 과자집("house")도 hasProp · toggleProp 가 받습니다. 여기 options 에 넣으면 고르기 버튼이 생깁니다 (이슈 #75).
     options: [
       { id: "gift", label: "선물 상자", color: "#C8363D" },
       { id: "snowman", label: "눈사람", color: "#F5F1EA" },
@@ -67,16 +68,43 @@ export function themeOption(part: ThemePart, id: string): ThemeOption {
   return options.find((o) => o.id === id) ?? options[0];
 }
 
-// 소품 값("both" · "gift" · "snowman" · "none")에 이 소품이 들어 있는지. 모르는 값은 예전처럼 둘 다로 봅니다.
-export type PropItem = "gift" | "snowman";
-const PROP_VALUES = ["both", "gift", "snowman", "none"];
-export const hasProp = (prop: string, item: PropItem) => prop !== "none" && prop !== (item === "gift" ? "snowman" : "gift");
+// 소품은 자리 두 곳에 하나씩 놓습니다. 같은 자리의 소품은 함께 놓을 수 없습니다. (루돌프 · 과자집 추가, 이민정)
+//  - 눈사람 자리: 눈사람("snowman") 또는 루돌프("reindeer")
+//  - 선물 자리: 선물 상자("gift") 또는 과자집("house")
+export type PropItem = "gift" | "snowman" | "reindeer" | "house";
+const SNOWMAN_SPOT: PropItem[] = ["snowman", "reindeer"];
+const GIFT_SPOT: PropItem[] = ["gift", "house"];
 
-// 소품 하나를 켜거나 끈 뒤의 소품 값
+// 놓인 소품 → 저장하는 값. 예전부터 쓰던 값("both" · "gift" · "snowman" · "none")은 그대로 쓰고,
+// 새 소품이 들어간 조합만 "눈사람 자리+선물 자리" 모양으로 적습니다 (예: "reindeer+house", "snowman+house", "reindeer").
+function propValue(items: PropItem[]): string {
+  const left = SNOWMAN_SPOT.find((item) => items.includes(item));
+  const right = GIFT_SPOT.find((item) => items.includes(item));
+  if (left === "snowman" && right === "gift") return "both";
+  return [left, right].filter(Boolean).join("+") || "none";
+}
+
+// 저장할 수 있는 값 전부 (자리마다 비움 · 첫째 · 둘째, 모두 9가지)
+const PROP_VALUES = [undefined, ...SNOWMAN_SPOT].flatMap((left) =>
+  [undefined, ...GIFT_SPOT].map((right) => propValue([left, right].filter((item): item is PropItem => Boolean(item)))),
+);
+
+// 저장된 값 → 놓인 소품. 모르는 값은 예전처럼 둘 다(눈사람 + 선물 상자)로 봅니다.
+function propItems(prop: string): PropItem[] {
+  if (prop === "none") return [];
+  if (!PROP_VALUES.includes(prop) || prop === "both") return ["snowman", "gift"];
+  return prop.split("+") as PropItem[];
+}
+
+// 소품 값에 이 소품이 들어 있는지
+export const hasProp = (prop: string, item: PropItem) => propItems(prop).includes(item);
+
+// 소품 하나를 켜거나 끈 뒤의 소품 값. 켤 때 같은 자리에 있던 소품은 꺼집니다 (눈사람을 켜면 루돌프가 꺼짐).
 export function toggleProp(prop: string, item: PropItem): string {
-  const gift = item === "gift" ? !hasProp(prop, "gift") : hasProp(prop, "gift");
-  const snowman = item === "snowman" ? !hasProp(prop, "snowman") : hasProp(prop, "snowman");
-  return gift && snowman ? "both" : gift ? "gift" : snowman ? "snowman" : "none";
+  const items = propItems(prop);
+  if (items.includes(item)) return propValue(items.filter((other) => other !== item));
+  const spot = SNOWMAN_SPOT.includes(item) ? SNOWMAN_SPOT : GIFT_SPOT;
+  return propValue([...items.filter((other) => !spot.includes(other)), item]);
 }
 
 export const themeColor = (theme: GlobeTheme, part: ThemePart) => themeOption(part, theme[part]).color;
