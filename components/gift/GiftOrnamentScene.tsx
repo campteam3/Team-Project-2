@@ -6,7 +6,7 @@
 // 스노우볼 모델은 불러오지 않습니다 (OrnamentGlb.tsx 만 씀).
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Suspense, useLayoutEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
 import { SingleOrnament } from "@/components/snowglobe/OrnamentGlb";
@@ -18,26 +18,48 @@ const TARGET_HEIGHT = 1.55;
 // 화면 가운데보다 조금 위에 둡니다 (아래쪽에 도크 · 메시지 카드가 놓임)
 const CENTER_Y = 0.45;
 
-type Props = { shape: OrnamentShape; color: string; onOpen?: () => void; reducedMotion?: boolean };
+type Props = { shape: OrnamentShape; color: string; onOpen?: () => void };
 
-function FloatingOrnament({ shape, color, onOpen, reducedMotion = false }: Props) {
+// 움직임 줄이기 설정 (무대 바깥에서 넘겨받지 않고 여기서 직접 읽습니다)
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduced(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+  return reduced;
+}
+
+function FloatingOrnament({ shape, color, onOpen }: Props) {
+  const reducedMotion = useReducedMotion();
   const spin = useRef<THREE.Group>(null);
   const fit = useRef<THREE.Group>(null);
   const [hover, setHover] = useState(false);
 
   // 모양마다 크기가 달라서, 그린 뒤 크기를 재 화면에 같은 크기로 맞춥니다 (가운데도 맞춤)
+  // 바깥 group 이 돌고 떠다니므로 화면 좌표가 아니라 오너먼트 자체의 좌표(모양 데이터)로 잽니다
   useLayoutEffect(() => {
     const group = fit.current;
     if (!group) return;
-    group.scale.setScalar(1);
-    group.position.set(0, 0, 0);
-    const box = new THREE.Box3().setFromObject(group);
+    const box = new THREE.Box3();
+    for (const child of group.children) {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) continue;
+      mesh.geometry.computeBoundingBox();
+      if (!mesh.geometry.boundingBox) continue;
+      mesh.updateMatrix();
+      box.union(mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrix));
+    }
+    if (box.isEmpty()) return;
     const size = box.getSize(new THREE.Vector3());
     const scale = TARGET_HEIGHT / Math.max(size.y, size.x, 1e-6);
     const center = box.getCenter(new THREE.Vector3());
     group.scale.setScalar(scale);
     group.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
-  }, [shape]);
+  }, [shape, color]);
 
   useFrame(({ clock }, delta) => {
     const item = spin.current;

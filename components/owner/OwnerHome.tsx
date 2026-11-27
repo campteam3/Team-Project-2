@@ -7,7 +7,8 @@
 //   빈 상태: 오너먼트가 0개면 링크 공유를 권합니다
 // 다른 화면(오프닝 · 만들기 · 친구)과 같은 무대(Stage)를 써서, 겨울밤 배경이 화면 전체에 깔립니다.
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Stage from "@/components/stage/Stage";
 import { useNotice } from "@/components/stage/useNotice";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +16,7 @@ import { Dock } from "@/components/ui/Dock";
 import { closeGlobe, deleteOrnament, type Globe } from "@/lib/api";
 import { copyText, showLinkToCopy } from "@/lib/copy";
 import { clearOwnerToken, globePath } from "@/lib/owner-token";
+import { giftResult } from "@/lib/gift-link";
 import { loadReadState, saveReadState, type ReadState } from "@/lib/read-state";
 import { MAX_ORNAMENTS } from "@/lib/snowglobe";
 import { parseTheme } from "@/lib/theme";
@@ -41,6 +43,14 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [notice, say] = useNotice(); // "링크를 복사했어요" 같은 알림. 안내 알약 자리에 뜹니다
+
+  // 받은 기념 메시지를 달고 들어왔으면(?gift=added · already) 한 번 알리고 주소에서 지웁니다 (FEEDBACK F1, 차명근)
+  const arrived = giftResult(useSearchParams());
+  useEffect(() => {
+    if (!arrived) return;
+    say(arrived === "already" ? "이미 달려 있어요" : "받은 오너먼트를 달았어요");
+    window.history.replaceState(null, "", globePath(nickname));
+  }, [arrived, nickname, say]);
   const [openShake, setOpenShake] = useState(0);
 
   const ornaments = globe.ornaments;

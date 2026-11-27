@@ -90,6 +90,7 @@ function supportsWebGL() {
 
 export default function Stage(props: StageProps) {
   const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
+  const hasScene = !!scene;
   // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
   // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
   const engraved = !plate && !!plateText;
@@ -416,6 +417,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
           asking = false;
         });
     }
+    if (hasScene) return; // 스노우볼이 없는 장면(기념 메시지)에서는 흔들기를 쓰지 않으므로 권한도 묻지 않습니다
     window.addEventListener("devicemotion", onMotion);
     window.addEventListener("touchend", ask);
     window.addEventListener("click", ask);
@@ -423,7 +425,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       window.removeEventListener("devicemotion", onMotion);
       stopAsking();
     };
-  }, [shake]);
+  }, [shake, hasScene]);
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen();

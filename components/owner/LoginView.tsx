@@ -13,7 +13,7 @@ import { useEffect, useLayoutEffect, useState, type FormEvent } from "react";
 import Stage from "@/components/stage/Stage";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { addGiftToGlobe, getGlobe, openFailureMessage, openGlobe, type Globe } from "@/lib/api";
-import { giftParam } from "@/lib/gift-link";
+import { giftParam, withGift } from "@/lib/gift-link";
 import { globePath, saveOwnerToken } from "@/lib/owner-token";
 import { DEFAULT_THEME, parseTheme } from "@/lib/theme";
 import { globeName } from "@/components/friend/FriendFlow";
@@ -89,13 +89,14 @@ export default function LoginView() {
     }
     saveOwnerToken(name, result.data.owner_token);
     if (gift) {
-      // 달지 못하면(가득 참 등) 이 화면에 머물며 이유를 보여 줍니다. 이미 달려 있으면 그대로 스노우볼로 갑니다
+      // 달지 못하면(가득 참 등) 이 화면에 머물며 이유를 보여 줍니다. 이미 달려 있어도 스노우볼로 가서 그렇다고 알립니다
       const added = await addGiftToGlobe(gift, name, result.data.owner_token);
       if (!added.ok) {
         setBusy(false);
         setPassword("");
         return setError(added.message);
       }
+      return router.push(withGift(globePath(name), added.data.already ? "already" : "added"));
     }
     router.push(globePath(name));
   };
@@ -123,11 +124,11 @@ export default function LoginView() {
       layout={askName ? { desktop: { centerFromTop: 0.4 }, mobile: { centerFromTop: 0.4 } } : undefined}
       below={
         askName ? (
-          <Link href="/new" className={linkClass}>
+          <Link href={gift ? withGift("/new", gift) : "/new"} className={linkClass}>
             아직 스노우볼이 없어요
           </Link>
         ) : (
-          <Link href="/login" className={linkClass}>
+          <Link href={gift ? withGift("/login", gift) : "/login"} className={linkClass}>
             다른 닉네임으로 들어가기
           </Link>
         )
@@ -161,7 +162,7 @@ export default function LoginView() {
         </p>
 
         <div className="flex items-center gap-3">
-          <ButtonLink variant="secondary" icon="arrow-left" href={known && !missing ? globePath(known) : "/"}>
+          <ButtonLink variant="secondary" icon="arrow-left" href={gift ? `/gift/${gift}` : known && !missing ? globePath(known) : "/"}>
             돌아가기
           </ButtonLink>
           <Button type="submit" disabled={busy}>

@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import MessageCard from "@/components/friend/MessageCard";
 import OrnamentPickDock from "@/components/friend/OrnamentPickDock";
 import ShareDock from "@/components/owner/ShareDock";
@@ -42,6 +42,29 @@ export default function GiftSendFlow() {
   const [notice, say] = useNotice();
   const color = ORNAMENT_OPTIONS.find((o) => o.id === colorId)!.color;
 
+  // 다 보낸 뒤 이 화면을 떠났다가 다시 오면 처음 단계부터 시작합니다.
+  // Next.js 는 떠난 화면을 숨겨 두었다가 그대로 다시 보여 주기 때문입니다 (문서: Preserving UI state > Resetting stale status messages)
+  const sent = useRef(false);
+  useLayoutEffect(() => {
+    return () => {
+      if (!sent.current) return;
+      sent.current = false;
+      setStep("pick");
+      setMessage("");
+      setGiftId("");
+      setError("");
+    };
+  }, []);
+
+  // 다른 친구에게 하나 더: 보내는 사람 이름은 그대로 두고 처음 단계로
+  const sendAnother = () => {
+    sent.current = false;
+    setMessage("");
+    setGiftId("");
+    setError("");
+    setStep("pick");
+  };
+
   const scene = <GiftOrnamentScene shape={shape} color={color} />;
 
   const submit = async () => {
@@ -55,6 +78,7 @@ export default function GiftSendFlow() {
     if (!result.ok) return setError(result.message);
     setGiftId(result.data.id);
     setSentBy(sender.trim());
+    sent.current = true;
     setStep("done");
   };
 
@@ -105,9 +129,14 @@ export default function GiftSendFlow() {
       subtitle="링크를 보내면 받은 사람이 열어 보고 자기 스노우볼에 달 수 있어요"
       notice={notice}
       below={
-        <Link href="/new" className={linkClass}>
-          내 스노우볼도 만들기
-        </Link>
+        <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-2">
+          <button type="button" onClick={sendAnother} className={linkClass}>
+            하나 더 보내기
+          </button>
+          <Link href="/new" className={linkClass}>
+            내 스노우볼도 만들기
+          </Link>
+        </div>
       }
     >
       <div key={step} className="flex w-full animate-rise justify-center">
