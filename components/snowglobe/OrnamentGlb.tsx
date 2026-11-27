@@ -11,7 +11,7 @@ import type { OrnamentShape } from "@/lib/snowglobe";
 import { ornamentOptionIndex } from "@/lib/theme";
 
 export const ORNAMENT_URL = "/models/ornaments.glb";
-const TEMPLATE_NAMES: Record<OrnamentShape, string> = { ball: "t_Orn_Ball", star: "t_Orn_Star", heart: "t_Orn_Heart" };
+const TEMPLATE_NAMES: Record<OrnamentShape, string> = { ball: "t_Orn_Ball", star: "t_Orn_Star", heart: "t_Orn_Heart", cane: "t_Orn_Cane", gift: "t_Orn_Gift" };
 
 export type TemplatePart = {
   shape: OrnamentShape;
@@ -20,11 +20,11 @@ export type TemplatePart = {
   material: THREE.MeshStandardMaterial;
 };
 
-// 오너먼트 원형(볼·별·하트)을 부분별로 꺼냅니다. 본체 색과 무늬 색은 오너먼트마다 바꿉니다.
+// 오너먼트 원형(볼 · 별 · 하트 · 지팡이 사탕 · 선물 상자)을 부분별로 꺼냅니다. 본체 색과 무늬 색은 오너먼트마다 바꿉니다.
 export function useOrnamentTemplates() {
   const { scene } = useGLTF(ORNAMENT_URL);
   return useMemo(() => {
-    const templates: Record<OrnamentShape, TemplatePart[]> = { ball: [], star: [], heart: [] };
+    const templates: Record<OrnamentShape, TemplatePart[]> = { ball: [], star: [], heart: [], cane: [], gift: [] };
     for (const shape of Object.keys(TEMPLATE_NAMES) as OrnamentShape[]) {
       scene.getObjectByName(TEMPLATE_NAMES[shape])?.traverse((child) => {
         const mesh = child as THREE.Mesh;
@@ -77,7 +77,8 @@ const BALL_LOOKS: BallLook[] = [
   { pattern: "plain", satin: true }, // 분홍: 민무늬, 고운 펄 표면
 ];
 
-// 별 · 하트(쿠키 모양)의 모습. 순서는 볼과 같습니다. 금색과 빨강 + 금색만 따로 정하고, 나머지는 고른 색 그대로입니다 (본체는 고른 색, 아이싱은 크림색)
+// 볼이 아닌 모양(별 · 하트 · 지팡이 사탕 · 선물 상자)의 모습. 순서는 볼과 같습니다.
+// 본체는 별 · 하트의 쿠키, 지팡이 사탕의 색 줄, 선물 상자의 상자이고, 무늬는 아이싱, 지팡이 사탕의 흰 줄, 선물 상자의 리본입니다. 금색과 빨강 + 금색만 따로 정하고, 나머지는 고른 색 그대로입니다 (본체는 고른 색, 아이싱은 크림색)
 //  - color: 본체 색. gold: 금색으로 그릴 부분("body" 본체, "accent" 아이싱)
 type CookieLook = { color: string; gold: "body" | "accent" };
 const COOKIE_LOOKS: (CookieLook | undefined)[] = [
@@ -246,7 +247,7 @@ export function useOrnamentMaterials(parts: TemplatePart[], color: string, metal
     const mainPart = parts.find((part) => part.role === "main");
     const option = ornamentOptionIndex(color);
     const look = mainPart?.shape === "ball" ? BALL_LOOKS[option] : undefined;
-    // 별 · 하트는 금색과 빨강 + 금색만 따로 정합니다 (COOKIE_LOOKS)
+    // 볼이 아닌 모양은 금색과 빨강 + 금색만 따로 정합니다 (COOKIE_LOOKS)
     const cookie = mainPart && mainPart.shape !== "ball" ? COOKIE_LOOKS[option] : undefined;
     const fixed = look?.color ?? cookie?.color;
     const body = fixed ? new THREE.Color(fixed) : pastel(color);
