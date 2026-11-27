@@ -35,9 +35,9 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
     options: [
       // 버튼 순서: 선물 자리 둘(선물 상자 · 과자집), 눈사람 자리 둘(눈사람 · 루돌프). 같은 자리끼리 붙여 둡니다 (김미영, 이슈 #75)
       { id: "gift", label: "선물 상자", color: "#C8363D" },
-      { id: "house", label: "과자집", color: "#B5753C" },
+      { id: "house", label: "과자집", color: "#BD7D4D" },
       { id: "snowman", label: "눈사람", color: "#F5F1EA" },
-      { id: "reindeer", label: "루돌프", color: "#A9713F" },
+      { id: "reindeer", label: "루돌프", color: "#DFA682" },
     ],
   },
   {
