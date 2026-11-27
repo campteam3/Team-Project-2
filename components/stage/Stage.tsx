@@ -12,7 +12,7 @@ import type { Ornament } from "@/lib/api";
 import type { GlobeTheme } from "@/lib/theme";
 import { isBgmOn, isBgmOnServer, subscribeBgm, toggleBgm } from "@/lib/bgm";
 import { saveGlobeImage } from "@/lib/save-image";
-import { IconButton } from "@/components/ui/Button";
+import { Button, IconButton } from "@/components/ui/Button";
 import SavedImage from "./SavedImage";
 import StageFallback from "./StageFallback";
 import type { GlobeLayout } from "./StageScene";
@@ -31,6 +31,10 @@ let sceneShownOnce = false;
 // height 는 상한 역할만 하고, 실제 크기는 빈 공간과 화면 너비 중 좁은 쪽에 맞춰집니다 (StageScene 의 getSafeArea).
 const DESKTOP: GlobeLayout = { height: 0.9, centerFromTop: 0.45 };
 const MOBILE: GlobeLayout = { height: 0.9, centerFromTop: 0.46 };
+// 사진 찍기 화면: 제목 · 도크가 없으므로 화면 위 끝부터 아래쪽 안내 · 저장 버튼 사이를 채웁니다 (이민정)
+const PHOTO: GlobeLayout = { height: 0.9, centerFromTop: 0.47 };
+const PHOTO_HINT = "드래그로 각도를, 스크롤로 크기를 맞춰 보세요";
+const PHOTO_HINT_MOBILE = "돌리고, 두 손가락으로 확대해 보세요";
 
 // 화면 키보드 높이: 한 번 올라온 뒤에는 그 값을 기억해 다음에 미리 맞춥니다. 처음에는 어림값을 씁니다.
 const KEYBOARD_GUESS = 300;
@@ -76,7 +80,9 @@ export type StageProps = {
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
   below?: ReactNode; // 도크 아래 작은 글자 링크
-  saveAs?: string; // 값을 주면 위쪽에 "이미지로 저장" 버튼이 생깁니다. 저장할 파일 이름으로 씁니다 (FEEDBACK E4, 차명근)
+  // 값을 주면 위쪽에 "사진 찍기" 버튼이 생깁니다. 저장할 파일 이름으로 씁니다 (FEEDBACK E4, 차명근).
+  // 누르면 사진 찍기 화면이 열려, 각도 · 크기를 맞춘 뒤 저장합니다 (이민정)
+  saveAs?: string;
   onNotice?: (message: string) => void; // 저장 결과 알림을 띄울 함수 (화면의 useNotice 에서 받은 say)
   notice?: string; // 잠깐 뜨는 알림 ("링크를 복사했어요"). 안내 알약 자리에 같은 모양으로 뜹니다 (useNotice). 알림을 쓰는 화면은 없을 때 "" 를 넘깁니다
 };
@@ -111,7 +117,9 @@ export default function Stage(props: StageProps) {
   // 스노우볼을 만지기 시작하면(돌리기 · 확대) 안내 문구를 흐리게 물려, 받침대와 명판을 가리지 않게 합니다 (FEEDBACK A4).
   // 어느 안내 문구에서 물렸는지 기억해서, 문구가 바뀌면(다음 단계) 다시 보입니다.
   const [quietHint, setQuietHint] = useState<string | null>(null);
-  const hintKey = `${hint ?? ""}|${hintMobile ?? ""}`;
+  // 사진 찍기 화면 (이민정): 제목 · 도크를 숨기고 스노우볼만 남겨, 각도 · 크기를 맞춘 뒤 저장합니다
+  const [photo, setPhoto] = useState(false);
+  const hintKey = photo ? "photo" : `${hint ?? ""}|${hintMobile ?? ""}`;
   const quiet = quietHint === hintKey;
   const [shakeSignal, setShakeSignal] = useState(0);
   const soundOn = useSyncExternalStore(subscribeBgm, isBgmOn, isBgmOnServer); // 배경 음악을 켜 둔 상태인지
@@ -119,10 +127,27 @@ export default function Stage(props: StageProps) {
   const [savedUrl, setSavedUrl] = useState(""); // 화면에 띄울 저장용 이미지 (공유 창을 열 수 없는 휴대폰 브라우저에서만)
   const closeSaved = useCallback(() => setSavedUrl(""), []);
 
+  const openPhoto = () => {
+    setQuietHint(null); // 조작 안내를 다시 보여 줍니다
+    setPhoto(true);
+  };
+  const closePhoto = useCallback(() => setPhoto(false), []);
+  // Esc 로도 닫습니다 (저장용 이미지가 떠 있을 때는 그 창이 먼저 닫힙니다)
+  useEffect(() => {
+    if (!photo || savedUrl) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closePhoto();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [photo, savedUrl, closePhoto]);
+
   // 이미지로 저장 (FEEDBACK E4): 3D 무대에 지금 보이는 모습을 한 장으로 만듭니다 (lib/save-image.ts)
   const saveImage = async () => {
     const canvas = sceneEl.current?.querySelector("canvas");
     if (!canvas || !saveAs || saving) return;
+    // 찍히는 순간 화면이 잠깐 밝아집니다 (사진에는 담기지 않습니다)
+    if (!reducedMotion) flashEl.current?.animate([{ opacity: 0.55 }, { opacity: 0 }], { duration: 400, easing: "ease-out" });
     setSaving(true);
     const result = await saveGlobeImage(canvas, saveAs);
     setSaving(false);
@@ -135,6 +160,8 @@ export default function Stage(props: StageProps) {
   const mainEl = useRef<HTMLElement>(null);
   const sceneEl = useRef<HTMLDivElement>(null);
   const fixedEl = useRef<HTMLDivElement>(null);
+  const flashEl = useRef<HTMLDivElement>(null);
+  const photoFootEl = useRef<HTMLDivElement>(null); // 사진 찍기 화면의 아래쪽 (안내 · 저장 버튼)
   const headerEl = useRef<HTMLElement>(null);
   const footerEl = useRef<HTMLElement>(null);
   const [keyboard, setKeyboard] = useState(false); // 휴대폰 화면 키보드가 올라와 있는지
@@ -148,6 +175,12 @@ export default function Stage(props: StageProps) {
 
   // 3D 장면이 매 프레임 묻는 "UI 사이 빈 공간" (제목 아래 끝 ~ 아래쪽 UI 위 끝, 3D 무대 위 끝에서부터 px)
   const getSafeArea = useCallback(() => {
+    // 사진 찍기 화면: 제목이 없으므로 화면 위 끝부터, 아래쪽 안내 · 저장 버튼 위까지가 빈 공간입니다
+    const shot = photoFootEl.current;
+    if (shot) {
+      const sceneTop = sceneEl.current?.getBoundingClientRect().top ?? 0;
+      return { top: 0, bottom: shot.getBoundingClientRect().top - sceneTop, plateHalf: (plateEl.current?.offsetHeight ?? 0) / 2, width: window.innerWidth };
+    }
     // 스노우볼을 그대로 두는 단계: 직전에 잰 빈 공간을 그대로 돌려줍니다 (화면 너비가 바뀌면 다시 잽니다)
     const held = heldArea.current;
     if (hold.current && held && held.width === window.innerWidth) return held;
@@ -441,9 +474,11 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
     else void document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
-  const layout: GlobeLayout = mobile
-    ? { ...MOBILE, ...props.layout?.mobile }
-    : { ...DESKTOP, ...props.layout?.desktop };
+  const layout: GlobeLayout = photo
+    ? PHOTO
+    : mobile
+      ? { ...MOBILE, ...props.layout?.mobile }
+      : { ...DESKTOP, ...props.layout?.desktop };
 
   const mobileHint = hintMobile ?? hint;
   // 알림이 떠 있을 때는 항상 또렷하게, 안내만 있을 때는 스노우볼을 만지는 동안 흐리게
@@ -479,13 +514,15 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             pinKey={pinKey}
             pinId={pinId}
             morePinIds={pin ? morePinIds : undefined}
-            highlightId={highlightId}
-            onSelectOrnament={onSelectOrnament}
+            // 사진 찍기 화면에서는 오너먼트 고르기 · 빛나기 · 방향 고정을 끕니다
+            highlightId={photo ? undefined : highlightId}
+            onSelectOrnament={photo ? undefined : onSelectOrnament}
             arrivingId={arrivingId}
-            focusId={focusId}
+            focusId={photo ? undefined : focusId}
             getSafeArea={getSafeArea}
-            onPinMove={pin ? movePin : undefined}
-            lockFront={lockFront}
+            onPinMove={pin && !photo ? movePin : undefined}
+            lockFront={photo ? false : lockFront}
+            photo={photo}
             shakeSignal={shakeSignal + extraShake}
             reducedMotion={reducedMotion}
             onReady={onSceneReady}
@@ -513,7 +550,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       )}
 
       {/* 예시 말풍선: 3D 오너먼트 위치를 따라갑니다 */}
-      {pin && webgl && !scene && (
+      {pin && webgl && !scene && !photo && (
         <div ref={pinEl} className="pointer-events-none absolute left-0 top-0 z-[6] opacity-0 transition-opacity duration-400 will-change-transform">
           {pin}
         </div>
@@ -521,6 +558,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       {pin &&
         webgl &&
         !scene &&
+        !photo &&
         morePinIds?.map((id, i) => (
           <div
             key={id}
@@ -535,13 +573,14 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       </div>
 
       {/* 앞: UI */}
-      <div className="pointer-events-none absolute inset-x-0 top-[var(--vv-top,0px)] z-10 flex h-[var(--vv-h,100%)] flex-col [transition:height_var(--vv-t,0ms)_var(--ease-soft)] px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 kb:pb-[calc(0.75rem+var(--kb-clear,0px))] kb:pt-3 sm:px-8 sm:pb-8 sm:pt-8">
+      {/* 사진 찍기 화면에서는 통째로 숨깁니다 (자리는 그대로 남겨, 닫으면 스노우볼이 제자리로 돌아옵니다) */}
+      <div className={`pointer-events-none absolute inset-x-0 top-[var(--vv-top,0px)] z-10 flex h-[var(--vv-h,100%)] flex-col ${photo ? "invisible" : ""} [transition:height_var(--vv-t,0ms)_var(--ease-soft)] px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 kb:pb-[calc(0.75rem+var(--kb-clear,0px))] kb:pt-3 sm:px-8 sm:pb-8 sm:pt-8`}>
         {/* 전체 화면 버튼은 넓은 화면에서만 보입니다. 휴대폰은 이미 화면을 꽉 채우고, 아이폰은 전체 화면이 되지 않습니다 (FEEDBACK C6) */}
         <div className="pointer-events-auto absolute left-8 top-8 max-sm:hidden kb:hidden">
           <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} />
         </div>
         <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 kb:hidden sm:right-8 sm:top-8">
-          {saveAs && webgl && <IconButton icon="download" label="이미지로 저장" disabled={saving} onClick={saveImage} />}
+          {saveAs && webgl && !scene && <IconButton icon="camera" label="사진 찍기" onClick={openPhoto} />}
           {SHOW_SOUND && (
             <IconButton
               icon={soundOn ? "volume" : "volume-off"}
@@ -601,6 +640,33 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
           {below && <div className="contents kb:hidden">{below}</div>}
         </footer>
       </div>
+      {/* 사진 찍기 화면 (이민정): 위쪽에 닫기 · 눈 버튼, 아래쪽에 안내와 저장 버튼만 둡니다 */}
+      {photo && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex animate-fade flex-col items-center justify-end gap-3 px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 sm:px-8 sm:pb-8 sm:pt-8">
+          <div className="pointer-events-auto absolute left-4 top-4 sm:left-8 sm:top-8">
+            <IconButton icon="x" label="사진 찍기 닫기" onClick={closePhoto} />
+          </div>
+          <div className="pointer-events-auto absolute right-4 top-4 sm:right-8 sm:top-8">
+            <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />
+          </div>
+          <p role="status" className="sr-only">
+            {notice}
+          </p>
+          <div ref={photoFootEl} className="flex flex-col items-center gap-3">
+            <p key={notice ? "notice" : "hint"} aria-hidden={!!notice} className={`${HINT_PILL} ${pillFade} sm:hidden`}>
+              {notice || PHOTO_HINT_MOBILE}
+            </p>
+            <p key={notice ? "notice-wide" : "hint-wide"} aria-hidden={!!notice} className={`${HINT_PILL} ${pillFade} hidden sm:block`}>
+              {notice || PHOTO_HINT}
+            </p>
+            <Button icon="download" className="pointer-events-auto" disabled={saving} onClick={saveImage}>
+              이미지 저장
+            </Button>
+          </div>
+        </div>
+      )}
+      {/* 찍히는 순간 잠깐 밝아지는 면 */}
+      <div ref={flashEl} className="pointer-events-none absolute inset-0 z-20 bg-white opacity-0" aria-hidden="true" />
       {savedUrl && saveAs && <SavedImage url={savedUrl} name={saveAs} onClose={closeSaved} />}
     </main>
   );
