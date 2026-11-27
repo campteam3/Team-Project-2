@@ -28,6 +28,10 @@ const SHARE_TEXT = {
 const linkClass =
   "pointer-events-auto -my-1.5 inline-flex min-h-11 items-center px-3 text-[13px] text-ink-sub underline underline-offset-4 hover:text-ink";
 
+// 보낸 뒤의 "내 스노우볼도 만들기": 유리 면 보조 버튼을 작게 (빨간 주 버튼은 링크 복사 하나)
+const pillClass =
+  "pointer-events-auto inline-flex h-11 animate-fade items-center rounded-full border border-glass-border bg-glass px-5 text-[14px] font-semibold text-ink transition duration-200 ease-soft hover:bg-glass-strong active:scale-[0.97]";
+
 export default function GiftSendFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("pick");
@@ -39,6 +43,7 @@ export default function GiftSendFlow() {
   const [busy, setBusy] = useState(false);
   const [giftId, setGiftId] = useState("");
   const [sentBy, setSentBy] = useState("");
+  const [shared, setShared] = useState(false); // 링크 복사 · 카카오톡 보내기를 눌렀는지
   const [notice, say] = useNotice();
   const color = ORNAMENT_OPTIONS.find((o) => o.id === colorId)!.color;
 
@@ -53,6 +58,7 @@ export default function GiftSendFlow() {
       setMessage("");
       setGiftId("");
       setError("");
+      setShared(false);
     };
   }, []);
 
@@ -62,6 +68,7 @@ export default function GiftSendFlow() {
     setMessage("");
     setGiftId("");
     setError("");
+    setShared(false);
     setStep("pick");
   };
 
@@ -125,22 +132,23 @@ export default function GiftSendFlow() {
     <Stage
       theme={DEFAULT_THEME}
       scene={scene}
-      title="기념 메시지를 만들었어요"
-      subtitle="링크를 보내면 받은 사람이 열어 보고 자기 스노우볼에 달 수 있어요"
+      title="마음을 오너먼트에 담았어요"
+      subtitle={"링크를 보내면 받은 사람이 열어 보고\n자기 스노우볼에 달 수 있어요"}
       notice={notice}
       below={
         <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-x-2">
           <button type="button" onClick={sendAnother} className={linkClass}>
             하나 더 보내기
           </button>
-          <Link href="/new" className={linkClass}>
+          {/* 링크를 보내기 전에는 글자 링크로 두고, 보낸 뒤에만 버튼 모양으로 강조합니다 (김미영) */}
+          <Link href="/new" className={shared ? pillClass : linkClass}>
             내 스노우볼도 만들기
           </Link>
         </div>
       }
     >
       <div key={step} className="flex w-full animate-rise justify-center">
-        <ShareDock url={url} title={`${sentBy}님이 기념 메시지를 보냈어요`} onNotice={say} share={SHARE_TEXT} />
+        <ShareDock url={url} title={`${sentBy}님이 기념 메시지를 보냈어요`} onNotice={say} share={SHARE_TEXT} onShared={() => setShared(true)} />
       </div>
     </Stage>
   );
