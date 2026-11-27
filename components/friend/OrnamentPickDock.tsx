@@ -8,7 +8,7 @@ import { Button, IconButton } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { Icon } from "@/components/ui/Icons";
 import { SHAPE_LABEL, shapesFor, type OrnamentShape } from "@/lib/snowglobe";
-import { ORNAMENT_OPTIONS, type GlobeKind } from "@/lib/theme";
+import { ORNAMENT_OPTIONS, ornamentSwatch, type GlobeKind } from "@/lib/theme";
 
 type Props = {
   kind?: GlobeKind; // 오너먼트를 달 스노우볼의 주제. 주제마다 고를 수 있는 모양이 다릅니다 (안 넘기면 볼 · 별 · 하트)
@@ -64,7 +64,8 @@ export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick
             >
               <span
                 className="size-8 rounded-full border border-glass-border"
-                style={{ background: `radial-gradient(circle at 35% 30%, rgb(255 255 255 / 0.7), ${o.color} 45%)` }}
+                // 색 버튼은 3D 오너먼트의 실제 모습에 맞춘 색으로 보여 줍니다 (lib/theme.ts 의 ornamentSwatch, 이민정)
+                style={{ background: ornamentSwatch(o.color, true) }}
               />
             </button>
           );
