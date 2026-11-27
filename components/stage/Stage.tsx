@@ -69,7 +69,7 @@ export type StageProps = {
   arrivingId?: string; // 지금 막 달리는 오너먼트
   focusId?: string; // 이 오너먼트가 정면에 오도록 스노우볼을 돌립니다
   lockFront?: boolean;
-  holdGlobe?: boolean; // 휴대폰에서 스노우볼을 직전 크기 · 자리에 그대로 두고, 아래쪽 UI 가 그 위로 올라오게 합니다 (12 메시지 쓰기)
+  holdGlobe?: boolean; // 스노우볼을 직전 크기 · 자리에 그대로 두고, 아래쪽 UI 가 그 위로 올라오게 합니다 (12 메시지 쓰기)
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
   below?: ReactNode; // 도크 아래 작은 글자 링크
@@ -132,8 +132,8 @@ export default function Stage(props: StageProps) {
 
   // 아래쪽 UI 가 바뀐 화면이 그려지기 전에 켜야, 바뀐 UI 로 빈 공간을 다시 재지 않습니다
   useLayoutEffect(() => {
-    hold.current = !!holdGlobe && mobile;
-  }, [holdGlobe, mobile]);
+    hold.current = !!holdGlobe;
+  }, [holdGlobe]);
 
   // 3D 장면이 매 프레임 묻는 "UI 사이 빈 공간" (제목 아래 끝 ~ 아래쪽 UI 위 끝, 3D 무대 위 끝에서부터 px)
   const getSafeArea = useCallback(() => {
