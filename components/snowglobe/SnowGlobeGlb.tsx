@@ -12,13 +12,16 @@ import bakedBulbSeats from "@/lib/tree-bulb-seats.json";
 import { placeOrnaments, type OrnamentLike, type PlacedOrnament } from "@/lib/snowglobe";
 import type { GlobeKind } from "@/lib/theme";
 // 오너먼트 모델을 읽고 색을 입히는 부분은 OrnamentGlb.tsx 로 옮겼습니다 (기념 메시지 화면도 함께 씀, 차명근)
-import { NEWYEAR_ORNAMENT_URL, ORNAMENT_URL, OrnamentParts, useOrnamentMaterials, useOrnamentTemplates, type TemplatePart } from "./OrnamentGlb";
+import { BIRTHDAY_ORNAMENT_URL, NEWYEAR_ORNAMENT_URL, ORNAMENT_URL, OrnamentParts, useOrnamentMaterials, useOrnamentTemplates, type TemplatePart } from "./OrnamentGlb";
 
 const MODEL_URL = "/models/snowglobe.glb";
 // 새해 스노우볼(2027 정미년): 양 · 2027 · 한옥 담장 · 소반 위 떡국 · 황토 마당. 유리 · 받침대 · 명판은 크리스마스 모델과 같은 모양입니다.
 // 원본은 design/blender/newyear.blend, 만드는 스크립트는 scripts/blender/ 에 있습니다. (차명근)
 const NEWYEAR_URL = "/models/newyear.glb";
-export const globeModelUrl = (kind: GlobeKind = "christmas") => (kind === "newyear" ? NEWYEAR_URL : MODEL_URL);
+// 생일 스노우볼: 케이크 · 초 · 하트 풍선 · 선물 상자. 받침대 · 명판은 크리스마스 모델과 같은 자리이고 유리 구가 더 큽니다.
+// 원본은 design/blender/birthdayglobe.blend, 내보내는 스크립트는 scripts/blender/export_birthday.py 입니다. (김미영)
+const BIRTHDAY_URL = "/models/birthday.glb";
+export const globeModelUrl = (kind: GlobeKind = "christmas") => (kind === "newyear" ? NEWYEAR_URL : kind === "birthday" ? BIRTHDAY_URL : MODEL_URL);
 // 추가 소품(루돌프 · 과자집). 고른 사람만 내려받도록 스노우볼 본체와 다른 파일에 둡니다 (이민정)
 const PROPS_URL = "/models/props.glb";
 
@@ -43,6 +46,9 @@ function createGlassMaterial(back: boolean) {
       uBackdropShow: backdropUniforms.uBackdropShow,
       uBackdropViewAspect: backdropUniforms.uBackdropViewAspect,
       uBackdropImageAspect: backdropUniforms.uBackdropImageAspect,
+      // 밝은 낮 배경(생일 스노우볼)에서는 비친 배경이 유리를 뿌옇게 덮으므로 줄입니다: 비치는 정도(uMirror)와 밝은 곳을 더 밝히는 정도(uBoost). 기본 1
+      uMirror: { value: 1 },
+      uBoost: { value: 1 },
     },
     vertexShader: /* glsl */ `
       uniform vec3 uCenter;
@@ -69,6 +75,8 @@ function createGlassMaterial(back: boolean) {
       uniform float uBackdropShow;
       uniform float uBackdropViewAspect;
       uniform float uBackdropImageAspect;
+      uniform float uMirror;
+      uniform float uBoost;
       varying vec3 vNormal;
       varying vec3 vView;
       varying vec4 vClip;
@@ -92,7 +100,7 @@ function createGlassMaterial(back: boolean) {
       // 가로등 · 창문 같은 불빛은 실제로는 그림에 보이는 것보다 훨씬 밝으므로, 밝은 곳일수록 더 밝게 돌려줍니다.
       vec3 lit(vec3 picture, float boost) {
         float glow = smoothstep(0.3, 0.85, dot(picture, vec3(0.3, 0.6, 0.1)));
-        return beforeToneMapping(picture) * (1.0 + boost * glow);
+        return beforeToneMapping(picture) * (1.0 + boost * uBoost * glow);
       }
       void main() {
         vec3 n = normalize(vNormal) * (uBack > 0.5 ? -1.0 : 1.0);
@@ -123,7 +131,7 @@ function createGlassMaterial(back: boolean) {
         float ballM = 2.0 * sqrt(r.x * r.x + r.y * r.y + (r.z + 1.0) * (r.z + 1.0));
         vec2 ballUv = r.xy / max(ballM, 0.0001) + 0.5;
         vec3 scene = lit(texture2D(uBackdropMap, ballUv, 2.0).rgb, 3.0);
-        float mirror = (0.04 + 0.96 * pow(1.0 - facing, 2.2)) * uBackdropShow * mix(0.9, 0.22, uBack);
+        float mirror = (0.04 + 0.96 * pow(1.0 - facing, 2.2)) * uBackdropShow * mix(0.9, 0.22, uBack) * uMirror;
 
         // 3) 흰 반사광: 왼쪽 위의 넓고 부드러운 창빛과 그 안의 또렷한 창, 오른쪽 가는 창.
         //    트리를 가리지 않도록 모두 유리 가장자리 쪽(가운데에서 테두리까지의 0.75~0.85 지점)에 맺히게 합니다.
@@ -580,8 +588,37 @@ function woolLook(material: THREE.MeshStandardMaterial, layer: number, size: num
 const TREE_MATERIAL = "W_Ceramic_Green";
 const TRUNK_MATERIAL = "W_Ceramic_Trunk";
 const BASE_MATERIAL = "W_Base_RedMat";
+// 생일 스노우볼에서 꾸미기 색을 입히는 재질: 케이크 몸통 · 아이싱(흘러내린 것과 조개 크림) · 받침대 · 색이 바뀌는 풍선 두 개
+const CAKE_MATERIAL = "W_Cake_Cream";
+const ICING_MATERIAL = "W_Cake_Icing";
+const STAND_MATERIAL = "W_Stand_Body";
+const BALLOON_MATERIALS = ["W_Balloon_Pink", "W_Balloon_Rose"];
 
 type Tune = (material: THREE.MeshStandardMaterial) => void;
+
+// 은박 풍선: 매끈하고 반짝이는 표면
+function makeBalloon(material: THREE.MeshStandardMaterial) {
+  material.roughness = 0.22;
+  material.metalness = 0.1;
+  material.envMapIntensity = 0.55;
+  if (material instanceof THREE.MeshPhysicalMaterial) {
+    material.clearcoat = 0.6;
+    material.clearcoatRoughness = 0.15;
+  }
+}
+
+// 선명한 색: 하늘빛 주변 반사와 마지막 색 보정을 거치면 분홍이 푸르스름하게 탁해지므로, 제 색으로 은은하게 빛나게 해서 채도를 지킵니다 (김미영)
+function makeVivid(material: THREE.MeshStandardMaterial, color: string, glow = 0.45) {
+  material.color.set(color);
+  material.emissive.set(color);
+  material.emissiveIntensity = glow;
+}
+
+// 낮 배경(생일 스노우볼)용 색 입히기: 스스로 내는 빛 없이 색만 바꿉니다
+function recolorPlain(material: THREE.MeshStandardMaterial, color: string) {
+  material.color.set(color);
+  material.emissive.set("#000000");
+}
 
 // 재질 이름별로 웹에서 다듬는 값. Blender 에서 넘어온 색 위에 덧입힙니다.
 const MATERIAL_TUNES: Record<string, Tune> = {
@@ -622,6 +659,40 @@ const MATERIAL_TUNES: Record<string, Tune> = {
   W_Gold: (material) => makeGold(material, 0.16),
   W_Base_ReliefGold: (material) => makeGold(material, 0.24),
   W_Base_HollyRed: (material) => makeMatte(material, 0.6, 0.35),
+  // ── 생일 스노우볼 (김미영) ── 밝은 낮 배경이라 스스로 내는 빛 없이, 부드럽게 윤이 나는 클레이로만 다듬습니다
+  W_Cake_Cream: (material) => makeMatte(material, 0.75, 0.3),
+  W_Cake_Icing: (material) => makeSoftGloss(material),
+  W_Cake_Ribbon: (material) => {
+    makeSatin(material);
+    makeVivid(material, "#ff7fa9");
+  },
+  W_Stand_Body: (material) => makeSoftGloss(material),
+  // 분홍 풍선 · 초 · 분홍 선물 상자: 푸른 기 없이 맑은 분홍으로
+  W_Balloon_Pink: (material) => {
+    makeBalloon(material);
+    makeVivid(material, "#ff8cb0", 0.3);
+  },
+  W_Balloon_Rose: (material) => {
+    makeBalloon(material);
+    makeVivid(material, "#f2658f", 0.3);
+  },
+  W_Gift_Pink: (material) => makeVivid(material, "#ff8fb3", 0.35),
+  W_Balloon_Pearl: (material) => makeBalloon(material),
+  W_Balloon_Silver: (material) => {
+    makeBalloon(material);
+    material.metalness = 0.85;
+    material.roughness = 0.18;
+  },
+  W_Candle_Body: (material) => {
+    makeSoftGloss(material);
+    makeVivid(material, "#ff6f9f");
+  },
+  // 촛불: 스스로 빛나서 빛 번짐이 생깁니다
+  W_Candle_Flame: (material) => {
+    material.color.set("#fff1c4");
+    material.emissive.set("#ffb648");
+    material.emissiveIntensity = 2.2;
+  },
   // ── 새해 스노우볼 (차명근) ──
   // 양털: 광택 없이 포근하게. 따뜻한 조명 아래에서 누렇게 죽지 않도록 제 색으로 살짝 밝힙니다.
   // 양모 펠트 인형처럼: 털은 크림색에 보풀이 인 듯한 결, 얼굴 · 귀 · 다리는 결이 고운 펠트
@@ -1165,12 +1236,16 @@ export type GlobeLook = {
   // 새해 스노우볼의 윷가락(조각보) · 복조리
   showYut?: boolean;
   showBokjori?: boolean;
+  // 생일 스노우볼의 색이 바뀌는 풍선 두 개 (밝은 톤 · 진한 톤). 없으면 모델 원래 색(분홍)
+  balloonColors?: [string, string];
 };
 
 // 유리 안의 따뜻한 불빛: 트리 아래 눈을 비추는 빛과 꼭대기 별의 빛. 모델과 같은 자리에 둡니다.
 // 새해 스노우볼은 양 다리 바로 앞에 불빛이 놓이지 않게, 위에서 은은하게 비추는 빛 하나만 둡니다 (차명근)
 export function GlobeInnerLights({ kind = "christmas" }: { kind?: GlobeKind }) {
   if (kind === "newyear") return <pointLight position={[0.1, 1.3, 0.7]} intensity={0.4} distance={2.2} color="#ffd9a6" />;
+  // 생일 스노우볼: 촛불 자리에서 케이크 윗면을 따뜻하게 비추는 빛 (김미영)
+  if (kind === "birthday") return <pointLight position={[0, 1.15, 0.1]} intensity={0.5} distance={1.6} color="#ffc777" />;
   return (
     <>
       <pointLight position={[0.25, 0.42, 0.75]} intensity={0.55} distance={2.4} color="#ffb265" />
@@ -1189,7 +1264,7 @@ function recolor(material: THREE.MeshStandardMaterial, color: string, rimStrengt
 }
 
 // 스노우볼 본체. 유리, 전구 줄, 별, 명패와 재질 값을 웹에 맞게 바꿉니다.
-export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkColor, baseColor, showGifts = true, showSnowman = true, showYut = true, showBokjori = true }: GlobeLook) {
+export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkColor, baseColor, balloonColors, showGifts = true, showSnowman = true, showYut = true, showBokjori = true }: GlobeLook) {
   const { scene } = useGLTF(globeModelUrl(kind));
 
   // 글꼴이 늦게 불러와지면 명패 글자를 그 글꼴로 다시 그립니다.
@@ -1320,6 +1395,12 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
         if (name === TREE_MATERIAL && treeColor) recolor(next, treeColor, 0.2);
         if (name === TRUNK_MATERIAL && trunkColor) recolor(next, trunkColor, 0.1);
         if (name === BASE_MATERIAL && baseColor) recolor(next, baseColor, 0.18);
+        // 생일 스노우볼: 케이크 색(treeColor) · 아이싱 색(trunkColor) · 받침대 색 · 풍선 색
+        if (name === CAKE_MATERIAL && treeColor) recolorPlain(next, treeColor);
+        if (name === ICING_MATERIAL && trunkColor) recolorPlain(next, trunkColor);
+        if (name === STAND_MATERIAL && baseColor) recolorPlain(next, baseColor);
+        const balloon = BALLOON_MATERIALS.indexOf(name);
+        if (balloon >= 0 && balloonColors) makeVivid(next, balloonColors[balloon], 0.3);
         tuned.set(name, next);
       }
       mesh.material = next;
@@ -1341,6 +1422,13 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
       }
     }
     // 유리는 건너편 안쪽 면을 먼저, 앞면을 나중에 그립니다.
+    // 생일 스노우볼: 밝은 하늘 배경이 유리에 하얗게 비쳐 안이 흐려 보이지 않게 반사를 줄입니다 (김미영)
+    if (kind === "birthday") {
+      for (const glass of [glassFront, glassBack]) {
+        glass.uniforms.uMirror.value = 0.35;
+        glass.uniforms.uBoost.value = 0.1;
+      }
+    }
     for (const mesh of glassMeshes) {
       fitGlass(mesh, [glassFront, glassBack]);
       const inner = mesh.clone();
@@ -1351,7 +1439,7 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
       mesh.renderOrder = 10;
     }
     return copy;
-  }, [scene, nameplate, treeColor, trunkColor, baseColor, showGifts, showSnowman, showYut, showBokjori]);
+  }, [scene, kind, nameplate, treeColor, trunkColor, baseColor, balloonColors, showGifts, showSnowman, showYut, showBokjori]);
 
   // 새해 스노우볼의 마당 그림자: 꾸미기에서 끈 소품은 그림자도 지웁니다
   useEffect(() => {
@@ -1504,7 +1592,7 @@ export function Ornaments({
   reducedMotion?: boolean;
   onSelect?: (id: string) => void;
 }) {
-  const templates = useOrnamentTemplates(kind === "newyear" ? NEWYEAR_ORNAMENT_URL : ORNAMENT_URL);
+  const templates = useOrnamentTemplates(kind === "newyear" ? NEWYEAR_ORNAMENT_URL : kind === "birthday" ? BIRTHDAY_ORNAMENT_URL : ORNAMENT_URL);
   const placed = useMemo(() => placeOrnaments(ornaments, kind), [ornaments, kind]);
 
   return (

@@ -7,9 +7,15 @@
 // 예전에 코드로 그리던 겨울밤 배경은 components/SnowGlobeAtmosphere.tsx 에 남아 있습니다.
 // ─────────────────────────────────────────────────────────────
 
+import type { GlobeKind } from "@/lib/theme";
+import type { BackdropScene } from "./backdropShared";
 import PhotoBackdrop from "./PhotoBackdrop";
 
+// 스노우볼 주제에 맞는 배경 그림
+export const backdropScene = (kind?: GlobeKind): BackdropScene => (kind === "newyear" ? "sunrise" : kind === "birthday" ? "birthday" : "village");
+
 // sunrise: 새해 스노우볼은 눈 내린 마을 대신 일출 그림을 깝니다 (차명근)
-export default function VillageBackdrop({ sunrise = false }: { sunrise?: boolean }) {
-  return <PhotoBackdrop sunrise={sunrise} />;
+// scene: 생일 스노우볼의 파티 배경 등 주제별 그림 (김미영). 주면 sunrise 보다 먼저 봅니다.
+export default function VillageBackdrop({ sunrise = false, scene }: { sunrise?: boolean; scene?: BackdropScene }) {
+  return <PhotoBackdrop sunrise={sunrise} scene={scene} />;
 }

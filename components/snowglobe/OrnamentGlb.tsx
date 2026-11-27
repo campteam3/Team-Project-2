@@ -13,6 +13,8 @@ import { ornamentOptionIndex } from "@/lib/theme";
 export const ORNAMENT_URL = "/models/ornaments.glb";
 // 새해 스노우볼 전용 오너먼트(복주머니 · 방패연 · 노리개). 새해 스노우볼을 그릴 때에만 받습니다. (차명근)
 export const NEWYEAR_ORNAMENT_URL = "/models/ornaments-newyear.glb";
+// 생일 스노우볼 전용 토핑(머랭 키스 · 사탕 구슬 · 젤리 별). 생일 스노우볼을 그릴 때에만 받습니다. (김미영)
+export const BIRTHDAY_ORNAMENT_URL = "/models/ornaments-birthday.glb";
 const TEMPLATE_NAMES: Record<OrnamentShape, string> = {
   ball: "t_Orn_Ball",
   star: "t_Orn_Star",
@@ -22,10 +24,14 @@ const TEMPLATE_NAMES: Record<OrnamentShape, string> = {
   pouch: "t_Orn_Pouch",
   kite: "t_Orn_Kite",
   norigae: "t_Orn_Norigae",
+  kiss: "t_Orn_Kiss",
+  candy: "t_Orn_Candy",
+  jelly: "t_Orn_Jelly",
 };
 const NEWYEAR_SHAPES: OrnamentShape[] = ["pouch", "kite", "norigae"];
+const BIRTHDAY_SHAPES: OrnamentShape[] = ["kiss", "candy", "jelly"];
 // 그 모양의 원형이 들어 있는 파일
-export const ornamentUrl = (shape: OrnamentShape) => (NEWYEAR_SHAPES.includes(shape) ? NEWYEAR_ORNAMENT_URL : ORNAMENT_URL);
+export const ornamentUrl = (shape: OrnamentShape) => (NEWYEAR_SHAPES.includes(shape) ? NEWYEAR_ORNAMENT_URL : BIRTHDAY_SHAPES.includes(shape) ? BIRTHDAY_ORNAMENT_URL : ORNAMENT_URL);
 
 export type TemplatePart = {
   shape: OrnamentShape;
@@ -39,7 +45,7 @@ export type TemplatePart = {
 export function useOrnamentTemplates(url: string = ORNAMENT_URL) {
   const { scene } = useGLTF(url);
   return useMemo(() => {
-    const templates: Record<OrnamentShape, TemplatePart[]> = { ball: [], star: [], heart: [], cane: [], gift: [], pouch: [], kite: [], norigae: [] };
+    const templates: Record<OrnamentShape, TemplatePart[]> = { ball: [], star: [], heart: [], cane: [], gift: [], pouch: [], kite: [], norigae: [], kiss: [], candy: [], jelly: [] };
     for (const shape of Object.keys(TEMPLATE_NAMES) as OrnamentShape[]) {
       scene.getObjectByName(TEMPLATE_NAMES[shape])?.traverse((child) => {
         const mesh = child as THREE.Mesh;

@@ -112,7 +112,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
     setStep("done");
   };
 
-  const common = { theme, ornaments, plateText: name, hint: HINT, hintMobile: theme.kind === "newyear" ? "폰을 흔들어 폭죽을 터뜨려 보세요" : HINT_MOBILE };
+  const common = { theme, ornaments, plateText: name, hint: HINT, hintMobile: theme.kind === "newyear" || theme.kind === "birthday" ? "폰을 흔들어 폭죽을 터뜨려 보세요" : HINT_MOBILE };
 
   if (step === "view") {
     return (
@@ -165,7 +165,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         subtitle="1 / 2 단계"
         // 고르는 동안에는 스노우볼 대신 고른 오너먼트 하나를 크게 보여 줍니다. 스노우볼에 달린 모습은 작아서 모양 · 색을 견주기 어렵다는 의견 (차명근)
         // 달릴 자리는 다음 단계(메시지 쓰기)에서 스노우볼로 돌아와 보여 줍니다.
-        scene={<GiftOrnamentScene shape={shape} color={color} sunrise={theme.kind === "newyear"} />}
+        scene={<GiftOrnamentScene shape={shape} color={color} scene={theme.kind === "newyear" ? "sunrise" : theme.kind === "birthday" ? "birthday" : "village"} />}
         hint="고르는 대로 바로 바뀌어요. 드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
         hintMobile="고르는 대로 바로 바뀌어요"
       >

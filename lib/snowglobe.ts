@@ -2,24 +2,29 @@
 // 자리 값은 Blender 원본(design/blender/snowglobe.blend)에서 내보낸 lib/snowglobe-slots.json 에 있습니다.
 // 좌표는 모델 원본 그대로입니다: 유리 구의 가운데가 (0, 0.55, 0), 반지름 1.
 
+import birthdaySlotData from "@/lib/birthday-slots.json";
 import newyearSlotData from "@/lib/newyear-slots.json";
 import slotData from "@/lib/snowglobe-slots.json";
 import type { GlobeKind } from "@/lib/theme";
 
-// DB 의 shape 칸에 들어가는 이름. 볼 · 별 · 하트 · 지팡이 사탕 · 선물 상자는 크리스마스 · 생일, 복주머니 · 방패연 · 노리개는 새해 스노우볼 전용입니다.
-export const ORNAMENT_SHAPES = ["ball", "star", "heart", "cane", "gift", "pouch", "kite", "norigae"] as const;
+// DB 의 shape 칸에 들어가는 이름. 볼 · 별 · 하트 · 지팡이 사탕 · 선물 상자는 크리스마스, 복주머니 · 방패연 · 노리개는 새해,
+// 머랭 키스 · 사탕 구슬 · 젤리 별은 생일 스노우볼(케이크에 올리는 토핑) 전용입니다.
+export const ORNAMENT_SHAPES = ["ball", "star", "heart", "cane", "gift", "pouch", "kite", "norigae", "kiss", "candy", "jelly"] as const;
 export type OrnamentShape = (typeof ORNAMENT_SHAPES)[number];
 // 사탕 = 지팡이 사탕, 선물 = 선물 상자 (이민정). 휴대폰 한 줄에 다섯 개가 들어가게 짧게 부릅니다
-export const SHAPE_LABEL: Record<OrnamentShape, string> = { ball: "볼", star: "별", heart: "하트", cane: "사탕", gift: "선물", pouch: "복주머니", kite: "방패연", norigae: "노리개" };
+export const SHAPE_LABEL: Record<OrnamentShape, string> = { ball: "볼", star: "별", heart: "하트", cane: "사탕", gift: "선물", pouch: "복주머니", kite: "방패연", norigae: "노리개", kiss: "머랭", candy: "사탕", jelly: "젤리 별" };
 
 const BASIC_SHAPES: readonly OrnamentShape[] = ["ball", "star", "heart", "cane", "gift"];
 const NEWYEAR_SHAPES: readonly OrnamentShape[] = ["pouch", "kite", "norigae"];
+const BIRTHDAY_SHAPES: readonly OrnamentShape[] = ["kiss", "candy", "jelly"];
+const SHAPE_LISTS = [BASIC_SHAPES, NEWYEAR_SHAPES, BIRTHDAY_SHAPES];
 
 // 그 주제의 스노우볼에서 고를 수 있는 모양
-export const shapesFor = (kind: GlobeKind = "christmas"): readonly OrnamentShape[] => (kind === "newyear" ? NEWYEAR_SHAPES : BASIC_SHAPES);
+export const shapesFor = (kind: GlobeKind = "christmas"): readonly OrnamentShape[] => (kind === "newyear" ? NEWYEAR_SHAPES : kind === "birthday" ? BIRTHDAY_SHAPES : BASIC_SHAPES);
 
 // 매다는 모양(볼 · 지팡이 사탕 · 선물 상자)인지. 별 · 하트는 경사면에 얹는 쿠키 모양이고, 새해 모양은 양털에 붙이는 브로치라 얹는 자리로 봅니다.
-const HANGING: readonly OrnamentShape[] = ["ball", "cane", "gift"];
+// 생일 스노우볼에서는 케이크 윗면에 올리는 토핑(머랭 키스 · 사탕 구슬)이 hang 자리, 옆면에 붙이는 젤리 별이 slope 자리를 씁니다.
+const HANGING: readonly OrnamentShape[] = ["ball", "cane", "gift", "kiss", "candy"];
 const hangs = (shape: OrnamentShape) => HANGING.includes(shape);
 
 // 모르는 이름이나 그 주제에 없는 모양이 오면 그 주제의 첫 모양(크리스마스는 볼, 새해는 복주머니)으로 그립니다.
@@ -28,7 +33,7 @@ const hangs = (shape: OrnamentShape) => HANGING.includes(shape);
 export function toShape(value: string | undefined, kind?: GlobeKind): OrnamentShape {
   const allowed = kind ? shapesFor(kind) : ORNAMENT_SHAPES;
   if (value !== undefined && (allowed as readonly string[]).includes(value)) return value as OrnamentShape;
-  const order = Math.max(BASIC_SHAPES.indexOf(value as OrnamentShape), NEWYEAR_SHAPES.indexOf(value as OrnamentShape));
+  const order = Math.max(...SHAPE_LISTS.map((list) => list.indexOf(value as OrnamentShape)));
   return allowed[Math.min(Math.max(order, 0), allowed.length - 1)];
 }
 
@@ -76,19 +81,23 @@ const side = (slot: Slot) => (offFront(slot) < Math.PI / 3 ? 0 : offFront(slot) 
 // 한 스노우볼의 자리 묶음: 자리, 자리 사이의 거리, 자리마다의 기본 점수
 type SlotSet = { slots: Slot[]; apart: number[][]; score: Record<Slot["kind"], number[]> };
 
-function createSlotSet(slots: Slot[]): SlotSet {
+// strict: 모양에 맞지 않는 종류의 자리는 맞는 자리가 다 찰 때까지 쓰지 않습니다 (생일 케이크: 머랭 키스가 옆면에 붙지 않게)
+function createSlotSet(slots: Slot[], strict = false): SlotSet {
   // 자리 사이의 거리 (자리 번호는 slots 의 순서와 같습니다)
   const apart = slots.map((a) => slots.map((b) => Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1], a.position[2] - b.position[2])));
   // 자리마다의 기본 점수: 앞쪽일수록, 모양에 맞는 종류(kind)일수록, 정면에 가까울수록 높습니다.
   // 볼 · 지팡이 사탕 · 선물 상자는 매다는 자리가, 별 · 하트는 얹는 자리가 맞는 자리입니다. 앞쪽에 맞는 자리가 없으면 앞쪽의 다른 종류 자리를 쓰고, 그다음에 옆 · 뒤로 넘어갑니다.
-  const baseScore = (kind: Slot["kind"]) => slots.map((slot) => -side(slot) * 10 - Number(slot.kind !== kind) * 5 - offFront(slot) * 0.3);
+  const baseScore = (kind: Slot["kind"]) => slots.map((slot) => -side(slot) * 10 - Number(slot.kind !== kind) * (strict ? 1000 : 5) - offFront(slot) * 0.3);
   return { slots, apart, score: { hang: baseScore("hang"), slope: baseScore("slope") } };
 }
 
 const TREE_SET = createSlotSet(SLOTS);
 // 새해 스노우볼: 양 몸통의 자리 (design/blender/newyear.blend 의 Slot_00 ~ Slot_38)
 const NEWYEAR_SET = createSlotSet(newyearSlotData.slots as unknown as Slot[]);
-const slotSet = (kind: GlobeKind = "christmas") => (kind === "newyear" ? NEWYEAR_SET : TREE_SET);
+// 생일 스노우볼: 케이크 윗면(hang) · 옆면(slope)의 자리 (scripts/blender/export_birthday.py 가 design/blender/birthdayglobe.blend 에서 뽑음)
+// 자리가 종류마다 넉넉해서, 한 가지 토핑만 골라도 거의 모두 제 종류 자리에 놓입니다.
+const BIRTHDAY_SET = createSlotSet(birthdaySlotData.slots as unknown as Slot[], true);
+const slotSet = (kind: GlobeKind = "christmas") => (kind === "newyear" ? NEWYEAR_SET : kind === "birthday" ? BIRTHDAY_SET : TREE_SET);
 
 // 그 주제 스노우볼의 오너먼트 자리
 export const slotsFor = (kind?: GlobeKind) => slotSet(kind).slots;

@@ -573,6 +573,9 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
         ))}
       </div>
 
+      {/* 생일 스노우볼은 배경이 밝은 하늘이라, 흰 제목과 위쪽 버튼이 읽히도록 위쪽에만 옅은 그늘을 깝니다 (김미영) */}
+      {theme.kind === "birthday" && !photo && <div className="pointer-events-none absolute inset-x-0 top-0 z-[7] h-48 bg-gradient-to-b from-[#34447c]/65 via-[#34447c]/25 to-transparent" aria-hidden="true" />}
+
       {/* 앞: UI */}
       {/* 사진 찍기 화면에서는 통째로 숨깁니다 (자리는 그대로 남겨, 닫으면 스노우볼이 제자리로 돌아옵니다) */}
       <div className={`pointer-events-none absolute inset-x-0 top-[var(--vv-top,0px)] z-10 flex h-[var(--vv-h,100%)] flex-col ${photo ? "invisible" : ""} [transition:height_var(--vv-t,0ms)_var(--ease-soft)] px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 kb:pb-[calc(0.75rem+var(--kb-clear,0px))] kb:pt-3 sm:px-8 sm:pb-8 sm:pt-8`}>

@@ -17,6 +17,16 @@ export const SUNRISE_IMAGES = {
   mobile: { url: "/backgrounds/sunrise-mobile.webp", aspect: 941 / 1672 },
 };
 
+// 생일 스노우볼의 배경: 파란 하늘 · 구름 · 은박 별, 좌우의 파스텔 풍선 (김미영이 GPT 로 만든 그림, 원본은 design/backgrounds/birthday-*.png)
+export const BIRTHDAY_IMAGES = {
+  web: { url: "/backgrounds/birthday-web.webp", aspect: 1672 / 941 },
+  mobile: { url: "/backgrounds/birthday-mobile.webp", aspect: 941 / 1672 },
+};
+
+// 배경 그림의 종류: 눈 내린 마을(기본) · 일출(새해) · 생일 파티
+export type BackdropScene = "village" | "sunrise" | "birthday";
+export const backdropImages = (scene: BackdropScene) => (scene === "sunrise" ? SUNRISE_IMAGES : scene === "birthday" ? BIRTHDAY_IMAGES : BACKDROP_IMAGES);
+
 export const backdropUniforms = {
   uBackdropMap: { value: null as THREE.Texture | null },
   uBackdropShow: { value: 0 }, // 그림이 서서히 나타나는 정도 (0~1)
