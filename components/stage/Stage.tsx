@@ -577,7 +577,8 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       {/* 사진 찍기 화면에서는 통째로 숨깁니다 (자리는 그대로 남겨, 닫으면 스노우볼이 제자리로 돌아옵니다) */}
       <div className={`pointer-events-none absolute inset-x-0 top-[var(--vv-top,0px)] z-10 flex h-[var(--vv-h,100%)] flex-col ${photo ? "invisible" : ""} [transition:height_var(--vv-t,0ms)_var(--ease-soft)] px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 kb:pb-[calc(0.75rem+var(--kb-clear,0px))] kb:pt-3 sm:px-8 sm:pb-8 sm:pt-8`}>
         {/* 전체 화면 버튼은 넓은 화면에서만 보입니다. 휴대폰은 이미 화면을 꽉 채우고, 아이폰은 전체 화면이 되지 않습니다 (FEEDBACK C6) */}
-        <div className="pointer-events-auto absolute left-4 top-4 flex flex-col items-start gap-2 kb:hidden sm:left-8 sm:top-8">
+        {/* z-20: 왼쪽 위 스노우볼 고르기 목록이 펼쳐질 때 제목 위에 오게 합니다 (휴대폰에서 제목과 겹침, 차명근) */}
+        <div className="pointer-events-auto absolute left-4 top-4 z-20 flex flex-col items-start gap-2 kb:hidden sm:left-8 sm:top-8">
           <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} className="max-sm:hidden" />
           {topLeft}
         </div>
