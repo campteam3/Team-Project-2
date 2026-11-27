@@ -189,7 +189,59 @@ type ShaderExtras = {
   grain?: { scale: number; strength: number };
   // 볼터치: 두 점에서 부드럽게 번지는 색. 점의 자리는 모델 파일 기준 좌표이고, matrix 는 그 메시를 모델 파일 기준으로 옮기는 값입니다.
   blush?: { points: [[number, number, number], [number, number, number]]; radius: number; color: string; strength: number; matrix: { value: THREE.Matrix4 } };
+  // 털 겹: 같은 메시를 바깥으로 조금씩 부풀려 여러 겹 그리고, 겹마다 잔 가닥 무늬만 남깁니다 (복실복실한 보풀).
+  // layer: 0 = 바탕, 1 = 가장 바깥 겹. length · scale 은 메시 자체 좌표 기준입니다.
+  fur?: { layer: number; length: number; scale: number };
+  // 반짝임: 표면의 잔 알갱이가 보는 각도에 따라 빛을 튕겨 반짝입니다 (쌓인 눈). 스노우볼을 돌리면 반짝이는 자리가 바뀝니다.
+  sparkle?: { scale: number; strength: number };
+  // 멍석: 짚으로 꼰 새끼줄을 둥글게 돌려 엮은 깔개의 무늬. 가운데에서 바깥으로 고리가 이어지고, 고리마다 꼬임 결이 있습니다.
+  // rings: 가운데에서 가장자리까지의 고리 수(메시 자체 좌표 기준), twist: 고리 한 칸 길이에 들어가는 꼬임 수, groove: 골의 색
+  straw?: { rings: number; twist: number; groove: string; depth: number };
 };
+
+const STRAW_GLSL = /* glsl */ `
+  varying vec3 vStrawPos;
+  uniform float uStrawRings;
+  uniform float uStrawTwist;
+  // 멍석의 높낮이 (0 = 골, 1 = 새끼줄의 등)
+  float strawHeight() {
+    float radius = length(vStrawPos.xz) * uStrawRings;
+    float row = floor(radius);
+    float across = fract(radius);
+    float angle = atan(vStrawPos.z, vStrawPos.x);
+    // 고리가 클수록 꼬임 수도 늘어 꼬임 하나의 크기가 비슷합니다. 이웃한 고리는 꼬임이 엇갈립니다
+    float count = floor((row + 1.0) * uStrawTwist);
+    float braid = 0.5 + 0.5 * sin(angle * count + across * 4.2 + row * 2.4);
+    float rope = sin(across * 3.14159);
+    return rope * (0.62 + 0.38 * braid);
+  }
+`;
+
+const FUR_GLSL = /* glsl */ `
+  varying vec3 vFurPos;
+  uniform float uFurLayer;
+  uniform float uFurScale;
+  float furHash(vec3 p) {
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+  }
+  float furNoise(vec3 x) {
+    vec3 i = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(mix(furHash(i), furHash(i + vec3(1, 0, 0)), f.x), mix(furHash(i + vec3(0, 1, 0)), furHash(i + vec3(1, 1, 0)), f.x), f.y),
+      mix(mix(furHash(i + vec3(0, 0, 1)), furHash(i + vec3(1, 0, 1)), f.x), mix(furHash(i + vec3(0, 1, 1)), furHash(i + vec3(1, 1, 1)), f.x), f.y),
+      f.z);
+  }
+  // 곱슬한 가닥 무늬 (0~1): 자리를 굵은 잡음으로 휘어 가닥이 말려 보이게 합니다
+  float furStrand() {
+    vec3 p = vFurPos * uFurScale;
+    vec3 curl = vec3(furNoise(p * 0.3), furNoise(p * 0.3 + 11.3), furNoise(p * 0.3 + 27.1)) - 0.5;
+    return furNoise(p + curl * 2.4);
+  }
+`;
 
 const GRAIN_GLSL = /* glsl */ `
   varying vec3 vGrainPos;
@@ -229,6 +281,84 @@ function applyShaderExtras(material: THREE.MeshStandardMaterial, extras: ShaderE
         vec3 grainVector = vec3(grainNoise(grainPoint), grainNoise(grainPoint + 17.3), grainNoise(grainPoint + 41.7)) - 0.5;
         normal = normalize(normal + grainVector * uGrainStrength);`,
       );
+    }
+    if (extras.fur) {
+      shader.uniforms.uFurLayer = { value: extras.fur.layer };
+      shader.uniforms.uFurLength = { value: extras.fur.length };
+      shader.uniforms.uFurScale = { value: extras.fur.scale };
+      vertex = vertex
+        .replace("#include <common>", "#include <common>\nvarying vec3 vFurPos;\nuniform float uFurLayer;\nuniform float uFurLength;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvFurPos = position;\ntransformed += normalize(objectNormal) * uFurLength * uFurLayer;");
+      fragment = fragment
+        .replace("#include <common>", `#include <common>\n${FUR_GLSL}`)
+        .replace(
+          "#include <color_fragment>",
+          `#include <color_fragment>
+          float furStrandValue = furStrand();
+          // 바깥 겹일수록 굵은 가닥만 남습니다
+          if (uFurLayer > 0.0 && furStrandValue < 0.2 + 0.6 * uFurLayer) discard;
+          // 가닥 사이 골은 어둡고 털끝은 밝게
+          diffuseColor.rgb *= mix(0.74 + 0.2 * furStrandValue, 1.08, uFurLayer);`,
+        );
+    }
+    if (extras.straw) {
+      shader.uniforms.uStrawRings = { value: extras.straw.rings };
+      shader.uniforms.uStrawTwist = { value: extras.straw.twist };
+      shader.uniforms.uStrawGroove = { value: new THREE.Color(extras.straw.groove) };
+      shader.uniforms.uStrawDepth = { value: extras.straw.depth };
+      vertex = vertex
+        .replace("#include <common>", "#include <common>\nvarying vec3 vStrawPos;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvStrawPos = position;");
+      fragment = fragment
+        .replace("#include <common>", `#include <common>\n${STRAW_GLSL}\nuniform vec3 uStrawGroove;\nuniform float uStrawDepth;`)
+        .replace(
+          "#include <color_fragment>",
+          `#include <color_fragment>
+          float strawH = strawHeight();
+          diffuseColor.rgb = mix(uStrawGroove, diffuseColor.rgb, smoothstep(0.0, 0.75, strawH));`,
+        )
+        .replace(
+          "#include <normal_fragment_maps>",
+          `#include <normal_fragment_maps>
+          // 높낮이를 따라 겉면을 기울여 새끼줄이 도톰해 보이게 합니다
+          vec3 strawSx = dFdx(-vViewPosition);
+          vec3 strawSy = dFdy(-vViewPosition);
+          vec3 strawR1 = cross(strawSy, normal);
+          vec3 strawR2 = cross(normal, strawSx);
+          float strawDet = dot(strawSx, strawR1);
+          vec2 strawSlope = vec2(dFdx(strawH), dFdy(strawH)) * uStrawDepth;
+          normal = normalize(abs(strawDet) * normal - sign(strawDet) * (strawSlope.x * strawR1 + strawSlope.y * strawR2));`,
+        );
+    }
+    if (extras.sparkle) {
+      shader.uniforms.uSparkleScale = { value: extras.sparkle.scale };
+      shader.uniforms.uSparkleStrength = { value: extras.sparkle.strength };
+      vertex = vertex
+        .replace("#include <common>", "#include <common>\nvarying vec3 vSparklePos;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvSparklePos = position;");
+      fragment = fragment
+        .replace(
+          "#include <common>",
+          `#include <common>
+          varying vec3 vSparklePos;
+          uniform float uSparkleScale;
+          uniform float uSparkleStrength;
+          float sparkleHash(vec3 p) {
+            p = fract(p * 0.3183099 + 0.1);
+            p *= 17.0;
+            return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+          }`,
+        )
+        .replace(
+          "#include <opaque_fragment>",
+          `// 알갱이마다 제멋대로 기운 작은 면이 있다고 보고, 그 면이 눈 쪽으로 빛을 튕길 때만 밝힙니다
+          vec3 sparkleCell = floor(vSparklePos * uSparkleScale);
+          vec3 sparkleTilt = vec3(sparkleHash(sparkleCell), sparkleHash(sparkleCell + 7.1), sparkleHash(sparkleCell + 13.7)) - 0.5;
+          float sparkleFacing = dot(normalize(normalize(normal) + sparkleTilt * 1.6), normalize(vViewPosition));
+          float sparkleGlint = smoothstep(0.985, 1.0, sparkleFacing) * step(0.55, sparkleHash(sparkleCell + 3.3));
+          outgoingLight += vec3(1.0, 0.97, 0.92) * sparkleGlint * uSparkleStrength;
+          #include <opaque_fragment>`,
+        );
     }
     if (extras.blush) {
       shader.uniforms.uBlushMatrix = extras.blush.matrix;
@@ -328,6 +458,72 @@ function makeGold(material: THREE.MeshStandardMaterial, roughness: number) {
 const reindeerBlushMatrix = { value: new THREE.Matrix4() };
 const REINDEER_FUR = "W_RD_Fur";
 
+// 양(새해 스노우볼)의 털 (차명근)
+const SHEEP_WOOL = "W_Sheep_Wool";
+const SHEEP_FACE = "W_Sheep_Face";
+const SHEEP_LEG = "W_Sheep_Leg";
+const SHEEP_FUR = 0.016; // 털 겹이 자라는 길이 (모델 단위). scripts/blender/sheep_v2.py 의 FUR 와 같게
+const SHEEP_FUR_LAYERS = 6; // 바깥으로 더 그리는 겹의 수
+const SHEEP_FUR_DENSITY = 135; // 1 단위 길이에 들어가는 가닥 무늬의 수
+// 다리(펠트)에는 짧은 보풀을 세웁니다: 겹 수 · 길이 · 촘촘함. 얼굴과 귀 앞면은 보풀 없이 매끈합니다
+const SHEEP_FELT = { layers: 3, length: 0.0045, density: 260 };
+// 볼터치 자리를 맞추려면 얼굴 메시가 모델 안에서 놓인 자리를 알아야 합니다 (GlobeModel 이 채웁니다)
+const sheepBlushMatrix = { value: new THREE.Matrix4() };
+
+// 복조리의 대나무
+function bambooLook(material: THREE.MeshStandardMaterial) {
+  makeSatin(material);
+  material.emissive.copy(material.color).multiplyScalar(0.2);
+  material.emissiveIntensity = 0.5;
+}
+
+// 조각보의 천: 광택 없이, 고운 짜임이 보이게
+function clothLook(material: THREE.MeshStandardMaterial) {
+  makeMatte(material, 0.95, 0.1);
+  material.emissive.copy(material.color).multiplyScalar(0.25);
+  material.emissiveIntensity = 0.5;
+  applyShaderExtras(material, { grain: { scale: 220, strength: 0.3 } });
+}
+
+// 얼굴과 귀 앞면: 털 질감 없이 매끈한 펠트. 볼터치가 있습니다.
+function faceLook(material: THREE.MeshStandardMaterial) {
+  material.color.set("#fbf0da");
+  makeMatte(material, 0.9, 0.12);
+  material.emissive.set("#5a452c");
+  material.emissiveIntensity = 0.2;
+  applyShaderExtras(material, {
+    rim: { color: "#fff6e6", strength: 0.26 },
+    // 볼터치: 두 볼에서 부드럽게 번지는 분홍 (자리는 모델 파일 기준 좌표. Blender 의 (x, y, z) → (x, z, -y))
+    blush: { points: [[-0.118, 0.69, 0.33], [0.118, 0.69, 0.33]], radius: 0.043, color: "#f59aa2", strength: 0.6, matrix: sheepBlushMatrix },
+  });
+}
+
+// 다리의 펠트 재질: 짧은 보풀이 있습니다. layer · size 는 woolLook 과 같습니다.
+function feltLook(material: THREE.MeshStandardMaterial, layer: number, size: number) {
+  material.color.set("#fbf0da");
+  makeMatte(material, 0.95, 0.1);
+  material.emissive.set("#5a452c");
+  material.emissiveIntensity = 0.2;
+  applyShaderExtras(material, {
+    grain: { scale: 150 * size, strength: 0.16 },
+    rim: { color: "#fff6e6", strength: 0.26 },
+    fur: { layer, length: SHEEP_FELT.length / size, scale: SHEEP_FELT.density * size },
+  });
+}
+
+// 양털 재질. layer: 0 = 바탕, 1 = 가장 바깥 겹. size: 그 메시의 크기 배율(압축하면서 메시 좌표가 바뀌므로 맞춰 줍니다)
+function woolLook(material: THREE.MeshStandardMaterial, layer: number, size: number) {
+  material.color.set("#f9ecd2");
+  makeMatte(material, 1, 0.1);
+  material.emissive.set("#5a452c");
+  material.emissiveIntensity = 0.22;
+  applyShaderExtras(material, {
+    grain: { scale: 90 * size, strength: 0.35 },
+    rim: { color: "#fff3dc", strength: 0.34 },
+    fur: { layer, length: SHEEP_FUR / size, scale: SHEEP_FUR_DENSITY * size },
+  });
+}
+
 const TREE_MATERIAL = "W_Ceramic_Green";
 const TRUNK_MATERIAL = "W_Ceramic_Trunk";
 const BASE_MATERIAL = "W_Base_RedMat";
@@ -375,28 +571,43 @@ const MATERIAL_TUNES: Record<string, Tune> = {
   W_Base_HollyRed: (material) => makeMatte(material, 0.6, 0.35),
   // ── 새해 스노우볼 (차명근) ──
   // 양털: 광택 없이 포근하게. 따뜻한 조명 아래에서 누렇게 죽지 않도록 제 색으로 살짝 밝힙니다.
-  W_Sheep_Wool: (material) => {
-    material.color.set("#fffaf2");
-    makeMatte(material, 1, 0.12);
-    material.emissive.set("#4a3c30");
-    material.emissiveIntensity = 0.16;
-    applyShaderExtras(material, { grain: { scale: 70, strength: 0.18 }, rim: { color: "#fff1dc", strength: 0.22 } });
-  },
-  W_Sheep_Face: (material) => {
-    makeSatin(material);
-    material.emissive.set("#5a3423");
-    material.emissiveIntensity = 0.16;
-  },
-  W_Sheep_Blush: (material) => makeMatte(material, 0.8, 0.15),
-  W_Sheep_Horn: (material) => makeSatin(material),
-  W_Sheep_Hoof: (material) => makeSatin(material),
-  // 황토 마당: 고운 흙처럼 광택 없이
-  W_Yard: (material) => {
-    material.color.set("#cf9560");
-    makeMatte(material, 1, 0.1);
-    material.emissive.set("#4a260e");
+  // 양모 펠트 인형처럼: 털은 크림색에 보풀이 인 듯한 결, 얼굴 · 귀 · 다리는 결이 고운 펠트
+  // 털의 바탕 겹입니다. 바깥 털 겹은 GlobeModel 이 woolLook 으로 더 그립니다.
+  // 털 · 펠트의 바탕 겹입니다. 바깥 털 겹은 GlobeModel 이 woolLook · feltLook 으로 더 그립니다.
+  W_Sheep_Wool: (material) => woolLook(material, 0, 1),
+  W_Sheep_Face: (material) => faceLook(material),
+  W_Sheep_Leg: (material) => feltLook(material, 0, 1),
+  // 귀 안쪽: 분홍빛이 도는 살
+  W_Sheep_EarInner: (material) => {
+    material.color.set("#f6b9b3");
+    makeMatte(material, 0.95, 0.1);
+    material.emissive.set("#5a2a26");
     material.emissiveIntensity = 0.22;
-    applyShaderExtras(material, { grain: { scale: 85, strength: 0.4 } });
+    applyShaderExtras(material, { grain: { scale: 150, strength: 0.16 } });
+  },
+  W_Sheep_Hoof: (material) => {
+    makeMatte(material, 0.9, 0.1);
+    material.emissive.set("#4a3520");
+    material.emissiveIntensity = 0.2;
+  },
+  // 눈은 까만 유리구슬처럼 반짝이게
+  W_Sheep_Eye: (material) => {
+    material.color.set("#120f0d");
+    material.roughness = 0.08;
+    material.metalness = 0;
+    material.envMapIntensity = 1.6;
+  },
+  W_Sheep_Blush: (material) => makeMatte(material, 0.95, 0.1),
+  W_Sheep_Nose: (material) => makeMatte(material, 0.9, 0.1),
+  W_Sheep_Mouth: (material) => makeMatte(material, 0.9, 0.1),
+  // 마당: 짚으로 엮은 둥근 멍석을 깐 것처럼 (볏짚색에 새끼줄 고리 무늬)
+  W_Yard: (material) => {
+    material.color.set("#d2a866");
+    makeMatte(material, 1, 0.04);
+    material.emissive.set("#5a3a14");
+    material.emissiveIntensity = 0.3;
+    // 굴곡을 크게 주면 옆에서 비추는 푸른 조명이 걸려 초록빛이 돌아서, 굴곡은 아주 얕게 두고 짙은 갈색으로만 무늬를 냅니다
+    applyShaderExtras(material, { straw: { rings: 13, twist: 6, groove: "#8f6232", depth: 0.04 } });
   },
   // 붉은 2027: 일출 배경 위에서도 묻히지 않게 스스로 빛납니다
   W_Year_Red: (material) => {
@@ -420,6 +631,49 @@ const MATERIAL_TUNES: Record<string, Tune> = {
     material.emissive.set("#12141c");
     material.emissiveIntensity = 0.3;
   },
+  W_Wall_TileEnd: (material) => {
+    makeSatin(material);
+    material.emissive.set("#161922");
+    material.emissiveIntensity = 0.3;
+  },
+  W_Wall_StoneDark: (material) => {
+    makeMatte(material, 0.95, 0.1);
+    applyShaderExtras(material, { grain: { scale: 60, strength: 0.45 } });
+  },
+  // 기와 위에 쌓인 눈: 포슬포슬하고, 알갱이가 빛을 받아 반짝입니다
+  W_Wall_Snow: (material) => {
+    material.color.set("#f3f6ff");
+    makeMatte(material, 1, 0.15);
+    material.emissive.set("#2a3866");
+    material.emissiveIntensity = 0.16;
+    applyShaderExtras(material, { grain: { scale: 80, strength: 0.5 }, rim: { color: "#e6eeff", strength: 0.2 }, sparkle: { scale: 260, strength: 2.4 } });
+  },
+  W_Magpie_Beak: (material) => makeSatin(material),
+  // 윷가락과 조각보: 나무는 은은한 윤기, 천은 광택 없이
+  W_Yut_Back: (material) => {
+    makeSatin(material);
+    material.emissive.set("#2a140b");
+    material.emissiveIntensity = 0.3;
+  },
+  W_Yut_Belly: (material) => {
+    makeSatin(material);
+    material.emissive.set("#4a3a20");
+    material.emissiveIntensity = 0.2;
+  },
+  W_Yut_Mark: (material) => makeMatte(material, 0.9, 0.1),
+  W_Cloth_Red: (material) => clothLook(material),
+  W_Cloth_Blue: (material) => clothLook(material),
+  W_Cloth_Yellow: (material) => clothLook(material),
+  W_Cloth_Green: (material) => clothLook(material),
+  W_Cloth_Pink: (material) => clothLook(material),
+  // 복조리: 대나무는 은은한 윤기, 색실은 천처럼
+  W_Bokjori_Bamboo: (material) => bambooLook(material),
+  W_Bokjori_BambooDark: (material) => bambooLook(material),
+  W_Bokjori_Red: (material) => clothLook(material),
+  W_Bokjori_Green: (material) => clothLook(material),
+  W_Bokjori_Purple: (material) => clothLook(material),
+  W_Bokjori_Yellow: (material) => clothLook(material),
+  W_Bokjori_Pink: (material) => clothLook(material),
   W_Magpie_Black: (material) => makeSatin(material),
   W_Magpie_White: (material) => makeMatte(material, 0.8, 0.15),
   W_Magpie_Blue: (material) => {
@@ -858,7 +1112,9 @@ export type GlobeLook = {
 };
 
 // 유리 안의 따뜻한 불빛: 트리 아래 눈을 비추는 빛과 꼭대기 별의 빛. 모델과 같은 자리에 둡니다.
-export function GlobeInnerLights() {
+// 새해 스노우볼은 양 다리 바로 앞에 불빛이 놓이지 않게, 위에서 은은하게 비추는 빛 하나만 둡니다 (차명근)
+export function GlobeInnerLights({ kind = "christmas" }: { kind?: GlobeKind }) {
+  if (kind === "newyear") return <pointLight position={[0.1, 1.3, 0.7]} intensity={0.4} distance={2.2} color="#ffd9a6" />;
   return (
     <>
       <pointLight position={[0.25, 0.42, 0.75]} intensity={0.55} distance={2.4} color="#ffb265" />
@@ -927,6 +1183,7 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
     const glassMeshes: THREE.Mesh[] = [];
     const garlandMeshes: THREE.Mesh[] = [];
     const treeMeshes: THREE.Mesh[] = [];
+    const furShells: [THREE.Mesh, THREE.Mesh][] = [];
 
     copy.traverse((child) => {
       // 꾸미기 소품: 고른 것만 보입니다.
@@ -971,6 +1228,29 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
       if (name === TREE_MATERIAL) treeMeshes.push(mesh);
       const tune = MATERIAL_TUNES[name];
       if (!tune) return;
+      if (name === SHEEP_FACE) {
+        mesh.updateWorldMatrix(true, false);
+        sheepBlushMatrix.value.copy(mesh.matrixWorld);
+      }
+      if (name === SHEEP_WOOL || name === SHEEP_LEG) {
+        // 양털 · 펠트: 바탕 겹 위에 바깥으로 부풀린 털 겹을 여러 장 더 그립니다
+        const look = name === SHEEP_WOOL ? woolLook : feltLook;
+        const layers = name === SHEEP_WOOL ? SHEEP_FUR_LAYERS : SHEEP_FELT.layers;
+        mesh.updateWorldMatrix(true, false);
+        const size = mesh.getWorldScale(new THREE.Vector3()).x;
+        const base = material.clone();
+        look(base, 0, size);
+        mesh.material = base;
+        for (let layer = 1; layer <= layers; layer++) {
+          const shell = mesh.clone();
+          shell.name = "";
+          const fur = material.clone();
+          look(fur, layer / layers, size);
+          shell.material = fur;
+          furShells.push([mesh, shell]);
+        }
+        return;
+      }
       let next = tuned.get(name);
       if (!next) {
         next = material.clone();
@@ -982,6 +1262,7 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
       }
       mesh.material = next;
     });
+    for (const [mesh, shell] of furShells) mesh.parent?.add(shell);
     // 전구: 색 · 크기를 주고, 미리 계산해 둔 자리(트리 겉면 위)에 놓습니다
     if (garlandMeshes.length) {
       copy.updateMatrixWorld(true);

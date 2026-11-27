@@ -121,7 +121,7 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
             <GlobeExtras showReindeer={showReindeer} showGingerHouse={showGingerHouse} />
           </Suspense>
         )}
-        <GlobeInnerLights />
+        <GlobeInnerLights kind={kind} />
         <GlowDust still={reducedMotion} />
       </group>
     </group>

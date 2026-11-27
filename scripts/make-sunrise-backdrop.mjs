@@ -43,7 +43,8 @@ function roof(x, y, w, h) {
 
 function sunrise(width, height) {
   const horizon = height * 0.6; // 해가 걸린 산등성이 높이
-  const sun = { x: width * 0.5, y: horizon - height * 0.015, r: Math.min(width, height) * 0.085 };
+  // 해는 가운데에서 비켜 둡니다: 가운데에 두면 스노우볼에 가려지고, 유리에 비친 해가 양 위에 얼룩처럼 보입니다
+  const sun = { x: width * (width > height ? 0.76 : 0.72), y: horizon - height * 0.015, r: Math.min(width, height) * 0.085 };
   const unit = Math.min(width, height);
   const next = random(27);
   const stars = Array.from({ length: 46 }, () => {
