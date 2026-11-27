@@ -13,10 +13,29 @@ import { Dock } from "@/components/ui/Dock";
 import { SAMPLE_GLOBE } from "@/lib/sample-data";
 import { DEFAULT_THEME } from "@/lib/theme";
 
-// 예시용 오너먼트(가짜 데이터, 색만 있음)
-const EXAMPLE = ["#C8363D", "#F2C46D", "#F5F1EA", "#8FB8E8", "#C8363D", "#F2C46D", "#F5F1EA", "#C8363D", "#8FB8E8", "#F2C46D", "#C8363D", "#F5F1EA"].map(
-  (color, i) => ({ id: `example-${i}`, color }),
-);
+// 예시용 오너먼트(가짜 데이터, 모양과 색만 있음). 볼만 달려 있으면 별 · 하트도 고를 수 있다는 걸 알 수 없어서 세 모양을 섞습니다 (볼 6, 별 3, 하트 3)
+// 별 · 하트는 다섯 색(lib/theme.ts 의 ORNAMENT_OPTIONS)을 섞어 씁니다. 초록은 트리 색에 묻혀 잘 안 보여서 뺐습니다
+const RED = "#C8363D";
+const GOLD = "#F2C46D";
+const RED_GOLD = "#F5F1EA"; // 빨강과 금색
+const BLUE = "#8FB8E8";
+const PINK = "#E58FA8";
+const EXAMPLE = (
+  [
+    ["ball", RED],
+    ["star", GOLD],
+    ["heart", PINK],
+    ["ball", BLUE],
+    ["star", PINK],
+    ["ball", GOLD],
+    ["heart", RED],
+    ["ball", RED_GOLD],
+    ["star", BLUE],
+    ["ball", RED],
+    ["heart", RED_GOLD],
+    ["ball", GOLD],
+  ] as const
+).map(([shape, color], i) => ({ id: `example-${i}`, shape, color }));
 
 // 말풍선에 돌아가며 보여 줄 예시 메시지 (sample-data 의 가짜 메시지)
 const MESSAGES = SAMPLE_GLOBE.ornaments.map((o) => ({ sender: o.sender_name, message: o.message ?? "" }));
