@@ -185,15 +185,13 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
       <Stage
         {...common}
         title="마음을 적어 주세요"
-        // 넓은 화면: 카드가 커서 스노우볼이 위로 물러나며 작아집니다. 명판 글자는 명판에 새겨져 있어 함께 작아집니다.
-        // 휴대폰: 스노우볼은 고르던 크기 그대로 두고 카드가 그 위로 올라옵니다 (FEEDBACK B5)
+        // 스노우볼은 고르던 크기 · 자리 그대로 두고 카드가 그 위로 올라옵니다 (FEEDBACK B5. 넓은 화면도 같게: 이슈 #67)
         holdGlobe
         subtitle="2 / 2 단계 · 메시지는 스노우볼 주인만 읽을 수 있어요"
         hint={undefined}
         hintMobile={undefined}
         highlightId={PENDING}
         focusId={PENDING}
-        layout={{ desktop: { centerFromTop: 0.3 } }}
       >
         <div key={step} className="flex min-h-0 w-full animate-rise justify-center">
           <MessageCard
