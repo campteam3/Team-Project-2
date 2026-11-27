@@ -6,25 +6,30 @@ import newyearSlotData from "@/lib/newyear-slots.json";
 import slotData from "@/lib/snowglobe-slots.json";
 import type { GlobeKind } from "@/lib/theme";
 
-// DB 의 shape 칸에 들어가는 이름. 볼 · 별 · 하트는 크리스마스 · 생일, 복주머니 · 방패연 · 노리개는 새해 스노우볼 전용입니다.
-export const ORNAMENT_SHAPES = ["ball", "star", "heart", "pouch", "kite", "norigae"] as const;
+// DB 의 shape 칸에 들어가는 이름. 볼 · 별 · 하트 · 지팡이 사탕 · 선물 상자는 크리스마스 · 생일, 복주머니 · 방패연 · 노리개는 새해 스노우볼 전용입니다.
+export const ORNAMENT_SHAPES = ["ball", "star", "heart", "cane", "gift", "pouch", "kite", "norigae"] as const;
 export type OrnamentShape = (typeof ORNAMENT_SHAPES)[number];
-export const SHAPE_LABEL: Record<OrnamentShape, string> = { ball: "볼", star: "별", heart: "하트", pouch: "복주머니", kite: "방패연", norigae: "노리개" };
+// 사탕 = 지팡이 사탕, 선물 = 선물 상자 (이민정). 휴대폰 한 줄에 다섯 개가 들어가게 짧게 부릅니다
+export const SHAPE_LABEL: Record<OrnamentShape, string> = { ball: "볼", star: "별", heart: "하트", cane: "사탕", gift: "선물", pouch: "복주머니", kite: "방패연", norigae: "노리개" };
 
-const BASIC_SHAPES: readonly OrnamentShape[] = ["ball", "star", "heart"];
+const BASIC_SHAPES: readonly OrnamentShape[] = ["ball", "star", "heart", "cane", "gift"];
 const NEWYEAR_SHAPES: readonly OrnamentShape[] = ["pouch", "kite", "norigae"];
 
 // 그 주제의 스노우볼에서 고를 수 있는 모양
 export const shapesFor = (kind: GlobeKind = "christmas"): readonly OrnamentShape[] => (kind === "newyear" ? NEWYEAR_SHAPES : BASIC_SHAPES);
 
+// 매다는 모양(볼 · 지팡이 사탕 · 선물 상자)인지. 별 · 하트는 경사면에 얹는 쿠키 모양이고, 새해 모양은 양털에 붙이는 브로치라 얹는 자리로 봅니다.
+const HANGING: readonly OrnamentShape[] = ["ball", "cane", "gift"];
+const hangs = (shape: OrnamentShape) => HANGING.includes(shape);
+
 // 모르는 이름이나 그 주제에 없는 모양이 오면 그 주제의 첫 모양(크리스마스는 볼, 새해는 복주머니)으로 그립니다.
 // kind 를 안 넘기면 이름만 확인합니다 (오너먼트 하나만 보여 주는 화면).
-// 다른 주제의 모양은 같은 순서의 모양으로 바꿉니다 (볼 ↔ 복주머니, 별 ↔ 방패연, 하트 ↔ 노리개). 기념 메시지로 받은 오너먼트를 다른 주제의 스노우볼에 달 때 씁니다.
+// 다른 주제의 모양은 같은 순서의 모양으로 바꿉니다 (볼 ↔ 복주머니, 별 ↔ 방패연, 하트 · 사탕 · 선물 ↔ 노리개). 기념 메시지로 받은 오너먼트를 다른 주제의 스노우볼에 달 때 씁니다.
 export function toShape(value: string | undefined, kind?: GlobeKind): OrnamentShape {
   const allowed = kind ? shapesFor(kind) : ORNAMENT_SHAPES;
   if (value !== undefined && (allowed as readonly string[]).includes(value)) return value as OrnamentShape;
   const order = Math.max(BASIC_SHAPES.indexOf(value as OrnamentShape), NEWYEAR_SHAPES.indexOf(value as OrnamentShape));
-  return allowed[Math.max(order, 0)];
+  return allowed[Math.min(Math.max(order, 0), allowed.length - 1)];
 }
 
 // 트리에 달 오너먼트. DB 의 오너먼트(lib/api 의 Ornament)를 그대로 넣을 수 있고, id 와 색만 있어도 됩니다.
@@ -75,7 +80,7 @@ function createSlotSet(slots: Slot[]): SlotSet {
   // 자리 사이의 거리 (자리 번호는 slots 의 순서와 같습니다)
   const apart = slots.map((a) => slots.map((b) => Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1], a.position[2] - b.position[2])));
   // 자리마다의 기본 점수: 앞쪽일수록, 모양에 맞는 종류(kind)일수록, 정면에 가까울수록 높습니다.
-  // 볼은 매다는 자리가, 별 · 하트는 얹는 자리가 맞는 자리입니다. 앞쪽에 맞는 자리가 없으면 앞쪽의 다른 종류 자리를 쓰고, 그다음에 옆 · 뒤로 넘어갑니다.
+  // 볼 · 지팡이 사탕 · 선물 상자는 매다는 자리가, 별 · 하트는 얹는 자리가 맞는 자리입니다. 앞쪽에 맞는 자리가 없으면 앞쪽의 다른 종류 자리를 쓰고, 그다음에 옆 · 뒤로 넘어갑니다.
   const baseScore = (kind: Slot["kind"]) => slots.map((slot) => -side(slot) * 10 - Number(slot.kind !== kind) * 5 - offFront(slot) * 0.3);
   return { slots, apart, score: { hang: baseScore("hang"), slope: baseScore("slope") } };
 }
@@ -120,14 +125,18 @@ function rotate([x, y, z]: [number, number, number], [qx, qy, qz, qw]: Slot["qua
   return [x + qw * tx + (qy * tz - qz * ty), y + qw * ty + (qz * tx - qx * tz), z + qw * tz + (qx * ty - qy * tx)];
 }
 
+// 모양마다 더 키우는 배율. 지팡이 사탕은 가늘어서 볼과 같은 크기로는 트리에서 잘 안 보입니다.
+const SHAPE_SCALE: Partial<Record<OrnamentShape, number>> = { cane: 1.4 };
+
 // 그 자리에 그 모양을 놓을 때의 위치와 크기
 function fit(slot: Slot, shape: OrnamentShape): { position: [number, number, number]; scale: number } {
-  if (shape !== "ball") return { position: slot.position, scale: slot.cookieScale };
-  if (slot.ballScale !== null) return { position: slot.position, scale: slot.ballScale };
-  // 볼을 얹는 자리에 놓을 때: 쿠키가 누울 자리에 볼이 경사면에 기대어 놓이도록 옮깁니다.
+  if (!hangs(shape)) return { position: slot.position, scale: slot.cookieScale };
+  const grow = SHAPE_SCALE[shape] ?? 1;
+  if (slot.ballScale !== null) return { position: slot.position, scale: slot.ballScale * grow };
+  // 매다는 모양을 얹는 자리에 놓을 때: 쿠키가 누울 자리에 경사면에 기대어 놓이도록 옮깁니다.
   const scale = slot.cookieScale * 0.8;
   const [dx, dy, dz] = rotate([0, 1.5 * scale - 1.2625 * slot.cookieScale, scale], slot.quaternion);
-  return { position: [slot.position[0] + dx, slot.position[1] + dy, slot.position[2] + dz], scale };
+  return { position: [slot.position[0] + dx, slot.position[1] + dy, slot.position[2] + dz], scale: scale * grow };
 }
 
 // 메시지 오너먼트를 자리에 배치합니다. 순서(먼저 달린 것부터)대로 자리를 고르므로, 새 오너먼트가 달려도 기존 것은 움직이지 않습니다.
@@ -141,7 +150,7 @@ export function placeOrnaments<T extends OrnamentLike>(ornaments: T[], kind: Glo
   for (const ornament of ornaments) {
     const shape = toShape(ornament.shape, kind);
     const wanted = wantedSlot(ornament.position, set.slots);
-    const slot = (wanted && !used.has(wanted.id) ? wanted : undefined) ?? pickSlot(set, shape === "ball" ? "hang" : "slope", used);
+    const slot = (wanted && !used.has(wanted.id) ? wanted : undefined) ?? pickSlot(set, hangs(shape) ? "hang" : "slope", used);
     if (!slot) continue;
 
     used.add(slot.id);

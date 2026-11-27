@@ -1,7 +1,9 @@
 "use client";
 
-// 11 오너먼트 고르기 도크: 돌아가기 · 모양 3개(볼 · 별 · 하트, 새해 스노우볼은 복주머니 · 방패연 · 노리개) · 색 6개 · 다음
-// 넓은 화면에서는 한 줄, 휴대폰에서는 세 줄(모양 / 색 / 돌아가기 + 다음)로 놓입니다.
+// 11 오너먼트 고르기 도크: 돌아가기 · 모양 5개(볼 · 별 · 하트 · 사탕 · 선물, 새해 스노우볼은 복주머니 · 방패연 · 노리개) · 색 6개 · 다음
+// 넓은 화면(960px 이상)에서는 한 줄, 그보다 좁으면 세 줄(모양 / 색 / 돌아가기 + 다음)로 놓입니다.
+// 모양이 다섯 개가 되어 한 줄에 다 놓으려면 도크 너비 약 870px(좌우 여백까지 약 930px)이 필요합니다. 그래서 태블릿 세로 화면도 세 줄로 놓습니다 (이민정).
+// 세 줄일 때 모양 칸은 그림 위 · 이름 아래로 쌓아 다섯 개가 같은 너비로 들어갑니다 (02 꾸미기 도크의 선택지와 같은 모양).
 // 모양 이름은 이민정 님의 lib/snowglobe.ts 의 ORNAMENT_SHAPES 를 그대로 씁니다.
 
 import { Button, IconButton } from "@/components/ui/Button";
@@ -22,10 +24,10 @@ type Props = {
 
 export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick, onBack, onNext }: Props) {
   return (
-    <Dock label="오너먼트 고르기" className="max-sm:w-full max-sm:flex-col max-sm:items-stretch max-sm:rounded-[28px]">
-      <IconButton icon="arrow-left" label="돌아가기" onClick={onBack} className="max-sm:hidden" />
+    <Dock label="오너먼트 고르기" className="max-[959px]:w-full max-[959px]:max-w-[440px] max-[959px]:flex-col max-[959px]:items-stretch max-[959px]:rounded-[28px]">
+      <IconButton icon="arrow-left" label="돌아가기" onClick={onBack} className="max-[959px]:hidden" />
 
-      <div className="flex items-center justify-between gap-1 sm:ml-1 sm:justify-start" role="group" aria-label="오너먼트 모양">
+      <div className="flex items-center justify-between gap-1 min-[960px]:ml-1 min-[960px]:justify-start" role="group" aria-label="오너먼트 모양">
         {shapesFor(kind).map((s) => {
           const selected = s === shape;
           return (
@@ -34,7 +36,7 @@ export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick
               type="button"
               aria-pressed={selected}
               onClick={() => onShape(s)}
-              className={`inline-flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[15px] sm:px-4 transition duration-200 ease-soft sm:flex-none ${
+              className={`inline-flex min-h-[56px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-xs transition duration-200 ease-soft min-[960px]:h-11 min-[960px]:min-h-0 min-[960px]:flex-none min-[960px]:flex-row min-[960px]:gap-1.5 min-[960px]:rounded-full min-[960px]:px-4 min-[960px]:text-[15px] ${
                 selected ? "bg-glass-strong font-bold text-ink ring-2 ring-inset ring-accent" : "font-medium text-ink-sub hover:text-ink"
               }`}
             >
@@ -45,9 +47,9 @@ export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick
         })}
       </div>
 
-      <span className="mx-1.5 hidden h-7 w-px bg-glass-strong sm:block" aria-hidden="true" />
+      <span className="mx-1.5 hidden h-7 w-px bg-glass-strong min-[960px]:block" aria-hidden="true" />
 
-      <div className="flex items-center justify-between gap-0.5 sm:justify-start" role="group" aria-label="오너먼트 색">
+      <div className="flex items-center justify-between gap-0.5 min-[960px]:justify-start" role="group" aria-label="오너먼트 색">
         {ORNAMENT_OPTIONS.map((o) => {
           const selected = o.id === colorId;
           return (
@@ -72,8 +74,8 @@ export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick
         })}
       </div>
 
-      <div className="flex items-center justify-between gap-2 sm:ml-1">
-        <IconButton icon="arrow-left" label="돌아가기" onClick={onBack} className="sm:hidden" />
+      <div className="flex items-center justify-between gap-2 min-[960px]:ml-1">
+        <IconButton icon="arrow-left" label="돌아가기" onClick={onBack} className="min-[960px]:hidden" />
         <Button onClick={onNext}>다음</Button>
       </div>
     </Dock>

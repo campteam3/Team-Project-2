@@ -106,7 +106,7 @@ export const openGlobe = (nickname: string, password: string) =>
 
 export const getGlobe = (nickname: string) => call<Globe | null>("get_globe", { p_nickname: nickname });
 
-// shape: 오너먼트 모양 ("ball" · "star" · "heart"). 값 목록은 lib/snowglobe.ts 의 ORNAMENT_SHAPES
+// shape: 오너먼트 모양 ("ball" · "star" · "heart" · "cane" · "gift"). 값 목록은 lib/snowglobe.ts 의 ORNAMENT_SHAPES
 export const addOrnament = (
   nickname: string,
   senderName: string,
