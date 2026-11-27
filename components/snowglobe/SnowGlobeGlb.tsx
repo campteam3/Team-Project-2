@@ -9,13 +9,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { BEFORE_TONE_MAPPING_GLSL, backdropUniforms } from "@/components/stage/backdropShared";
 import bakedBulbSeats from "@/lib/tree-bulb-seats.json";
-import { placeOrnaments, type OrnamentLike, type OrnamentShape, type PlacedOrnament } from "@/lib/snowglobe";
+import { placeOrnaments, type OrnamentLike, type PlacedOrnament } from "@/lib/snowglobe";
+// 오너먼트 모델을 읽고 색을 입히는 부분은 OrnamentGlb.tsx 로 옮겼습니다 (기념 메시지 화면도 함께 씀, 차명근)
+import { OrnamentParts, useOrnamentMaterials, useOrnamentTemplates, type TemplatePart } from "./OrnamentGlb";
 
 const MODEL_URL = "/models/snowglobe.glb";
-const ORNAMENT_URL = "/models/ornaments.glb";
 // 추가 소품(루돌프 · 과자집). 고른 사람만 내려받도록 스노우볼 본체와 다른 파일에 둡니다 (이민정)
 const PROPS_URL = "/models/props.glb";
-const TEMPLATE_NAMES: Record<OrnamentShape, string> = { ball: "t_Orn_Ball", star: "t_Orn_Star", heart: "t_Orn_Heart" };
 
 // 유리: 두께가 느껴지는 유리 구. 가운데는 맑고, 가장자리로 갈수록 유리가 두꺼워 보입니다.
 //  - 가장자리 띠: 유리 뒤의 배경이 굴절되어 안쪽으로 당겨져(뒤집혀) 보이고, 색이 살짝 갈라집니다.
@@ -967,42 +967,8 @@ export function GlobeExtras({ showReindeer = false, showGingerHouse = false }: E
   return <primitive object={model} />;
 }
 
-type TemplatePart = { geometry: THREE.BufferGeometry; role: "main" | "accent" | "metal"; material: THREE.MeshStandardMaterial };
-
-// 오너먼트 원형(볼·별·하트)을 부분별로 꺼냅니다. 본체 색과 무늬 색은 오너먼트마다 바꿉니다.
-function useOrnamentTemplates() {
-  const { scene } = useGLTF(ORNAMENT_URL);
-  return useMemo(() => {
-    const templates: Record<OrnamentShape, TemplatePart[]> = { ball: [], star: [], heart: [] };
-    for (const shape of Object.keys(TEMPLATE_NAMES) as OrnamentShape[]) {
-      scene.getObjectByName(TEMPLATE_NAMES[shape])?.traverse((child) => {
-        const mesh = child as THREE.Mesh;
-        if (!mesh.isMesh) return;
-        const material = mesh.material as THREE.MeshStandardMaterial;
-        const role = material.name.startsWith("Orn_Main") ? "main" : material.name.startsWith("Orn_Accent") ? "accent" : "metal";
-        templates[shape].push({ geometry: mesh.geometry, role, material });
-      });
-    }
-    return templates;
-  }, [scene]);
-}
-
-const CREAM = "#fff5e2";
-const ROSE = "#f2779b";
-
 // 메시지 오너먼트는 처음부터 달려 있던 기본 장식보다 크게 답니다.
 const MESSAGE_SCALE = 1.25;
-
-// 오너먼트 색을 맑고 화사한 파스텔 톤으로 바꿉니다. 흰색 · 크림색처럼 색기가 거의 없는 색은 그대로 둡니다.
-function pastel(color: string) {
-  const result = new THREE.Color(color);
-  const hsl = { h: 0, s: 0, l: 0 };
-  result.getHSL(hsl);
-  if (hsl.s < 0.18) return result;
-  const s = THREE.MathUtils.lerp(hsl.s, 1, 0.75);
-  const l = THREE.MathUtils.lerp(hsl.l, 0.62, 0.7);
-  return result.setHSL(hsl.h, s, l);
-}
 
 // 새 오너먼트가 달리는 움직임이 시작되는 곳 (유리 안 위쪽 가운데)
 const DROP_FROM: [number, number, number] = [0, 1.38, 0];
@@ -1029,49 +995,7 @@ function OrnamentItem({
   const group = useRef<THREE.Group>(null);
   const arriveStart = useRef<number | null>(null);
 
-  const materials = useMemo(() => {
-    const mainBase = parts.find((part) => part.role === "main")?.material;
-    const accentBase = parts.find((part) => part.role === "accent")?.material;
-    const main = mainBase?.clone();
-    const body = pastel(color);
-    if (main) {
-      main.color.copy(body);
-      // 어두운 밤 배경이 비쳐 칙칙해지지 않도록 제 색으로 은은하게 빛나게
-      main.metalness = 0;
-      main.roughness = 0.26;
-      main.emissive.copy(body);
-      main.emissiveIntensity = 0.2;
-      if (metallic) {
-        // 어두운 밤 배경이 비쳐 갈색으로 죽지 않도록 스스로 살짝 빛나게
-        main.metalness = 0.8;
-        main.roughness = 0.28;
-        main.emissive.set(color);
-        main.emissiveIntensity = 0.28;
-      }
-      if (highlight) {
-        main.emissive.copy(body);
-        main.emissiveIntensity = 0.55;
-      }
-    }
-    const accent = accentBase?.clone();
-    if (accent) {
-      // 무늬는 본체 색과 구분되게: 흰색에 가까운 본체에는 분홍, 그 밖에는 크림색
-      const hsl = { h: 0, s: 0, l: 0 };
-      body.getHSL(hsl);
-      accent.color.set(hsl.l > 0.82 ? ROSE : CREAM);
-      accent.emissive.copy(accent.color);
-      accent.emissiveIntensity = 0.2;
-    }
-    return { main, accent };
-  }, [parts, color, metallic, highlight]);
-
-  useEffect(
-    () => () => {
-      materials.main?.dispose();
-      materials.accent?.dispose();
-    },
-    [materials],
-  );
+  const materials = useOrnamentMaterials(parts, color, metallic, highlight);
 
   const baseScale = placed.scale * (ornament ? MESSAGE_SCALE : 1);
   const [homeX, homeY, homeZ] = placed.position;
@@ -1112,15 +1036,7 @@ function OrnamentItem({
           : undefined
       }
     >
-      {parts.map((part, index) => (
-        <mesh
-          key={index}
-          geometry={part.geometry}
-          material={
-            part.role === "main" ? (materials.main ?? part.material) : part.role === "accent" ? (materials.accent ?? part.material) : part.material
-          }
-        />
-      ))}
+      <OrnamentParts parts={parts} materials={materials} />
     </group>
   );
 }
@@ -1164,4 +1080,3 @@ export function Ornaments({
 
 
 useGLTF.preload(MODEL_URL);
-useGLTF.preload(ORNAMENT_URL);

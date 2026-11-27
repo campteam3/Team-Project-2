@@ -14,9 +14,15 @@ const COPY = {
     body: ["이 닉네임의 스노우볼을 찾지 못했어요.", "링크의 닉네임이 맞는지 다시 확인해 주세요."],
     action: "내 스노우볼 만들기",
   },
+  // 없는 기념 메시지 링크 (/gift/<번호>, FEEDBACK F1, 차명근)
+  gift: {
+    title: ["기념 메시지는 없고,", "눈사람만 있네요."],
+    body: ["이 링크의 기념 메시지를 찾지 못했어요.", "링크가 맞는지 다시 확인해 주세요."],
+    action: "내 스노우볼 만들기",
+  },
 };
 
-export default function NotFoundView({ kind = "page" }: { kind?: "page" | "globe" }) {
+export default function NotFoundView({ kind = "page" }: { kind?: "page" | "globe" | "gift" }) {
   const copy = COPY[kind];
   return (
     <main className="flex min-h-dvh w-full items-center justify-center overflow-hidden bg-gradient-to-b from-night-900 to-night-700 px-6 py-10 sm:px-10 sm:py-16">

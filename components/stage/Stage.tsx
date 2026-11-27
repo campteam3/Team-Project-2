@@ -62,6 +62,7 @@ export type StageProps = {
   pin?: ReactNode; // 오너먼트 하나 위에 띄울 내용 (예시 말풍선)
   pinKey?: number; // 바뀔 때마다 앞쪽 오너먼트를 새로 고릅니다
   pinId?: string; // 말풍선을 붙일 오너먼트를 직접 정할 때
+  scene?: ReactNode; // 주면 스노우볼 대신 이 3D 장면을 무대에 그립니다 (기념 메시지의 "오너먼트 하나만 크게", FEEDBACK F1, 차명근)
   morePinIds?: string[]; // 같은 말풍선(pin)을 더 붙일 오너먼트들 (친구가 먼저 단 내 오너먼트, FEEDBACK A6)
   highlightId?: string; // 빛나게 보여 줄 오너먼트
   onSelectOrnament?: (id: string) => void; // 오너먼트를 눌렀을 때 (주인 화면)
@@ -69,7 +70,7 @@ export type StageProps = {
   arrivingId?: string; // 지금 막 달리는 오너먼트
   focusId?: string; // 이 오너먼트가 정면에 오도록 스노우볼을 돌립니다
   lockFront?: boolean;
-  holdGlobe?: boolean; // 휴대폰에서 스노우볼을 직전 크기 · 자리에 그대로 두고, 아래쪽 UI 가 그 위로 올라오게 합니다 (12 메시지 쓰기)
+  holdGlobe?: boolean; // 스노우볼을 직전 크기 · 자리에 그대로 두고, 아래쪽 UI 가 그 위로 올라오게 합니다 (12 메시지 쓰기)
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
   below?: ReactNode; // 도크 아래 작은 글자 링크
@@ -88,7 +89,8 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0 } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
+  const hasScene = !!scene;
   // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
   // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
   const engraved = !plate && !!plateText;
@@ -132,8 +134,8 @@ export default function Stage(props: StageProps) {
 
   // 아래쪽 UI 가 바뀐 화면이 그려지기 전에 켜야, 바뀐 UI 로 빈 공간을 다시 재지 않습니다
   useLayoutEffect(() => {
-    hold.current = !!holdGlobe && mobile;
-  }, [holdGlobe, mobile]);
+    hold.current = !!holdGlobe;
+  }, [holdGlobe]);
 
   // 3D 장면이 매 프레임 묻는 "UI 사이 빈 공간" (제목 아래 끝 ~ 아래쪽 UI 위 끝, 3D 무대 위 끝에서부터 px)
   const getSafeArea = useCallback(() => {
@@ -415,6 +417,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
           asking = false;
         });
     }
+    if (hasScene) return; // 스노우볼이 없는 장면(기념 메시지)에서는 흔들기를 쓰지 않으므로 권한도 묻지 않습니다
     window.addEventListener("devicemotion", onMotion);
     window.addEventListener("touchend", ask);
     window.addEventListener("click", ask);
@@ -422,7 +425,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       window.removeEventListener("devicemotion", onMotion);
       stopAsking();
     };
-  }, [shake]);
+  }, [shake, hasScene]);
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) void document.exitFullscreen();
@@ -450,7 +453,13 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       >
       <div className="absolute inset-0 z-0">
         {webgl === false ? (
-          <StageFallback plate={plateContent} centerFromTop={layout.centerFromTop} height={layout.height} />
+          scene ? (
+            <StageFallback />
+          ) : (
+            <StageFallback plate={plateContent} centerFromTop={layout.centerFromTop} height={layout.height} />
+          )
+        ) : webgl && scene ? (
+          scene
         ) : webgl ? (
           <StageScene
             theme={theme}
@@ -477,20 +486,21 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       </div>
 
       {/* 명판 글자 · 입력칸: 3D 받침대 명판 위치를 따라갑니다 */}
-      {plateContent && webgl && (
+      {plateContent && webgl && !scene && (
         <div ref={plateEl} className={`absolute left-0 top-0 z-[5] opacity-0 will-change-transform ${engraved ? "invisible" : ""}`}>
           {plateContent}
         </div>
       )}
 
       {/* 예시 말풍선: 3D 오너먼트 위치를 따라갑니다 */}
-      {pin && webgl && (
+      {pin && webgl && !scene && (
         <div ref={pinEl} className="pointer-events-none absolute left-0 top-0 z-[6] opacity-0 transition-opacity duration-400 will-change-transform">
           {pin}
         </div>
       )}
       {pin &&
         webgl &&
+        !scene &&
         morePinIds?.map((id, i) => (
           <div
             key={id}
@@ -520,7 +530,8 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
               onClick={toggleBgm}
             />
           )}
-          <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />
+          {/* 스노우볼이 없는 장면(scene)에서는 눈 버튼을 숨깁니다 */}
+          {!scene && <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />}
         </div>
 
         {/* 키보드가 올라오면 제목은 접어 둡니다 (자리는 남겨 스노우볼 위치 계산에 씁니다) */}
