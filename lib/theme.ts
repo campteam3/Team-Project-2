@@ -8,11 +8,22 @@
 export type ThemePart = "tree" | "prop" | "base" | "snow";
 
 // trunk: 트리 색에만 씁니다. 그 트리 색에 어울리는 나무 기둥 색 (없으면 모델 원래 기둥 색)
-export type ThemeOption = { id: string; label: string; color: string; trunk?: string };
+// icon: 소품 고르기 버튼에 보일 그림 (없으면 꾸미기 도크가 id 로 찾습니다)
+export type ThemeOption = { id: string; label: string; color: string; trunk?: string; icon?: string };
 
-export type GlobeTheme = Record<ThemePart, string>;
+// 스노우볼 주제. DB 의 theme 에 kind 로 저장하고, 없거나 모르는 값이면 크리스마스입니다. (새해 스노우볼, 차명근 · 이슈 #83)
+export const GLOBE_KINDS = ["christmas", "birthday", "newyear"] as const;
+export type GlobeKind = (typeof GLOBE_KINDS)[number];
+export const KIND_LABEL: Record<GlobeKind, string> = { christmas: "크리스마스", birthday: "생일", newyear: "새해" };
+// 지금 고를 수 있는 주제. 생일 스노우볼이 들어오면 "birthday" 를 더합니다.
+export const AVAILABLE_KINDS: GlobeKind[] = ["christmas", "newyear"];
+export const toKind = (value: unknown): GlobeKind => ((GLOBE_KINDS as readonly unknown[]).includes(value) ? (value as GlobeKind) : "christmas");
 
-export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[] }[] = [
+export type GlobeTheme = Record<ThemePart, string> & { kind: GlobeKind };
+
+type ThemePartInfo = { key: ThemePart; label: string; options: ThemeOption[] };
+
+export const THEME_PARTS: ThemePartInfo[] = [
   {
     key: "tree",
     label: "트리",
@@ -64,7 +75,31 @@ export const THEME_PARTS: { key: ThemePart; label: string; options: ThemeOption[
   },
 ];
 
-export const DEFAULT_THEME: GlobeTheme = { tree: "green", prop: "both", base: "red", snow: "white" };
+export const DEFAULT_THEME: GlobeTheme = { tree: "green", prop: "both", base: "red", snow: "white", kind: "christmas" };
+
+// 그 주제로 처음 만들 때의 테마
+// 새해 스노우볼은 소품 네 가지(담장 · 떡국 · 윷 · 복조리)를 모두 켠 채로 시작합니다
+export const defaultTheme = (kind: GlobeKind): GlobeTheme => ({ ...DEFAULT_THEME, kind, prop: kind === "newyear" ? "both+yut+bokjori" : DEFAULT_THEME.prop });
+
+// 새해 스노우볼의 꾸미기: 트리 · 눈이 없어서 소품과 받침대만 고릅니다.
+// 소품 값은 크리스마스와 같은 것을 씁니다: 담장(+까치) = 눈사람 자리("snowman"), 떡국(+소반) = 선물 자리("gift").
+const NEWYEAR_PARTS: ThemePartInfo[] = [
+  {
+    key: "prop",
+    label: "소품",
+    options: [
+      { id: "snowman", label: "담장", color: "#4A4B52", icon: "/icons/prop-wall.svg" },
+      { id: "gift", label: "떡국", color: "#F5F1EA", icon: "/icons/prop-tteokguk.svg" },
+      // 윷가락 · 복조리는 저마다 제 자리가 있어서 다른 소품과 함께 켤 수 있습니다
+      { id: "yut", label: "윷", color: "#6E4129", icon: "/icons/prop-yut.svg" },
+      { id: "bokjori", label: "복조리", color: "#EAD3A0", icon: "/icons/prop-bokjori.svg" },
+    ],
+  },
+  THEME_PARTS.find((p) => p.key === "base")!,
+];
+
+// 그 주제의 꾸미기 화면에 보일 선택지
+export const themeParts = (kind: GlobeKind): ThemePartInfo[] => (kind === "newyear" ? NEWYEAR_PARTS : THEME_PARTS);
 
 export function themeOption(part: ThemePart, id: string): ThemeOption {
   const options = THEME_PARTS.find((p) => p.key === part)!.options;
@@ -74,7 +109,9 @@ export function themeOption(part: ThemePart, id: string): ThemeOption {
 // 소품은 자리 두 곳에 하나씩 놓습니다. 같은 자리의 소품은 함께 놓을 수 없습니다. (루돌프 · 과자집 추가, 이민정)
 //  - 눈사람 자리: 눈사람("snowman") 또는 루돌프("reindeer")
 //  - 선물 자리: 선물 상자("gift") 또는 과자집("house")
-export type PropItem = "gift" | "snowman" | "reindeer" | "house";
+//  - 새해 스노우볼의 윷("yut") · 복조리("bokjori")는 저마다 따로 자리가 있습니다 (차명근)
+export type PropItem = "gift" | "snowman" | "reindeer" | "house" | "yut" | "bokjori";
+const OWN_SPOT: PropItem[] = ["yut", "bokjori"];
 const SNOWMAN_SPOT: PropItem[] = ["snowman", "reindeer"];
 const GIFT_SPOT: PropItem[] = ["gift", "house"];
 
@@ -83,20 +120,23 @@ const GIFT_SPOT: PropItem[] = ["gift", "house"];
 function propValue(items: PropItem[]): string {
   const left = SNOWMAN_SPOT.find((item) => items.includes(item));
   const right = GIFT_SPOT.find((item) => items.includes(item));
-  if (left === "snowman" && right === "gift") return "both";
-  return [left, right].filter(Boolean).join("+") || "none";
+  const pair = left === "snowman" && right === "gift" ? "both" : [left, right].filter(Boolean).join("+");
+  // 제 자리가 따로 있는 소품은 뒤에 이어 적습니다 (예: "both+yut+bokjori", "snowman+yut", "bokjori")
+  return [pair, ...OWN_SPOT.filter((item) => items.includes(item))].filter(Boolean).join("+") || "none";
 }
 
 // 저장할 수 있는 값 전부 (자리마다 비움 · 첫째 · 둘째, 모두 9가지)
+// 여기에 제 자리가 따로 있는 소품(윷 · 복조리)을 켜고 끈 경우가 곱해집니다
+const OWN_SETS: PropItem[][] = [[], ["yut"], ["bokjori"], ["yut", "bokjori"]];
 const PROP_VALUES = [undefined, ...SNOWMAN_SPOT].flatMap((left) =>
-  [undefined, ...GIFT_SPOT].map((right) => propValue([left, right].filter((item): item is PropItem => Boolean(item)))),
+  [undefined, ...GIFT_SPOT].flatMap((right) => OWN_SETS.map((own) => propValue([left, right, ...own].filter((item): item is PropItem => Boolean(item))))),
 );
 
 // 저장된 값 → 놓인 소품. 모르는 값은 예전처럼 둘 다(눈사람 + 선물 상자)로 봅니다.
 function propItems(prop: string): PropItem[] {
   if (prop === "none") return [];
-  if (!PROP_VALUES.includes(prop) || prop === "both") return ["snowman", "gift"];
-  return prop.split("+") as PropItem[];
+  if (!PROP_VALUES.includes(prop)) return ["snowman", "gift"];
+  return prop.split("+").flatMap((item) => (item === "both" ? ["snowman", "gift"] : [item])) as PropItem[];
 }
 
 // 소품 값에 이 소품이 들어 있는지
@@ -106,7 +146,7 @@ export const hasProp = (prop: string, item: PropItem) => propItems(prop).include
 export function toggleProp(prop: string, item: PropItem): string {
   const items = propItems(prop);
   if (items.includes(item)) return propValue(items.filter((other) => other !== item));
-  const spot = SNOWMAN_SPOT.includes(item) ? SNOWMAN_SPOT : GIFT_SPOT;
+  const spot = SNOWMAN_SPOT.includes(item) ? SNOWMAN_SPOT : GIFT_SPOT.includes(item) ? GIFT_SPOT : [item];
   return propValue([...items.filter((other) => !spot.includes(other)), item]);
 }
 
@@ -118,7 +158,7 @@ export const trunkColor = (theme: GlobeTheme) => themeOption("tree", theme.tree)
 // DB 에서 읽은 값(모양을 믿을 수 없음)을 안전한 테마로 바꿉니다.
 export function parseTheme(value: unknown): GlobeTheme {
   const source = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
-  const theme = { ...DEFAULT_THEME };
+  const theme = { ...DEFAULT_THEME, kind: toKind(source.kind) };
   for (const part of THEME_PARTS) {
     const id = source[part.key];
     const known = part.key === "prop" ? PROP_VALUES.includes(id as string) : part.options.some((o) => o.id === id);

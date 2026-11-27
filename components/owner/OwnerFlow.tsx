@@ -16,7 +16,7 @@ import { Icon } from "@/components/ui/Icons";
 import { NICKNAME_RULE, addGiftToGlobe, createGlobe, getGlobe, type Ornament } from "@/lib/api";
 import { giftParam } from "@/lib/gift-link";
 import { globePath, loadOwnerToken, saveOwnerToken } from "@/lib/owner-token";
-import { DEFAULT_THEME, type GlobeTheme, type ThemePart } from "@/lib/theme";
+import { defaultTheme, themeParts, toKind, type GlobeTheme, type ThemePart } from "@/lib/theme";
 import CustomizeDock from "./CustomizeDock";
 import NameplateForm, { NameplateInput } from "./NameplateForm";
 import ShareDock from "./ShareDock";
@@ -33,8 +33,10 @@ export default function OwnerFlow() {
   const [giftOrnaments, setGiftOrnaments] = useState<Ornament[] | undefined>(undefined);
   const [giftFailed, setGiftFailed] = useState(false); // 만든 뒤 받은 오너먼트를 달지 못함 → 다시 달기 버튼
   const [step, setStep] = useState<Step>("customize");
-  const [theme, setTheme] = useState<GlobeTheme>(DEFAULT_THEME);
-  const [part, setPart] = useState<ThemePart>("tree");
+  // 홈 화면에서 고른 스노우볼 주제 (/new?kind=newyear). 없으면 크리스마스입니다 (차명근)
+  const kind = toKind(search.get("kind"));
+  const [theme, setTheme] = useState<GlobeTheme>(() => defaultTheme(kind));
+  const [part, setPart] = useState<ThemePart>(() => themeParts(kind)[0].key);
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

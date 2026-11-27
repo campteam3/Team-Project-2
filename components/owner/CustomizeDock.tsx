@@ -10,7 +10,7 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
-import { hasProp, THEME_PARTS, toggleProp, type GlobeTheme, type PropItem, type ThemeOption, type ThemePart } from "@/lib/theme";
+import { hasProp, themeParts, toggleProp, type GlobeTheme, type PropItem, type ThemeOption, type ThemePart } from "@/lib/theme";
 
 // 소품은 색이 아니라 모양으로 고르므로 그림 아이콘으로 보여 줍니다 (처음 보는 사람도 눌러 보지 않고 알 수 있게)
 // 아이콘: public/icons/prop-*.svg (Figma AI 벡터, Figma 파일의 "Icons · 꾸미기 소품" 판)
@@ -33,7 +33,7 @@ type Props = {
 // 선택지 하나의 그림 (소품은 아이콘, 나머지는 색 동그라미)
 function OptionMark({ part, option, size }: { part: ThemePart; option: ThemeOption; size: number }) {
   if (part === "prop") {
-    return <Image src={PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size + 4} height={size + 4} loading="eager" unoptimized />;
+    return <Image src={option.icon ?? PROP_ICON[option.id] ?? PROP_ICON.gift} alt="" width={size + 4} height={size + 4} loading="eager" unoptimized />;
   }
   return <span className="rounded-full border border-glass-border" style={{ background: option.color, width: size, height: size }} />;
 }
@@ -45,7 +45,9 @@ const sheetTitle = (part: ThemePart, label: string) => (part === "prop" ? "소�
 const DONE_LABEL = "완료";
 
 export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: Props) {
-  const current = THEME_PARTS.find((p) => p.key === part)!;
+  // 꾸밀 곳은 스노우볼 주제마다 다릅니다 (새해는 소품 · 받침대만)
+  const parts = themeParts(theme.kind);
+  const current = parts.find((p) => p.key === part) ?? parts[0];
   // 소품은 여러 개를 켜고 끄고, 나머지는 하나만 고릅니다
   const isOn = (id: string) => (part === "prop" ? hasProp(theme.prop, id as PropItem) : theme[part] === id);
   const pick = (id: string) => onPick(part, part === "prop" ? toggleProp(theme.prop, id as PropItem) : id);
@@ -59,7 +61,7 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
       {/* 넓은 화면: 한 줄 도크 */}
       <Dock label="스노우볼 꾸미기" className="max-sm:hidden">
         <div className="flex items-center gap-1" role="group" aria-label="꾸밀 곳">
-          {THEME_PARTS.map((p) => {
+          {parts.map((p) => {
             const selected = p.key === part;
             return (
               <button
@@ -108,7 +110,7 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
       <div className="flex w-full flex-col gap-2 sm:hidden">
         <Dock label="꾸밀 곳" className="w-full">
           <div className="grid w-full grid-cols-4 gap-1" role="group" aria-label="꾸밀 곳">
-            {THEME_PARTS.map((p) => {
+            {parts.map((p) => {
               const selected = p.key === part;
               return (
                 <button

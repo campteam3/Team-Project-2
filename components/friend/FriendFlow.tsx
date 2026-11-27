@@ -7,18 +7,22 @@
 // 개발용 미리보기: /globe/demo?preview=friend 이면 샘플 스노우볼에 저장 없이 달아 봅니다. (&full=1 이면 가득 찬 상태)
 // 가득 참: 오너먼트가 MAX_ORNAMENTS(트리 자리 수 = DB 한도 39)개면 마음 달기 대신 "나도 스노우볼 만들기"를 권합니다.
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import Stage from "@/components/stage/Stage";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { addOrnament, type Globe, type Ornament } from "@/lib/api";
-import { MAX_ORNAMENTS, type OrnamentShape } from "@/lib/snowglobe";
+import { MAX_ORNAMENTS, shapesFor, type OrnamentShape } from "@/lib/snowglobe";
 import { ORNAMENT_OPTIONS, parseTheme } from "@/lib/theme";
 import MessageCard from "./MessageCard";
 import OrnamentPickDock from "./OrnamentPickDock";
 
 type Step = "view" | "pick" | "write" | "done";
+
+// 오너먼트 하나만 크게 보여 주는 장면. 고르기 단계에 들어갈 때에만 받습니다 (첫 화면을 무겁게 하지 않게)
+const GiftOrnamentScene = dynamic(() => import("@/components/gift/GiftOrnamentScene"), { ssr: false, loading: () => null });
 
 const PENDING = "pending"; // 고르는 중인 내 오너먼트(아직 저장 전)
 const HINT = "드래그로 돌리고, 스크롤로 크게 볼 수 있어요";
@@ -48,7 +52,7 @@ type Props = {
 export default function FriendFlow({ nickname, globe, preview = false, onAdded }: Props) {
   const [step, setStep] = useState<Step>("view");
   const [colorId, setColorId] = useState(ORNAMENT_OPTIONS[0].id);
-  const [shape, setShape] = useState<OrnamentShape>("ball");
+  const [shape, setShape] = useState<OrnamentShape>(() => shapesFor(parseTheme(globe.theme).kind)[0]); // 새해 스노우볼은 복주머니부터
   const [sender, setSender] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -108,7 +112,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
     setStep("done");
   };
 
-  const common = { theme, ornaments, plateText: name, hint: HINT, hintMobile: HINT_MOBILE };
+  const common = { theme, ornaments, plateText: name, hint: HINT, hintMobile: theme.kind === "newyear" ? "폰을 흔들어 폭죽을 터뜨려 보세요" : HINT_MOBILE };
 
   if (step === "view") {
     return (
@@ -159,15 +163,15 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         {...common}
         title="오너먼트를 골라 주세요"
         subtitle="1 / 2 단계"
-        hint="고른 오너먼트가 트리에서 빛나고 있어요"
-        hintMobile="고른 오너먼트가 트리에서 빛나고 있어요"
-        highlightId={PENDING}
-        focusId={PENDING}
-        pinId={PENDING}
-        pin={<PinLabel text="내 오너먼트" />}
+        // 고르는 동안에는 스노우볼 대신 고른 오너먼트 하나를 크게 보여 줍니다. 스노우볼에 달린 모습은 작아서 모양 · 색을 견주기 어렵다는 의견 (차명근)
+        // 달릴 자리는 다음 단계(메시지 쓰기)에서 스노우볼로 돌아와 보여 줍니다.
+        scene={<GiftOrnamentScene shape={shape} color={color} sunrise={theme.kind === "newyear"} />}
+        hint="고르는 대로 바로 바뀌어요. 드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
+        hintMobile="고르는 대로 바로 바뀌어요"
       >
         <div key={step} className="flex w-full animate-rise justify-center">
           <OrnamentPickDock
+            kind={theme.kind}
             shape={shape}
             onShape={setShape}
             colorId={colorId}

@@ -2,6 +2,7 @@
 
 // 오너먼트 하나만 크게 보여 주는 3D 장면 (기념 메시지, FEEDBACK F1, 차명근)
 // 보내기 화면(고르는 대로 바뀜)과 받기 화면(누르면 메시지가 열림)이 함께 씁니다.
+// 스노우볼에 마음을 달 때 오너먼트를 고르는 화면(FriendFlow)도 씁니다: 달릴 오너먼트를 크게 보며 고릅니다.
 // 배경 · 조명은 스노우볼 화면(StageScene)과 같고, 오너먼트는 스노우볼에 달린 것과 같은 모델 · 재질입니다.
 // 스노우볼 모델은 불러오지 않습니다 (OrnamentGlb.tsx 만 씀).
 // 끌어서 돌리고 기울여 보고, 휠 · 두 손가락으로 확대 · 축소할 수 있습니다. 손을 떼고 잠시 뒤에는 다시 천천히 돕니다 (이민정).
@@ -28,7 +29,8 @@ const SPIN_SPEED = 0.5; // 저절로 도는 속도
 const RESUME_AFTER = 2500; // 손을 뗀 뒤 다시 저절로 돌기까지 (ms)
 const CLICK_SLOP = 6; // 이만큼(px) 넘게 끌었으면 누른 것으로 치지 않습니다
 
-type Props = { shape: OrnamentShape; color: string; onOpen?: () => void };
+// sunrise: 새해 스노우볼에서 열었을 때 배경을 일출로 맞춥니다
+type Props = { shape: OrnamentShape; color: string; onOpen?: () => void; sunrise?: boolean };
 
 // 움직임 줄이기 설정 (무대 바깥에서 넘겨받지 않고 여기서 직접 읽습니다)
 function useReducedMotion() {
@@ -210,11 +212,11 @@ function FloatingOrnament({ shape, color, onOpen }: Props) {
   );
 }
 
-export default function GiftOrnamentScene(props: Props) {
+export default function GiftOrnamentScene({ sunrise = false, ...props }: Props) {
   return (
     <Canvas camera={{ position: [0, 0, 7], fov: 35 }} dpr={[1, 2]} gl={{ alpha: true, antialias: true }} style={{ touchAction: "none" }} aria-hidden="true">
       <NightLights />
-      <VillageBackdrop />
+      <VillageBackdrop sunrise={sunrise} />
       <Suspense fallback={null}>
         <FloatingOrnament {...props} />
       </Suspense>

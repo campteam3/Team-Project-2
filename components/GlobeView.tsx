@@ -7,6 +7,7 @@
 // 친구 화면(10~13)과 상태 화면은 시안 C 로 바꿨습니다: components/friend/FriendFlow, components/stage/GlobeStatus (김미영)
 // 주인 화면(05~07)은 components/owner/OwnerHome 으로 옮겼습니다. 메시지 열기 · 지우기 · 나가기 호출은 그대로입니다 (김미영)
 // 개발용: /globe/demo?preview=friend 이면 샘플 스노우볼을 친구 입장에서 봅니다(저장하지 않음).
+// 개발용: /globe/demo?kind=newyear 이면 샘플을 새해 스노우볼로 봅니다(오너먼트는 복주머니 · 방패연 · 노리개를 번갈아, 저장하지 않음, 차명근).
 // 개발용: /globe/demo?full=1 이면 샘플을 오너먼트 자리 수만큼 채워 "가득 찼어요" 화면을 봅니다(저장하지 않음, 김미영).
 
 import { useParams, useSearchParams } from "next/navigation";
@@ -14,7 +15,8 @@ import { useEffect, useRef, useState } from "react";
 import { getGlobe, getMessages, type Globe } from "@/lib/api";
 import { clearOwnerToken, loadOwnerToken } from "@/lib/owner-token";
 import { SAMPLE_GLOBE } from "@/lib/sample-data";
-import { MAX_ORNAMENTS } from "@/lib/snowglobe";
+import { MAX_ORNAMENTS, shapesFor } from "@/lib/snowglobe";
+import { defaultTheme } from "@/lib/theme";
 import FriendFlow from "./friend/FriendFlow";
 import OwnerHome from "./owner/OwnerHome";
 import GlobeStatus from "./stage/GlobeStatus";
@@ -45,9 +47,16 @@ function fillSample(globe: Globe): Globe {
   return { ...globe, ornaments };
 }
 
-async function loadView(nickname: string, previewFriend = false, previewFull = false): Promise<View> {
+// 샘플을 새해 스노우볼로 바꿉니다: 새해 꾸미기 기본값에, 오너먼트 모양은 새해 전용 세 가지를 번갈아
+function newYearSample(globe: Globe): Globe {
+  const shapes = shapesFor("newyear");
+  return { ...globe, theme: defaultTheme("newyear"), ornaments: globe.ornaments.map((item, i) => ({ ...item, shape: shapes[i % shapes.length] })) };
+}
+
+async function loadView(nickname: string, previewFriend = false, previewFull = false, previewNewYear = false): Promise<View> {
   if (nickname === DEMO) {
-    const globe = previewFull ? fillSample(SAMPLE_GLOBE) : SAMPLE_GLOBE;
+    const sample = previewNewYear ? newYearSample(SAMPLE_GLOBE) : SAMPLE_GLOBE;
+    const globe = previewFull ? fillSample(sample) : sample;
     return { status: "ready", globe, isOwner: !previewFriend, token: null };
   }
 
@@ -73,6 +82,7 @@ export default function GlobeView() {
   const searchParams = useSearchParams();
   const previewFriend = isDemo && searchParams.get("preview") === "friend";
   const previewFull = isDemo && searchParams.get("full") === "1";
+  const previewNewYear = isDemo && searchParams.get("kind") === "newyear";
 
   const [view, setView] = useState<View>({ status: "loading" });
   const [shakeSignal, setShakeSignal] = useState(0);
@@ -80,15 +90,15 @@ export default function GlobeView() {
 
   useEffect(() => {
     let cancelled = false;
-    loadView(nickname, previewFriend, previewFull).then((next) => {
+    loadView(nickname, previewFriend, previewFull, previewNewYear).then((next) => {
       if (!cancelled) setView(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [nickname, previewFriend, previewFull]);
+  }, [nickname, previewFriend, previewFull, previewNewYear]);
 
-  const refresh = async () => setView(await loadView(nickname, previewFriend, previewFull));
+  const refresh = async () => setView(await loadView(nickname, previewFriend, previewFull, previewNewYear));
 
   // 휴대폰을 흔들면 눈이 내립니다.
   useEffect(() => {

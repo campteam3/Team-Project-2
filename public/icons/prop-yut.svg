@@ -1,0 +1,9 @@
+<!-- 꾸미기 소품 아이콘: 새해 스노우볼의 윷가락 (조각보 위) · 차명근 -->
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M14 54L48 36L84 52L50 74L14 54Z" fill="#C23B45"/>
+<path d="M22 54L48 40.5V68L22 54Z" fill="#E9B949"/>
+<path d="M48 40.5L76 52.5L48 68V40.5Z" fill="#2F5FA8"/>
+<rect x="18" y="24" width="60" height="13" rx="6.5" transform="rotate(18 18 24)" fill="#6E4129"/>
+<rect x="24" y="52" width="58" height="13" rx="6.5" transform="rotate(-24 24 52)" fill="#EBD5A8"/>
+<path d="M39 44L45 47M45 42L39 49M52 38L58 41M58 36L52 43M65 32L71 35M71 30L65 37" stroke="#3A2318" stroke-width="2.2" stroke-linecap="round"/>
+</svg>

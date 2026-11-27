@@ -41,3 +41,6 @@ design/blender/render_*.png
 
 # 화면 확인용 스크린샷 (Playwright)
 .playwright-mcp/
+
+# Blender 스크립트를 돌릴 때 생기는 Python 캐시
+__pycache__/

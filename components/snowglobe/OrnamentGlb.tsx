@@ -11,7 +11,21 @@ import type { OrnamentShape } from "@/lib/snowglobe";
 import { ornamentOptionIndex } from "@/lib/theme";
 
 export const ORNAMENT_URL = "/models/ornaments.glb";
-const TEMPLATE_NAMES: Record<OrnamentShape, string> = { ball: "t_Orn_Ball", star: "t_Orn_Star", heart: "t_Orn_Heart", cane: "t_Orn_Cane", gift: "t_Orn_Gift" };
+// 새해 스노우볼 전용 오너먼트(복주머니 · 방패연 · 노리개). 새해 스노우볼을 그릴 때에만 받습니다. (차명근)
+export const NEWYEAR_ORNAMENT_URL = "/models/ornaments-newyear.glb";
+const TEMPLATE_NAMES: Record<OrnamentShape, string> = {
+  ball: "t_Orn_Ball",
+  star: "t_Orn_Star",
+  heart: "t_Orn_Heart",
+  cane: "t_Orn_Cane",
+  gift: "t_Orn_Gift",
+  pouch: "t_Orn_Pouch",
+  kite: "t_Orn_Kite",
+  norigae: "t_Orn_Norigae",
+};
+const NEWYEAR_SHAPES: OrnamentShape[] = ["pouch", "kite", "norigae"];
+// 그 모양의 원형이 들어 있는 파일
+export const ornamentUrl = (shape: OrnamentShape) => (NEWYEAR_SHAPES.includes(shape) ? NEWYEAR_ORNAMENT_URL : ORNAMENT_URL);
 
 export type TemplatePart = {
   shape: OrnamentShape;
@@ -20,11 +34,12 @@ export type TemplatePart = {
   material: THREE.MeshStandardMaterial;
 };
 
-// 오너먼트 원형(볼 · 별 · 하트 · 지팡이 사탕 · 선물 상자)을 부분별로 꺼냅니다. 본체 색과 무늬 색은 오너먼트마다 바꿉니다.
-export function useOrnamentTemplates() {
-  const { scene } = useGLTF(ORNAMENT_URL);
+// 오너먼트 원형(볼 · 별 · 하트 · 지팡이 사탕 · 선물 상자, 새해는 복주머니 · 방패연 · 노리개)을 부분별로 꺼냅니다. 본체 색과 무늬 색은 오너먼트마다 바꿉니다.
+// url 파일에 없는 모양은 빈 목록입니다 (그리지 않음).
+export function useOrnamentTemplates(url: string = ORNAMENT_URL) {
+  const { scene } = useGLTF(url);
   return useMemo(() => {
-    const templates: Record<OrnamentShape, TemplatePart[]> = { ball: [], star: [], heart: [], cane: [], gift: [] };
+    const templates: Record<OrnamentShape, TemplatePart[]> = { ball: [], star: [], heart: [], cane: [], gift: [], pouch: [], kite: [], norigae: [] };
     for (const shape of Object.keys(TEMPLATE_NAMES) as OrnamentShape[]) {
       scene.getObjectByName(TEMPLATE_NAMES[shape])?.traverse((child) => {
         const mesh = child as THREE.Mesh;
@@ -350,7 +365,7 @@ export function OrnamentParts({ parts, materials }: { parts: TemplatePart[]; mat
 
 // 오너먼트 하나를 원점에 그립니다. 스노우볼에 달린 메시지 오너먼트와 같은 재질 규칙입니다. 크기 · 위치는 바깥 group 에서 정합니다.
 export function SingleOrnament({ shape, color }: { shape: OrnamentShape; color: string }) {
-  const templates = useOrnamentTemplates();
+  const templates = useOrnamentTemplates(ornamentUrl(shape));
   const parts = templates[shape];
   const materials = useOrnamentMaterials(parts, color, false, false);
   return <OrnamentParts parts={parts} materials={materials} />;

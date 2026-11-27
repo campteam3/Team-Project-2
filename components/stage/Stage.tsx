@@ -79,6 +79,7 @@ export type StageProps = {
   holdGlobe?: boolean; // 스노우볼을 직전 크기 · 자리에 그대로 두고, 아래쪽 UI 가 그 위로 올라오게 합니다 (12 메시지 쓰기)
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
+  topLeft?: ReactNode; // 왼쪽 위 (PC 는 전체 화면 버튼 바로 아래): 스노우볼 고르기 버튼
   below?: ReactNode; // 도크 아래 작은 글자 링크
   // 값을 주면 위쪽에 "사진 찍기" 버튼이 생깁니다. 저장할 파일 이름으로 씁니다 (FEEDBACK E4, 차명근).
   // 누르면 사진 찍기 화면이 열려, 각도 · 크기를 맞춘 뒤 저장합니다 (이민정)
@@ -97,7 +98,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, topLeft, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
   const hasScene = !!scene;
   // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
   // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
@@ -576,8 +577,9 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       {/* 사진 찍기 화면에서는 통째로 숨깁니다 (자리는 그대로 남겨, 닫으면 스노우볼이 제자리로 돌아옵니다) */}
       <div className={`pointer-events-none absolute inset-x-0 top-[var(--vv-top,0px)] z-10 flex h-[var(--vv-h,100%)] flex-col ${photo ? "invisible" : ""} [transition:height_var(--vv-t,0ms)_var(--ease-soft)] px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-4 kb:pb-[calc(0.75rem+var(--kb-clear,0px))] kb:pt-3 sm:px-8 sm:pb-8 sm:pt-8`}>
         {/* 전체 화면 버튼은 넓은 화면에서만 보입니다. 휴대폰은 이미 화면을 꽉 채우고, 아이폰은 전체 화면이 되지 않습니다 (FEEDBACK C6) */}
-        <div className="pointer-events-auto absolute left-8 top-8 max-sm:hidden kb:hidden">
-          <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} />
+        <div className="pointer-events-auto absolute left-4 top-4 flex flex-col items-start gap-2 kb:hidden sm:left-8 sm:top-8">
+          <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} className="max-sm:hidden" />
+          {topLeft}
         </div>
         <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 kb:hidden sm:right-8 sm:top-8">
           {saveAs && webgl && !scene && <IconButton icon="camera" label="사진 찍기" onClick={openPhoto} />}

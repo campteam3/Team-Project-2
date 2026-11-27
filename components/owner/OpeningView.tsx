@@ -6,12 +6,13 @@
 // "오너먼트 하나 = 친구 메시지 하나"를 설명 대신 보여 주는 장치입니다.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Stage from "@/components/stage/Stage";
 import { ButtonLink } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { SAMPLE_GLOBE } from "@/lib/sample-data";
-import { DEFAULT_THEME } from "@/lib/theme";
+import GlobeKindPicker from "@/components/ui/GlobeKindPicker";
+import { defaultTheme, type GlobeKind } from "@/lib/theme";
 
 // 예시용 오너먼트(가짜 데이터, 모양 · 색 · 자리만 있음). 다섯 모양을 섞어 24개: 앞쪽 14 · 옆 5 · 뒤 5 (볼 · 별 · 사탕 · 선물 5개씩, 하트 4개)
 // 세 번째 값은 트리의 자리 번호(lib/snowglobe-slots.json)입니다. 순서대로 자동으로 달면 옆을 다 채워야 뒤로 넘어가서, 자리를 직접 정했습니다.
@@ -76,6 +77,9 @@ function ExampleBubble({ sender, message }: { sender: string; message: string })
 }
 
 export default function OpeningView() {
+  // 왼쪽 위 버튼으로 고른 스노우볼 주제. 만들기(/new)도 이 주제로 시작합니다 (차명근)
+  const [kind, setKind] = useState<GlobeKind>("christmas");
+  const theme = useMemo(() => defaultTheme(kind), [kind]);
   const [turn, setTurn] = useState(0);
   const [shown, setShown] = useState(false);
 
@@ -101,14 +105,15 @@ export default function OpeningView() {
 
   return (
     <Stage
-      theme={DEFAULT_THEME}
+      theme={theme}
+      topLeft={<GlobeKindPicker kind={kind} onPick={setKind} />}
       ornaments={EXAMPLE}
       display
       // 문구: Impeccable clarify 로 다듬음. 제목은 "무엇인지", 설명은 제목에 없는 "어떻게"만 (각각 한 줄)
       title="친구 마음이 쌓이는 스노우볼"
       subtitle="링크를 보내면 친구들이 오너먼트를 달아 줘요"
       hint="드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
-      hintMobile="폰을 흔들어 눈을 내려 보세요"
+      hintMobile={kind === "newyear" ? "폰을 흔들어 폭죽을 터뜨려 보세요" : "폰을 흔들어 눈을 내려 보세요"}
       layout={{ desktop: { centerFromTop: 0.47 }, mobile: { centerFromTop: 0.48 } }}
       // 명판에 실제 이름처럼 보여 줘서 "여기에 내 이름이 새겨진다"를 처음부터 알게 합니다
       plateText="지수의 스노우볼"
@@ -122,7 +127,7 @@ export default function OpeningView() {
     >
       {/* 기념 메시지 보내기 (FEEDBACK F1, 차명근): 빨간 주 버튼은 하나라 보조 버튼으로. 아주 좁은 화면(400px 미만)에서는 위아래로 쌓습니다 */}
       <Dock label="시작하기" className="max-[400px]:w-full max-[400px]:flex-col max-[400px]:items-stretch max-[400px]:rounded-[28px]">
-        <ButtonLink href="/new">내 스노우볼 만들기</ButtonLink>
+        <ButtonLink href={kind === "christmas" ? "/new" : `/new?kind=${kind}`}>내 스노우볼 만들기</ButtonLink>
         <ButtonLink href="/gift/new" variant="secondary">
           기념 메시지 보내기
         </ButtonLink>

@@ -1,6 +1,6 @@
 "use client";
 
-// 11 오너먼트 고르기 도크: 돌아가기 · 모양 5개(볼 · 별 · 하트 · 사탕 · 선물) · 색 6개 · 다음
+// 11 오너먼트 고르기 도크: 돌아가기 · 모양 5개(볼 · 별 · 하트 · 사탕 · 선물, 새해 스노우볼은 복주머니 · 방패연 · 노리개) · 색 6개 · 다음
 // 넓은 화면(960px 이상)에서는 한 줄, 그보다 좁으면 세 줄(모양 / 색 / 돌아가기 + 다음)로 놓입니다.
 // 모양이 다섯 개가 되어 한 줄에 다 놓으려면 도크 너비 약 870px(좌우 여백까지 약 930px)이 필요합니다. 그래서 태블릿 세로 화면도 세 줄로 놓습니다 (이민정).
 // 세 줄일 때 모양 칸은 그림 위 · 이름 아래로 쌓아 다섯 개가 같은 너비로 들어갑니다 (02 꾸미기 도크의 선택지와 같은 모양).
@@ -9,13 +9,11 @@
 import { Button, IconButton } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { Icon } from "@/components/ui/Icons";
-import { ORNAMENT_SHAPES, type OrnamentShape } from "@/lib/snowglobe";
-import { ORNAMENT_OPTIONS, ornamentSwatch } from "@/lib/theme";
-
-// 사탕 = 지팡이 사탕, 선물 = 선물 상자 (이민정). 휴대폰 한 줄에 다섯 개가 들어가게 짧게 부릅니다
-const SHAPE_LABEL: Record<OrnamentShape, string> = { ball: "볼", star: "별", heart: "하트", cane: "사탕", gift: "선물" };
+import { SHAPE_LABEL, shapesFor, type OrnamentShape } from "@/lib/snowglobe";
+import { ORNAMENT_OPTIONS, ornamentSwatch, type GlobeKind } from "@/lib/theme";
 
 type Props = {
+  kind?: GlobeKind; // 오너먼트를 달 스노우볼의 주제. 주제마다 고를 수 있는 모양이 다릅니다 (안 넘기면 볼 · 별 · 하트)
   shape: OrnamentShape;
   onShape: (shape: OrnamentShape) => void;
   colorId: string;
@@ -24,13 +22,13 @@ type Props = {
   onNext: () => void;
 };
 
-export default function OrnamentPickDock({ shape, onShape, colorId, onPick, onBack, onNext }: Props) {
+export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick, onBack, onNext }: Props) {
   return (
     <Dock label="오너먼트 고르기" className="max-[959px]:w-full max-[959px]:max-w-[440px] max-[959px]:flex-col max-[959px]:items-stretch max-[959px]:rounded-[28px]">
       <IconButton icon="arrow-left" label="돌아가기" onClick={onBack} className="max-[959px]:hidden" />
 
       <div className="flex items-center justify-between gap-1 min-[960px]:ml-1 min-[960px]:justify-start" role="group" aria-label="오너먼트 모양">
-        {ORNAMENT_SHAPES.map((s) => {
+        {shapesFor(kind).map((s) => {
           const selected = s === shape;
           return (
             <button

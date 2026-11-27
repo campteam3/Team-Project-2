@@ -1,0 +1,14 @@
+<!-- 꾸미기 소품 아이콘: 새해 스노우볼의 소반 위 떡국 · 차명근 -->
+<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M10 58H86C88.2 58 90 59.8 90 62C90 64.2 88.2 66 86 66H10C7.8 66 6 64.2 6 62C6 59.8 7.8 58 10 58Z" fill="#5E2F24"/>
+<path d="M20 66H30L26 84C25.6 86 24 87 22 87C19.8 87 18.4 85.2 18.8 83L20 66ZM76 66H66L70 84C70.4 86 72 87 74 87C76.2 87 77.6 85.2 77.2 83L76 66Z" fill="#4A241B"/>
+<path d="M22 36H74C74 48 66 58 48 58C30 58 22 48 22 36Z" fill="#F4F1EA"/>
+<path d="M60 38C60 47 55 54 46 57.9C46.7 58 47.3 58 48 58C66 58 74 48 74 36H60V38Z" fill="#DCE5E9"/>
+<ellipse cx="48" cy="36" rx="26" ry="7" fill="#F1E3C8"/>
+<ellipse cx="38" cy="35" rx="6" ry="2.6" fill="#FFFDF6"/>
+<ellipse cx="57" cy="37.5" rx="6" ry="2.6" fill="#FFFDF6"/>
+<path d="M44 33.500L54 32" stroke="#F2C64A" stroke-width="3" stroke-linecap="round"/>
+<path d="M45 38.500L51 39.5" stroke="#23262B" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="62" cy="33.5" r="1.8" fill="#6FB36A"/>
+<path d="M40 24C38 21 42 19 40 15M50 23C48 20 52 18 50 13M60 24C58 21 62 19 60 15" stroke="#F5F1EA" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+</svg>
