@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import GlobeView from "@/components/GlobeView";
 import ModelPreload from "@/components/ModelPreload";
+import GlobeStatus from "@/components/stage/GlobeStatus";
 import { OG_IMAGE, SITE_NAME } from "@/lib/site";
 
 // 링크 미리보기: "○○ 님의 스노우볼". 닉네임은 주소에 있는 값이라 DB 를 부르지 않습니다.
@@ -59,7 +60,7 @@ export default function GlobePage() {
   return (
     <>
       <ModelPreload />
-      <Suspense fallback={null}>
+      <Suspense fallback={<GlobeStatus kind="loading" />}>
         <GlobeView />
       </Suspense>
       <DynamicMarker />

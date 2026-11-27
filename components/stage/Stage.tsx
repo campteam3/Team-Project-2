@@ -20,10 +20,12 @@ import type { GlobeLayout } from "./StageScene";
 // 소리 버튼 (차명근 연결): 배경 음악을 켜고 끕니다. 재생은 lib/bgm.ts 가 맡습니다.
 const SHOW_SOUND = true;
 
-const StageScene = dynamic(() => import("./StageScene"), {
-  ssr: false,
-  loading: () => <StageFallback message="스노우볼을 불러오고 있어요" />,
-});
+// 불러오는 동안에는 Stage 가 대체 화면(흐린 스노우볼 그림)을 위에 덮어 두므로, 여기서는 아무것도 그리지 않습니다.
+const StageScene = dynamic(() => import("./StageScene"), { ssr: false, loading: () => null });
+
+// 이 탭에서 스노우볼이 한 번이라도 다 그려졌는지. 그 뒤에 다른 화면으로 옮겨 갈 때는 이미 받아 둔 것이라
+// 금방 그려지므로, 흐린 그림을 다시 덮지 않습니다 (또렷한 스노우볼이 흐려졌다 돌아오는 깜박임을 막음).
+let sceneShownOnce = false;
 
 // 스노우볼은 제목과 아래쪽 UI 사이 빈 공간(위아래 24px 여백)을 꽉 채울 만큼 크게 그립니다.
 // height 는 상한 역할만 하고, 실제 크기는 빈 공간과 화면 너비 중 좁은 쪽에 맞춰집니다 (StageScene 의 getSafeArea).
@@ -97,6 +99,13 @@ export default function Stage(props: StageProps) {
   const plateContent =
     plate ?? (plateText ? <span className="plate-text pointer-events-none text-[15px] font-bold text-night-900">{plateText}</span> : undefined);
   const [webgl, setWebgl] = useState<boolean | null>(null);
+  // 첫 접속: 3D 가 다 그려질 때까지 대체 화면을 위에 덮어 두었다가(cover), 준비되면 서서히 걷어 냅니다.
+  const [sceneReady, setSceneReady] = useState(false);
+  const [cover, setCover] = useState(() => !sceneShownOnce);
+  const onSceneReady = useCallback(() => {
+    sceneShownOnce = true;
+    setSceneReady(true);
+  }, []);
   const [mobile, setMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   // 스노우볼을 만지기 시작하면(돌리기 · 확대) 안내 문구를 흐리게 물려, 받침대와 명판을 가리지 않게 합니다 (FEEDBACK A4).
@@ -454,7 +463,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       <div className="absolute inset-0 z-0">
         {webgl === false ? (
           scene ? (
-            <StageFallback />
+            <StageFallback poster={false} />
           ) : (
             <StageFallback plate={plateContent} centerFromTop={layout.centerFromTop} height={layout.height} />
           )
@@ -479,11 +488,22 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             lockFront={lockFront}
             shakeSignal={shakeSignal + extraShake}
             reducedMotion={reducedMotion}
+            onReady={onSceneReady}
           />
-        ) : (
-          <StageFallback />
-        )}
+        ) : scene ? (
+          <StageFallback poster={false} />
+        ) : null}
       </div>
+
+      {/* 첫 접속 대체 화면: 마을 배경 + 흐린 스노우볼 그림. 3D 가 다 그려지면 서서히 사라집니다 */}
+      {!scene && webgl !== false && cover && (
+        <div
+          className={`pointer-events-none absolute inset-0 z-[7] transition-opacity duration-500 ease-soft ${sceneReady ? "opacity-0" : "opacity-100"}`}
+          onTransitionEnd={() => sceneReady && setCover(false)}
+        >
+          <StageFallback message="스노우볼을 불러오고 있어요" />
+        </div>
+      )}
 
       {/* 명판 글자 · 입력칸: 3D 받침대 명판 위치를 따라갑니다 */}
       {plateContent && webgl && !scene && (

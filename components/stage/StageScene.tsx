@@ -8,6 +8,7 @@
 //    명판 위 글자 · 닉네임 입력칸은 Stage 가 일반 HTML 로 그 자리에 둡니다
 //    (drei 의 Html 은 React 19.3 과 충돌해 쓰지 않습니다).
 
+import { useProgress } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -22,6 +23,7 @@ import SnowGlobeModel, {
 import { NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
 import Snow from "./Snow";
 import VillageBackdrop from "./VillageBackdrop";
+import { backdropUniforms } from "./backdropShared";
 import { toShape } from "@/lib/snowglobe";
 
 export type GlobeLayout = {
@@ -51,6 +53,7 @@ export type StageSceneProps = {
   getSafeArea?: () => { top: number; bottom: number; plateHalf: number } | null;
   shakeSignal: number;
   reducedMotion: boolean;
+  onReady?: () => void; // 스노우볼과 배경이 다 그려졌을 때 한 번
 };
 
 const UI_OVERLAP = 0.3; // 스노우볼 몸체가 아래쪽 UI 뒤로 들어가도 되는 비율
@@ -366,6 +369,29 @@ function Globe(props: StageSceneProps) {
   );
 }
 
+// 스노우볼과 배경 그림이 다 그려졌을 때 한 번 알려 줍니다. Stage 가 이때 대체 화면(흐린 스노우볼 그림)을 걷어 냅니다.
+// 모델을 받는 중이거나 배경 그림이 아직 나타나는 중이면 기다립니다. 받지 못하는 경우에도 화면이 가려진 채 남지 않게 10초 뒤에는 알립니다.
+const READY_FRAMES = 3; // 다 받은 뒤 화면에 실제로 그려질 때까지 기다리는 프레임 수
+const READY_TIMEOUT = 10;
+function ReadyWatch({ onReady }: { onReady: () => void }) {
+  const calm = useRef(0);
+  const done = useRef(false);
+  useFrame((state) => {
+    if (done.current) return;
+    const late = state.clock.elapsedTime > READY_TIMEOUT;
+    const { active, loaded } = useProgress.getState();
+    const loadedAll = !active && loaded > 0 && backdropUniforms.uBackdropShow.value >= 1;
+    if (!loadedAll && !late) {
+      calm.current = 0;
+      return;
+    }
+    if (++calm.current < READY_FRAMES && !late) return;
+    done.current = true;
+    onReady();
+  });
+  return null;
+}
+
 export default function StageScene(props: StageSceneProps) {
   return (
     <Canvas
@@ -380,6 +406,7 @@ export default function StageScene(props: StageSceneProps) {
       <VillageBackdrop />
       <Globe {...props} />
       <NightBloom />
+      {props.onReady && <ReadyWatch onReady={props.onReady} />}
     </Canvas>
   );
 }
