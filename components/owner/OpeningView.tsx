@@ -13,29 +13,47 @@ import { Dock } from "@/components/ui/Dock";
 import { SAMPLE_GLOBE } from "@/lib/sample-data";
 import { DEFAULT_THEME } from "@/lib/theme";
 
-// 예시용 오너먼트(가짜 데이터, 모양과 색만 있음). 볼만 달려 있으면 별 · 하트도 고를 수 있다는 걸 알 수 없어서 세 모양을 섞습니다 (볼 6, 별 3, 하트 3)
-// 별 · 하트는 다섯 색(lib/theme.ts 의 ORNAMENT_OPTIONS)을 섞어 씁니다. 초록은 트리 색에 묻혀 잘 안 보여서 뺐습니다
+// 예시용 오너먼트(가짜 데이터, 모양 · 색 · 자리만 있음). 다섯 모양을 섞어 24개: 앞쪽 14 · 옆 5 · 뒤 5 (볼 · 별 · 사탕 · 선물 5개씩, 하트 4개)
+// 세 번째 값은 트리의 자리 번호(lib/snowglobe-slots.json)입니다. 순서대로 자동으로 달면 옆을 다 채워야 뒤로 넘어가서, 자리를 직접 정했습니다.
+// 자리는 이웃한 것끼리 모양도 색도 겹치지 않게 골랐습니다. 초록은 트리 색에 묻히지 않는 선물 상자에만 씁니다.
 const RED = "#C8363D";
 const GOLD = "#F2C46D";
-const RED_GOLD = "#F5F1EA"; // 빨강과 금색
+const RED_GOLD = "#F5F1EA"; // 빨강과 금색 (lib/theme.ts 의 ORNAMENT_OPTIONS)
 const BLUE = "#8FB8E8";
+const GREEN = "#3C8E63";
 const PINK = "#E58FA8";
 const EXAMPLE = (
   [
-    ["ball", RED],
-    ["star", GOLD],
-    ["heart", PINK],
-    ["ball", BLUE],
-    ["star", PINK],
-    ["ball", GOLD],
-    ["heart", RED],
-    ["ball", RED_GOLD],
-    ["star", BLUE],
-    ["ball", RED],
-    ["heart", RED_GOLD],
-    ["ball", GOLD],
+    // 앞쪽
+    ["star", RED_GOLD, 38],
+    ["star", GOLD, 33],
+    ["star", RED, 32],
+    ["gift", RED, 13],
+    ["cane", GOLD, 20],
+    ["cane", RED_GOLD, 6],
+    ["heart", PINK, 36],
+    ["heart", GOLD, 5],
+    ["gift", PINK, 27],
+    ["ball", BLUE, 14],
+    ["heart", RED, 21],
+    ["cane", BLUE, 12],
+    ["ball", RED, 26],
+    ["gift", GREEN, 19],
+    // 옆
+    ["ball", RED_GOLD, 0],
+    ["gift", RED, 3],
+    ["star", RED_GOLD, 29],
+    ["cane", PINK, 15],
+    ["ball", PINK, 11],
+    // 뒤
+    ["gift", RED_GOLD, 9],
+    ["cane", BLUE, 24],
+    ["ball", GOLD, 2],
+    ["heart", GOLD, 37],
+    ["star", BLUE, 1],
   ] as const
-).map(([shape, color], i) => ({ id: `example-${i}`, shape, color }));
+  // position 은 Stage 를 거쳐 lib/snowglobe.ts 의 placeOrnaments 까지 그대로 전해져, 그 자리에 달립니다
+).map(([shape, color, slot], i) => ({ id: `example-${i}`, shape, color, position: { slot } }));
 
 // 말풍선에 돌아가며 보여 줄 예시 메시지 (sample-data 의 가짜 메시지)
 const MESSAGES = SAMPLE_GLOBE.ornaments.map((o) => ({ sender: o.sender_name, message: o.message ?? "" }));
