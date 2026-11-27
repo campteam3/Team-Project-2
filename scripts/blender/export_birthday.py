@@ -181,9 +181,28 @@ try:
                     "cookieScale": round(size, 5),
                 }
             )
+    # 촛불 자리: 초마다 불꽃 메시의 맨 아래 가운데와 높이. 웹은 불꽃 메시를 숨기고 이 자리에 일렁이는 불꽃을 그립니다 (CandleFlames.tsx)
+    candles = bpy.data.objects["Cake_Candles"]
+    flame_index = [m.name for m in candles.data.materials].index("Candle_Flame")
+    flame_points = set()
+    for polygon in candles.data.polygons:
+        if polygon.material_index == flame_index:
+            flame_points.update(polygon.vertices)
+    flame_points = [FIT @ candles.matrix_world @ candles.data.vertices[i].co for i in flame_points]
+    flames = []
+    for px, py, _ in json.loads(scene["flame_points"]):
+        near = [v for v in flame_points if math.hypot(v.x - px, v.y - py) < 0.04]
+        if not near:
+            continue
+        low = min(v.z for v in near)
+        cx = sum(v.x for v in near) / len(near)
+        cy = sum(v.y for v in near) / len(near)
+        flames.append({"position": [round(cx, 4), round(low, 4), round(-cy, 4)], "height": round(max(v.z for v in near) - low, 4)})
+
     out = {
         "note": "생일 스노우볼의 토핑 자리. scripts/blender/export_birthday.py 가 design/blender/birthdayglobe.blend 에서 만듭니다. hang = 케이크 윗면(머랭 키스 · 사탕 구슬), slope = 케이크 옆면(젤리 별)",
         "glass": {"center": [0, round(glass["center"][2], 4), 0], "radius": glass["radius"]},
+        "flames": flames,
         "slots": slots,
     }
     with open(os.path.join(ROOT, "lib", "birthday-slots.json"), "w", encoding="utf-8") as file:

@@ -687,12 +687,6 @@ const MATERIAL_TUNES: Record<string, Tune> = {
     makeSoftGloss(material);
     makeVivid(material, "#ff6f9f");
   },
-  // 촛불: 스스로 빛나서 빛 번짐이 생깁니다
-  W_Candle_Flame: (material) => {
-    material.color.set("#fff1c4");
-    material.emissive.set("#ffb648");
-    material.emissiveIntensity = 2.2;
-  },
   // ── 새해 스노우볼 (차명근) ──
   // 양털: 광택 없이 포근하게. 따뜻한 조명 아래에서 누렇게 죽지 않도록 제 색으로 살짝 밝힙니다.
   // 양모 펠트 인형처럼: 털은 크림색에 보풀이 인 듯한 결, 얼굴 · 귀 · 다리는 결이 고운 펠트
@@ -1244,8 +1238,8 @@ export type GlobeLook = {
 // 새해 스노우볼은 양 다리 바로 앞에 불빛이 놓이지 않게, 위에서 은은하게 비추는 빛 하나만 둡니다 (차명근)
 export function GlobeInnerLights({ kind = "christmas" }: { kind?: GlobeKind }) {
   if (kind === "newyear") return <pointLight position={[0.1, 1.3, 0.7]} intensity={0.4} distance={2.2} color="#ffd9a6" />;
-  // 생일 스노우볼: 촛불 자리에서 케이크 윗면을 따뜻하게 비추는 빛 (김미영)
-  if (kind === "birthday") return <pointLight position={[0, 1.15, 0.1]} intensity={0.5} distance={1.6} color="#ffc777" />;
+  // 생일 스노우볼: 촛불의 빛은 불꽃과 함께 흔들리도록 CandleFlames.tsx 가 둡니다 (김미영)
+  if (kind === "birthday") return null;
   return (
     <>
       <pointLight position={[0.25, 0.42, 0.75]} intensity={0.55} distance={2.4} color="#ffb265" />
@@ -1358,6 +1352,11 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
       }
       // Blender 가 내보낼 때 재질 이름 뒤에 ".001" 같은 번호를 붙이는 일이 있어, 번호를 떼고 찾습니다.
       const name = material.name.replace(/\.\d+$/, "");
+      // 생일 케이크의 불꽃 모형은 숨깁니다. 그 자리에 일렁이는 불꽃을 따로 그립니다 (CandleFlames.tsx, 김미영)
+      if (name === "W_Candle_Flame") {
+        mesh.visible = false;
+        return;
+      }
       if (name === TREE_MATERIAL) treeMeshes.push(mesh);
       const tune = MATERIAL_TUNES[name];
       if (!tune) return;

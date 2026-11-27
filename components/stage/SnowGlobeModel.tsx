@@ -11,6 +11,7 @@
 import { type ThreeElements } from "@react-three/fiber";
 import { Suspense, useEffect } from "react";
 import { GlowDust } from "@/components/SnowGlobeAtmosphere";
+import CandleFlames from "@/components/snowglobe/CandleFlames";
 import { GlobeExtras, GlobeInnerLights, GlobeModel, Ornaments } from "@/components/snowglobe/SnowGlobeGlb";
 import { GLASS, ornamentSpot, placeOrnaments, shapesFor, type OrnamentLike, type OrnamentShape } from "@/lib/snowglobe";
 import { birthdayCake, hasProp, themeColor, trunkColor, type GlobeKind, type GlobeTheme } from "@/lib/theme";
@@ -112,6 +113,8 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
           </Suspense>
         )}
         <GlobeInnerLights kind={kind} />
+        {/* 생일 케이크의 일렁이는 촛불 */}
+        {kind === "birthday" && <CandleFlames still={reducedMotion} />}
         {/* 밤 배경에서 떠다니는 빛 알갱이. 낮 배경인 생일 스노우볼에는 두지 않습니다 */}
         {kind !== "birthday" && <GlowDust still={reducedMotion} />}
       </group>
