@@ -95,7 +95,7 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
     <group {...group}>
       <group position={[0, LIFT, 0]}>
         <Suspense fallback={null}>
-          <GlobeModel kind={kind} title={plateText} treeColor={treeColor} trunkColor={trunkColor(theme)} baseColor={baseColor} showGifts={kind === "newyear" ? hasProp(theme.prop, "gift") : showGifts} showSnowman={kind === "newyear" ? hasProp(theme.prop, "snowman") : showSnowman} />
+          <GlobeModel kind={kind} title={plateText} treeColor={treeColor} trunkColor={trunkColor(theme)} baseColor={baseColor} showGifts={kind === "newyear" ? hasProp(theme.prop, "gift") : showGifts} showSnowman={kind === "newyear" ? hasProp(theme.prop, "snowman") : showSnowman} showYut={hasProp(theme.prop, "yut")} showBokjori={hasProp(theme.prop, "bokjori")} />
           <Ornaments ornaments={ornaments} kind={kind} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} reducedMotion={reducedMotion} />
         </Suspense>
         {/* 추가 소품은 보일 때에만 파일을 내려받고, 받는 동안 스노우볼은 그대로 보입니다 */}

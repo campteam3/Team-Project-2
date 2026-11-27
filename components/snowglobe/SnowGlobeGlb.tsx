@@ -197,7 +197,41 @@ type ShaderExtras = {
   // 멍석: 짚으로 꼰 새끼줄을 둥글게 돌려 엮은 깔개의 무늬. 가운데에서 바깥으로 고리가 이어지고, 고리마다 꼬임 결이 있습니다.
   // rings: 가운데에서 가장자리까지의 고리 수(메시 자체 좌표 기준), twist: 고리 한 칸 길이에 들어가는 꼬임 수, groove: 골의 색
   straw?: { rings: number; twist: number; groove: string; depth: number };
+  // 바닥 그림자: 새해 스노우볼의 마당에 양과 소품의 그림자를 칠합니다. 그림자를 실제로 계산하지 않고(휴대폰에서 무거움)
+  // 물체가 놓인 자리 아래를 부드럽게 어둡게 하는 방식이라 더 그리는 것이 없습니다.
+  // matrix: 마당 메시를 모델 파일 기준 좌표로 옮기는 값, wall · soban: 담장 · 떡국 상이 보이는지 (0 또는 1)
+  ground?: { matrix: { value: THREE.Matrix4 }; wall: { value: number }; soban: { value: number }; yut: { value: number }; bokjori: { value: number } };
 };
+
+// 그림자 자리는 모델 파일 기준 좌표(x, z)입니다. Blender 의 (x, y) → (x, -y). 소품을 옮기면 여기도 고칩니다 (scripts/blender/*.py)
+const GROUND_GLSL = /* glsl */ `
+  varying vec3 vGroundPos;
+  uniform float uGroundWall;
+  uniform float uGroundSoban;
+  uniform float uGroundYut;
+  uniform float uGroundBokjori;
+  float groundBlob(vec2 p, vec2 center, vec2 radius, float inner) {
+    return 1.0 - smoothstep(inner, 1.0, length((p - center) / radius));
+  }
+  // 그 자리의 그림자 짙기 (0 = 없음)
+  float groundShade() {
+    vec2 p = vGroundPos.xz;
+    // 양: 몸통 아래가 가장 짙고, 머리 아래는 옅게
+    float shade = 0.5 * groundBlob(p, vec2(0.0, -0.12), vec2(0.43, 0.52), 0.35);
+    shade = max(shade, 0.3 * groundBlob(p, vec2(0.0, 0.14), vec2(0.3, 0.3), 0.3));
+    // 담장: 반지름 0.775 의 호(142도 ~ 232도)를 따라 길게
+    float angle = degrees(atan(-p.y, p.x));
+    angle = angle < 0.0 ? angle + 360.0 : angle;
+    float along = 1.0 - smoothstep(43.0, 49.0, abs(angle - 187.0));
+    float across = 1.0 - smoothstep(0.05, 0.15, abs(length(p) - 0.775));
+    shade = max(shade, 0.5 * along * across * uGroundWall);
+    // 떡국 상, 윷가락을 놓은 조각보, 복조리
+    shade = max(shade, 0.45 * groundBlob(p, vec2(0.455, 0.39), vec2(0.21, 0.21), 0.4) * uGroundSoban);
+    shade = max(shade, 0.26 * groundBlob(p, vec2(0.61, -0.03), vec2(0.25, 0.25), 0.55) * uGroundYut);
+    shade = max(shade, 0.34 * groundBlob(p, vec2(0.5, -0.5), vec2(0.17, 0.13), 0.3) * uGroundBokjori);
+    return shade;
+  }
+`;
 
 const STRAW_GLSL = /* glsl */ `
   varying vec3 vStrawPos;
@@ -295,8 +329,8 @@ function applyShaderExtras(material: THREE.MeshStandardMaterial, extras: ShaderE
           "#include <color_fragment>",
           `#include <color_fragment>
           float furStrandValue = furStrand();
-          // 바깥 겹일수록 굵은 가닥만 남습니다
-          if (uFurLayer > 0.0 && furStrandValue < 0.2 + 0.6 * uFurLayer) discard;
+// 바깥 겹일수록 가닥이 조금씩 줄어듭니다. 너무 많이 솎으면 털끝이 삐죽삐죽해 보여서, 끝 겹에도 가닥을 넉넉히 남겨 보송하게 합니다
+          if (uFurLayer > 0.0 && furStrandValue < 0.14 + 0.4 * uFurLayer) discard;
           // 가닥 사이 골은 어둡고 털끝은 밝게
           diffuseColor.rgb *= mix(0.74 + 0.2 * furStrandValue, 1.08, uFurLayer);`,
         );
@@ -329,6 +363,22 @@ function applyShaderExtras(material: THREE.MeshStandardMaterial, extras: ShaderE
           vec2 strawSlope = vec2(dFdx(strawH), dFdy(strawH)) * uStrawDepth;
           normal = normalize(abs(strawDet) * normal - sign(strawDet) * (strawSlope.x * strawR1 + strawSlope.y * strawR2));`,
         );
+    }
+    if (extras.ground) {
+      shader.uniforms.uGroundMatrix = extras.ground.matrix;
+      shader.uniforms.uGroundWall = extras.ground.wall;
+      shader.uniforms.uGroundSoban = extras.ground.soban;
+      shader.uniforms.uGroundYut = extras.ground.yut;
+      shader.uniforms.uGroundBokjori = extras.ground.bokjori;
+      vertex = vertex
+        .replace("#include <common>", "#include <common>\nuniform mat4 uGroundMatrix;\nvarying vec3 vGroundPos;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvGroundPos = (uGroundMatrix * vec4(position, 1.0)).xyz;");
+      fragment = fragment.replace("#include <common>", `#include <common>\n${GROUND_GLSL}`).replace(
+        "#include <opaque_fragment>",
+        `// 그늘진 곳은 어둡고 살짝 푸르스름하게
+        outgoingLight *= mix(vec3(1.0), vec3(0.42, 0.38, 0.46), groundShade());
+        #include <opaque_fragment>`,
+      );
     }
     if (extras.sparkle) {
       shader.uniforms.uSparkleScale = { value: extras.sparkle.scale };
@@ -398,7 +448,7 @@ function applyShaderExtras(material: THREE.MeshStandardMaterial, extras: ShaderE
     shader.vertexShader = vertex;
     shader.fragmentShader = fragment;
   };
-  material.customProgramCacheKey = () => JSON.stringify({ ...extras, blush: extras.blush && { ...extras.blush, matrix: 0 } });
+  material.customProgramCacheKey = () => JSON.stringify({ ...extras, blush: extras.blush && { ...extras.blush, matrix: 0 }, ground: Boolean(extras.ground) });
 }
 
 // 광택 없는 매끈한 클레이: 번쩍임과 주변 반사를 줄입니다.
@@ -462,11 +512,14 @@ const REINDEER_FUR = "W_RD_Fur";
 const SHEEP_WOOL = "W_Sheep_Wool";
 const SHEEP_FACE = "W_Sheep_Face";
 const SHEEP_LEG = "W_Sheep_Leg";
-const SHEEP_FUR = 0.016; // 털 겹이 자라는 길이 (모델 단위). scripts/blender/sheep_v2.py 의 FUR 와 같게
+const SHEEP_FUR = 0.0105; // 털 겹이 자라는 길이 (모델 단위). scripts/blender/sheep_v2.py 의 FUR 와 같게
 const SHEEP_FUR_LAYERS = 6; // 바깥으로 더 그리는 겹의 수
-const SHEEP_FUR_DENSITY = 135; // 1 단위 길이에 들어가는 가닥 무늬의 수
+const SHEEP_FUR_DENSITY = 200; // 1 단위 길이에 들어가는 가닥 무늬의 수
 // 다리(펠트)에는 짧은 보풀을 세웁니다: 겹 수 · 길이 · 촘촘함. 얼굴과 귀 앞면은 보풀 없이 매끈합니다
 const SHEEP_FELT = { layers: 3, length: 0.0045, density: 260 };
+const SHEEP_YARD = "W_Yard";
+// 마당의 그림자가 쓰는 값: 마당 메시가 모델 안에서 놓인 자리, 담장 · 떡국 상이 보이는지 (GlobeModel 이 채웁니다)
+const yardShade = { matrix: { value: new THREE.Matrix4() }, wall: { value: 1 }, soban: { value: 1 }, yut: { value: 1 }, bokjori: { value: 1 } };
 // 볼터치 자리를 맞추려면 얼굴 메시가 모델 안에서 놓인 자리를 알아야 합니다 (GlobeModel 이 채웁니다)
 const sheepBlushMatrix = { value: new THREE.Matrix4() };
 
@@ -494,7 +547,7 @@ function faceLook(material: THREE.MeshStandardMaterial) {
   applyShaderExtras(material, {
     rim: { color: "#fff6e6", strength: 0.26 },
     // 볼터치: 두 볼에서 부드럽게 번지는 분홍 (자리는 모델 파일 기준 좌표. Blender 의 (x, y, z) → (x, z, -y))
-    blush: { points: [[-0.118, 0.69, 0.33], [0.118, 0.69, 0.33]], radius: 0.043, color: "#f59aa2", strength: 0.6, matrix: sheepBlushMatrix },
+    blush: { points: [[-0.112, 0.69, 0.295], [0.112, 0.69, 0.295]], radius: 0.043, color: "#f59aa2", strength: 0.6, matrix: sheepBlushMatrix },
   });
 }
 
@@ -607,7 +660,7 @@ const MATERIAL_TUNES: Record<string, Tune> = {
     material.emissive.set("#5a3a14");
     material.emissiveIntensity = 0.3;
     // 굴곡을 크게 주면 옆에서 비추는 푸른 조명이 걸려 초록빛이 돌아서, 굴곡은 아주 얕게 두고 짙은 갈색으로만 무늬를 냅니다
-    applyShaderExtras(material, { straw: { rings: 13, twist: 6, groove: "#8f6232", depth: 0.04 } });
+    applyShaderExtras(material, { straw: { rings: 13, twist: 6, groove: "#8f6232", depth: 0.04 }, ground: yardShade });
   },
   // 붉은 2027: 일출 배경 위에서도 묻히지 않게 스스로 빛납니다
   W_Year_Red: (material) => {
@@ -1109,6 +1162,9 @@ export type GlobeLook = {
   // 새해 스노우볼에서는 선물 자리가 떡국(+소반), 눈사람 자리가 담장(+까치)입니다.
   showGifts?: boolean;
   showSnowman?: boolean;
+  // 새해 스노우볼의 윷가락(조각보) · 복조리
+  showYut?: boolean;
+  showBokjori?: boolean;
 };
 
 // 유리 안의 따뜻한 불빛: 트리 아래 눈을 비추는 빛과 꼭대기 별의 빛. 모델과 같은 자리에 둡니다.
@@ -1133,7 +1189,7 @@ function recolor(material: THREE.MeshStandardMaterial, color: string, rimStrengt
 }
 
 // 스노우볼 본체. 유리, 전구 줄, 별, 명패와 재질 값을 웹에 맞게 바꿉니다.
-export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkColor, baseColor, showGifts = true, showSnowman = true }: GlobeLook) {
+export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkColor, baseColor, showGifts = true, showSnowman = true, showYut = true, showBokjori = true }: GlobeLook) {
   const { scene } = useGLTF(globeModelUrl(kind));
 
   // 글꼴이 늦게 불러와지면 명패 글자를 그 글꼴로 다시 그립니다.
@@ -1192,6 +1248,8 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
       // 새해 스노우볼의 소품: 담장(+까치), 떡국(+소반)
       if (child.name.startsWith("w_HanokWall") || child.name.startsWith("w_Magpie")) child.visible = showSnowman;
       if (child.name.startsWith("w_Soban") || child.name.startsWith("w_Tteokguk")) child.visible = showGifts;
+      if (child.name.startsWith("w_Yut")) child.visible = showYut;
+      if (child.name.startsWith("w_Bokjori")) child.visible = showBokjori;
       // 트리에 미리 붙어 있던 고리는 숨깁니다. 오너먼트는 제 꼭지(금속 부분)를 달고 걸립니다. (FEEDBACK B1)
       if (child.name.startsWith("w_Tree_Hooks")) child.visible = false;
 
@@ -1231,6 +1289,10 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
       if (name === SHEEP_FACE) {
         mesh.updateWorldMatrix(true, false);
         sheepBlushMatrix.value.copy(mesh.matrixWorld);
+      }
+      if (name === SHEEP_YARD) {
+        mesh.updateWorldMatrix(true, false);
+        yardShade.matrix.value.copy(mesh.matrixWorld);
       }
       if (name === SHEEP_WOOL || name === SHEEP_LEG) {
         // 양털 · 펠트: 바탕 겹 위에 바깥으로 부풀린 털 겹을 여러 장 더 그립니다
@@ -1289,27 +1351,31 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
       mesh.renderOrder = 10;
     }
     return copy;
-  }, [scene, nameplate, treeColor, trunkColor, baseColor, showGifts, showSnowman]);
+  }, [scene, nameplate, treeColor, trunkColor, baseColor, showGifts, showSnowman, showYut, showBokjori]);
 
-  // 새해 스노우볼의 2027: 스노우볼을 돌려도 늘 화면 쪽을 보고, 공중에서 천천히 살짝 오르내립니다.
+  // 새해 스노우볼의 마당 그림자: 꾸미기에서 끈 소품은 그림자도 지웁니다
+  useEffect(() => {
+    yardShade.wall.value = showSnowman ? 1 : 0;
+    yardShade.soban.value = showGifts ? 1 : 0;
+    yardShade.yut.value = showYut ? 1 : 0;
+    yardShade.bokjori.value = showBokjori ? 1 : 0;
+  }, [showSnowman, showGifts, showYut, showBokjori]);
+
+  // 새해 스노우볼의 2027: 스노우볼과 함께 돌고, 공중에서 천천히 살짝 오르내립니다.
   const year = useRef<{ object: THREE.Object3D; y: number } | null>(null);
   useEffect(() => {
     const object = model.getObjectByName("w_Year2027");
     year.current = object ? { object, y: object.position.y } : null;
   }, [model]);
-  useFrame(({ camera, clock }) => {
+  useFrame(({ clock }) => {
     const item = year.current;
-    if (!item?.object.parent) return;
-    const toCamera = item.object.parent.worldToLocal(yearTarget.copy(camera.position));
-    item.object.rotation.set(0, Math.atan2(toCamera.x - item.object.position.x, toCamera.z - item.object.position.z), 0);
+    if (!item) return;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     item.object.position.y = item.y + (still ? 0 : Math.sin(clock.elapsedTime * 0.9) * 0.012);
   });
 
   return <primitive object={model} />;
 }
-
-const yearTarget = new THREE.Vector3();
 
 type ExtraLook = { showReindeer?: boolean; showGingerHouse?: boolean };
 

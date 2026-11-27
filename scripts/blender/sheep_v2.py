@@ -23,14 +23,14 @@ random.seed(2027)
 
 BODY = Vector((0, 0.115, 0.525))
 BODY_R = Vector((0.335, 0.435, 0.265))  # 몸은 앞뒤로 길게
-HOOD = Vector((0, -0.07, 0.797))  # 머리 털의 가운데
-HOOD_R = Vector((0.234, 0.228, 0.19))  # 얼굴 둘레 털이 풍성해 보이게 머리 털 전체를 조금 키웠습니다
-FACE = Vector((0, -0.235, 0.712))
+HOOD = Vector((0, -0.065, 0.795))  # 머리 털의 가운데
+HOOD_R = Vector((0.222, 0.218, 0.182))
+FACE = Vector((0, -0.188, 0.712))  # 얼굴 앞면이 머리 털 겉면보다 살짝 안쪽에 오는 깊이
 FACE_R = Vector((0.176, 0.128, 0.128))
 # 털 사이로 보이는 얼굴 창의 반지름: 옆, 위, 아래. 위를 짧게 잡아 이마가 털에 덮입니다
-WINDOW = (0.158, 0.08, 0.106)
+WINDOW = (0.156, 0.08, 0.106)
 SLOT_SCALE = 0.05
-FUR = 0.016  # 웹에서 털 겹이 자라는 길이. 오너먼트는 이만큼 띄워 붙입니다 (SnowGlobeGlb.tsx 의 SHEEP_FUR 와 같게)
+FUR = 0.0105  # 웹에서 털 겹이 자라는 길이. 오너먼트는 이만큼 띄워 붙입니다 (SnowGlobeGlb.tsx 의 SHEEP_FUR 와 같게)
 
 
 def material(name, color, roughness, metallic=0.0):
@@ -157,24 +157,27 @@ def fleece(center, radii, count, size, skip=None, offset=0.0):
 
 
 # 몸통: 배 아래는 다리가 붙으므로 방울을 줄입니다
-fleece(BODY, BODY_R, 262, (0.043, 0.058), lambda p, d: d.z < -0.9 or in_window(p, 0.9))
+fleece(BODY, BODY_R, 262, (0.043, 0.058), lambda p, d: d.z < -0.9 or in_window(p, 1.18))  # 턱 밑 가슴 털이 얼굴을 가리지 않게
 # 머리 털: 얼굴 창만 비웁니다
 fleece(HOOD, HOOD_R, 112, (0.04, 0.052), lambda p, d: in_window(p, 1.04) or d.z < -0.75, 0.7)
-# 얼굴 둘레의 털: 도톰한 방울이 얼굴 가장자리 앞으로 나와, 얼굴 테두리가 털 속에 묻혀 보입니다.
-# 안쪽 줄은 얼굴 가장자리를 덮고, 바깥 줄은 머리 털과 부드럽게 이어 줍니다
-for ring, (grow, forward, size) in enumerate(((0.008, 0.05, (0.044, 0.052)), (0.056, 0.022, (0.046, 0.054)))):
-    count = 24 + ring * 6
+# 얼굴 둘레에는 털을 따로 더하지 않습니다. 머리는 어디서 보아도 동그란 털 뭉치이고,
+# 얼굴면을 그 안쪽으로 살짝 넣어서 창 둘레의 털이 얼굴 가장자리에 그늘을 드리웁니다.
+# 이마: 얼굴 창의 위쪽 가장자리를 따라 동글동글한 방울을 한 줄 두릅니다 (털이 잘린 것처럼 보이지 않게).
+# 방울은 머리 털의 둥근 겉면 위에 놓여 앞으로 튀어나오지 않고, 그 위에 한 줄을 더 얹어 정수리 털과 이어 줍니다.
+def hood_front(x, z):
+    depth = 1 - (x / HOOD_R.x) ** 2 - ((z - HOOD.z) / HOOD_R.z) ** 2
+    return HOOD.y - HOOD_R.y * math.sqrt(max(depth, 0.05))
+
+
+# 방울을 크게, 수를 적게 해서 방울 사이의 골이 뾰족한 톱니로 보이지 않게 합니다 (큼직한 솜방울 대여섯 개가 둥근 아치를 이룸).
+# 맨 아랫줄은 얼굴보다 앞으로 도톰하게 내밀어 얼굴 위에 그늘이 지게 하고(얼굴에 딱 붙어 보이지 않게),
+# 윗줄로 갈수록 덜 내밀어 정수리까지 둥글게 이어지게 합니다. (grow: 창에서 떨어진 정도, 개수, 크기, 앞으로 내민 정도)
+for row, (grow, count, size, forward) in enumerate(((0.03, 5, 0.06, 0.034), (0.092, 4, 0.06, 0.02), (0.15, 5, 0.056, 0.008))):
     for k in range(count):
-        a = 2 * math.pi * (k + 0.5 * ring) / count + random.uniform(-0.04, 0.04)
-        if math.sin(a) > 0.3:  # 이마 쪽은 위의 머리 털이 덮습니다
-            continue
-        x = math.cos(a) * (WINDOW[0] + grow)
-        z = FACE.z + math.sin(a) * (WINDOW[2] + grow)
-        ball(wool, Vector((x, FACE.y - forward, z)), random.uniform(*size), 2)
-# 이마: 머리 털의 둥근 겉면을 그대로 따라 내려와 얼굴 위쪽을 살짝 덮습니다 (앞으로 튀어나오지 않게)
-for x, z in ((0, 0.1), (-0.062, 0.096), (0.062, 0.096), (-0.118, 0.082), (0.118, 0.082)):
-    depth = 1 - (x / HOOD_R.x) ** 2 - ((FACE.z + z - HOOD.z) / HOOD_R.z) ** 2
-    ball(wool, Vector((x, HOOD.y - HOOD_R.y * math.sqrt(max(depth, 0.05)) * 0.97, FACE.z + z)), 0.047, 2)
+        a = math.radians(18 + 144 * (k + 0.5 * (row % 2)) / (count - 1 + row % 2))
+        x = math.cos(a) * (WINDOW[0] + grow * 0.4)
+        z = FACE.z + math.sin(a) * (WINDOW[1] + grow) + 0.012
+        ball(wool, Vector((x, hood_front(x, z) - forward * (0.55 + 0.45 * math.sin(a)), z)), size * random.uniform(0.96, 1.04), 3)
 # 꼬리 방울
 TAIL = BODY + Vector((0, BODY_R.y + 0.03, 0.02))
 ball(wool, TAIL, 0.05, 2)
