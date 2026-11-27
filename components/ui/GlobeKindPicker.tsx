@@ -45,7 +45,8 @@ export default function GlobeKindPicker({ kind, onPick }: { kind: GlobeKind; onP
         <Icon name="chevron-down" className={`transition-transform duration-200 ease-soft ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div role="group" aria-label="스노우볼 종류" className="glass flex animate-rise flex-col gap-1 rounded-full p-1">
+        // 제목 위에 펼쳐지므로 바탕을 조금 짙게 해서 뒤의 글자가 비치지 않게 합니다
+        <div role="group" aria-label="스노우볼 종류" className="glass flex animate-rise flex-col gap-1 rounded-full bg-night-900/80 p-1">
           {AVAILABLE_KINDS.map((item) => {
             const selected = item === kind;
             return (

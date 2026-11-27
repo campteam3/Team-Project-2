@@ -1525,5 +1525,5 @@ export function Ornaments({
   );
 }
 
-
-useGLTF.preload(MODEL_URL);
+// 스노우볼 모델 미리 받기는 페이지의 <ModelPreload> 가 맡습니다 (components/ModelPreload.tsx).
+// 여기서 useGLTF.preload(MODEL_URL) 를 하면 새해 스노우볼을 볼 때도 크리스마스 모델(약 900KB)을 함께 받게 되어 뺐습니다 (차명근).

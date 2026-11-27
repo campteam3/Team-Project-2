@@ -4,18 +4,25 @@ import { Suspense } from "react";
 import GlobeView from "@/components/GlobeView";
 import ModelPreload from "@/components/ModelPreload";
 import GlobeStatus from "@/components/stage/GlobeStatus";
+import { getGlobe } from "@/lib/api";
 import { OG_IMAGE, SITE_NAME } from "@/lib/site";
+import { toKind } from "@/lib/theme";
 
-// 링크 미리보기: "○○ 님의 스노우볼". 닉네임은 주소에 있는 값이라 DB 를 부르지 않습니다.
-export async function generateMetadata({ params }: PageProps<"/globe/[id]">): Promise<Metadata> {
-  const { id } = await params;
+// 주소의 닉네임 (풀 수 없는 주소면 그대로, 20자까지)
+function nicknameOf(id: string) {
   let nickname = id;
   try {
     nickname = decodeURIComponent(id);
   } catch {
     // 풀 수 없는 주소면 그대로 씁니다
   }
-  nickname = nickname.trim().slice(0, 20);
+  return nickname.trim().slice(0, 20);
+}
+
+// 링크 미리보기: "○○ 님의 스노우볼". 닉네임은 주소에 있는 값이라 DB 를 부르지 않습니다.
+export async function generateMetadata({ params }: PageProps<"/globe/[id]">): Promise<Metadata> {
+  const { id } = await params;
+  const nickname = nicknameOf(id);
 
   const isDemo = nickname.toLowerCase() === "demo";
   const title = isDemo ? "샘플 스노우볼" : `${nickname} 님의 스노우볼`;
@@ -55,11 +62,25 @@ function DynamicMarker() {
   );
 }
 
+// 이 스노우볼의 종류(크리스마스 · 새해)에 맞는 3D 모델만 미리 받습니다 (차명근).
+// 종류는 DB 에 있어서 서버에서 한 번 읽습니다. 못 읽으면(없는 닉네임 · 연결 오류) 크리스마스 모델을 받습니다.
+// 샘플(demo)은 크리스마스입니다.
+async function GlobeModelPreload({ params }: { params: PageProps<"/globe/[id]">["params"] }) {
+  const { id } = await params;
+  const nickname = nicknameOf(id);
+  if (nickname.toLowerCase() === "demo") return <ModelPreload />;
+  const result = await getGlobe(nickname);
+  const kind = result.ok && result.data ? toKind(result.data.theme?.kind) : "christmas";
+  return <ModelPreload kind={kind} />;
+}
+
 // 스노우볼 보기: /globe/스노우볼주소
-export default function GlobePage() {
+export default function GlobePage({ params }: PageProps<"/globe/[id]">) {
   return (
     <>
-      <ModelPreload />
+      <Suspense>
+        <GlobeModelPreload params={params} />
+      </Suspense>
       <Suspense fallback={<GlobeStatus kind="loading" />}>
         <GlobeView />
       </Suspense>
