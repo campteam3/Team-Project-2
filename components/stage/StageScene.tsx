@@ -3,6 +3,7 @@
 // 화면 전체를 채우는 3D 무대: 마을(배경) + 스노우볼 + 눈.
 //  - 스노우볼만 드래그로 돌아가고, 마을은 움직이지 않습니다.
 //  - 확대한 동안에는 위아래로 끌어 스노우볼을 기울여, 위에서 내려다보거나 아래에서 올려다볼 수 있습니다 (FEEDBACK D3).
+//  - 사진 찍기 화면(photo)에서는 저절로 돌지 않고, 더 크게 확대하고 어느 크기에서든 기울일 수 있습니다. 가리킨 곳을 향해 커집니다 (이민정).
 //  - layout 값으로 스노우볼이 화면에서 차지하는 높이와 위치를 정합니다 (DESIGN.md 4-2: 60% 이상).
 //  - 매 프레임 받침대 명판의 화면 좌표를 onPlateMove 로 알려 줍니다.
 //    명판 위 글자 · 닉네임 입력칸은 Stage 가 일반 HTML 로 그 자리에 둡니다
@@ -44,6 +45,7 @@ export type StageSceneProps = {
   // 고른 오너먼트 바로 위의 화면 좌표와 보이는 정도. slot 0 은 pinId · pinKey 로 고른 것, 1 부터는 morePinIds 순서입니다
   onPinMove?: (x: number, y: number, visibility: number, slot?: number) => void;
   lockFront?: boolean; // 명판에 입력할 때는 앞면을 고정합니다
+  photo?: boolean; // 사진 찍기 화면: 저절로 돌지 않고, 각도 · 크기를 마음대로 맞출 수 있습니다 (이민정)
   focusId?: string; // 이 오너먼트가 정면에 오도록 돌립니다 (친구가 고른 · 단 오너먼트)
   // 화면 위 UI(제목) 아래 끝과 화면 아래 UI(안내 · 도크 · 입력) 위 끝의 px 좌표.
   // 스노우볼은 이 사이의 빈 공간 안에서만 크기와 위치를 잡아, 어떤 화면 크기에서도 UI 와 겹치지 않습니다.
@@ -65,6 +67,9 @@ const TILT_FROM = 1.03; // 이 배율보다 크게 확대했을 때만 기울일
 const TILT_UP = 0.6; // 위에서 내려다보는 쪽으로 최대 (약 34도)
 const TILT_DOWN = -0.3; // 아래에서 올려다보는 쪽으로 최대 (약 17도)
 
+// 사진 찍기 화면에서는 오너먼트 하나를 가까이 담을 수 있게 더 크게 확대합니다 (이민정)
+const PHOTO_ZOOM_MAX = 3.5;
+
 function Globe(props: StageSceneProps) {
   const {
     theme,
@@ -77,6 +82,7 @@ function Globe(props: StageSceneProps) {
     onPinMove,
     lockFront,
     focusId,
+    photo = false,
     shakeSignal,
     reducedMotion,
   } = props;
@@ -102,15 +108,45 @@ function Globe(props: StageSceneProps) {
   const zoom = useRef(1);
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef(0); // 두 손가락 사이 거리 (px)
+  const pinchAt = useRef({ x: 0, y: 0 }); // 두 손가락의 가운데 (px)
   useEffect(() => {
     if (lockFront) zoom.current = 1;
   }, [lockFront]);
 
+  // 사진 찍기 화면: 확대한 곳이 화면 가운데에 오도록 스노우볼을 옮긴 거리 (장면 단위, 스노우볼 가운데 기준)
+  const pan = useRef({ x: 0, y: 0 });
+  // 매 프레임 재 두는 값: 화면 1px 의 장면 길이, 옮기기 전 스노우볼 가운데 높이
+  const view = useRef({ toWorld: 0, centerY: 0 });
+  // 사진 찍기 화면을 닫으면 들어오기 전 크기로 돌아갑니다
+  useEffect(() => {
+    if (!photo) return;
+    const before = zoom.current;
+    return () => {
+      zoom.current = before;
+      pan.current = { x: 0, y: 0 };
+    };
+  }, [photo]);
+
   // 드래그로 돌리기 (마을은 그대로) · 마우스 휠 / 트랙패드 / 두 손가락으로 확대 · 축소 · 두 번 눌러 원래 크기
   useEffect(() => {
     const target = gl.domElement;
-    const setZoom = (z: number) => {
-      if (!lockFront) zoom.current = THREE.MathUtils.clamp(z, ZOOM_MIN, ZOOM_MAX);
+    // at: 확대 · 축소의 기준이 되는 화면 위치. 사진 찍기 화면에서는 그곳이 제자리에 머물도록 스노우볼을 함께 옮깁니다
+    const setZoom = (z: number, at?: { x: number; y: number }) => {
+      if (lockFront) return;
+      const next = THREE.MathUtils.clamp(z, ZOOM_MIN, photo ? PHOTO_ZOOM_MAX : ZOOM_MAX);
+      if (photo && at && view.current.toWorld > 0) {
+        const rect = target.getBoundingClientRect();
+        const px = (at.x - rect.left - rect.width / 2) * view.current.toWorld;
+        const py = -(at.y - rect.top - rect.height / 2) * view.current.toWorld - view.current.centerY;
+        const ratio = next / zoom.current;
+        pan.current.x = px + (pan.current.x - px) * ratio;
+        pan.current.y = py + (pan.current.y - py) * ratio;
+      }
+      zoom.current = next;
+    };
+    const middle = () => {
+      const [a, b] = [...pointers.current.values()];
+      return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     };
     const gap = () => {
       const [a, b] = [...pointers.current.values()];
@@ -123,6 +159,7 @@ function Globe(props: StageSceneProps) {
         // 두 손가락: 돌리기를 멈추고 확대 · 축소로
         drag.current.active = false;
         pinch.current = gap();
+        pinchAt.current = middle();
         return;
       }
       if (holdRotation) return;
@@ -135,8 +172,17 @@ function Globe(props: StageSceneProps) {
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.current.size >= 2) {
         const d = gap();
-        if (pinch.current > 0) setZoom(zoom.current * (d / pinch.current));
+        const at = middle();
+        if (pinch.current > 0) {
+          setZoom(zoom.current * (d / pinch.current), at);
+          if (photo) {
+            // 두 손가락을 함께 끌면 스노우볼도 따라 움직입니다
+            pan.current.x += (at.x - pinchAt.current.x) * view.current.toWorld;
+            pan.current.y -= (at.y - pinchAt.current.y) * view.current.toWorld;
+          }
+        }
         pinch.current = d;
+        pinchAt.current = at;
         return;
       }
       if (!drag.current.active || !group.current) return;
@@ -147,7 +193,7 @@ function Globe(props: StageSceneProps) {
       drag.current.velocity = dx * 0.008;
       group.current.rotation.y += drag.current.velocity;
       // 확대한 동안: 아래로 끌면 스노우볼 위쪽이 앞으로 기울어 위에서 내려다보게 됩니다
-      if (zoom.current > TILT_FROM) tilt.current = THREE.MathUtils.clamp(tilt.current + dy * 0.006, TILT_DOWN, TILT_UP);
+      if (photo || zoom.current > TILT_FROM) tilt.current = THREE.MathUtils.clamp(tilt.current + dy * 0.006, TILT_DOWN, TILT_UP);
       if (Math.abs(dx) > 14) dragKick.current = Math.min(1, Math.abs(dx) / 40);
     };
     const up = (e: PointerEvent) => {
@@ -159,9 +205,13 @@ function Globe(props: StageSceneProps) {
       if (lockFront) return;
       e.preventDefault(); // 트랙패드 오므리기(ctrl + 휠)로 페이지 전체가 확대되지 않게
       const unit = e.deltaMode === 1 ? 16 : 1; // 줄 단위 휠은 px 로 바꿉니다
-      setZoom(zoom.current * Math.exp(-e.deltaY * unit * (e.ctrlKey ? 0.01 : 0.0015)));
+      setZoom(zoom.current * Math.exp(-e.deltaY * unit * (e.ctrlKey ? 0.01 : 0.0015)), { x: e.clientX, y: e.clientY });
     };
-    const reset = () => setZoom(1);
+    const reset = () => {
+      setZoom(1);
+      pan.current = { x: 0, y: 0 };
+      tilt.current = 0;
+    };
     target.addEventListener("pointerdown", down);
     target.addEventListener("pointermove", move);
     target.addEventListener("pointerup", up);
@@ -176,7 +226,7 @@ function Globe(props: StageSceneProps) {
       target.removeEventListener("wheel", wheel);
       target.removeEventListener("dblclick", reset);
     };
-  }, [gl, holdRotation, lockFront]);
+  }, [gl, holdRotation, lockFront, photo]);
 
   useFrame((frame, delta) => {
     const g = group.current;
@@ -234,17 +284,26 @@ function Globe(props: StageSceneProps) {
       y = THREE.MathUtils.clamp(y, Math.min(yMin, yMax), yMax);
     }
     // 확대 · 축소: 스노우볼 가운데를 기준으로 키웁니다 (키우면 UI 뒤로 겹쳐도 됨, 사용자가 고른 크기)
+    const center = y + mid * scale;
     if (zoom.current !== 1) {
-      const center = y + mid * scale;
       scale *= zoom.current;
       y = center - mid * scale;
     }
+    // 사진 찍기 화면: 확대한 만큼만 옮길 수 있습니다 (스노우볼 안의 어느 곳이든 화면에 담을 수 있는 만큼). 원래 크기에서는 가운데로 돌아옵니다
+    view.current.toWorld = vh / size.height;
+    view.current.centerY = center;
+    const reach = photo && zoom.current > 1 ? 1 - 1 / zoom.current : 0;
+    const reachX = (MODEL.width / 2) * scale * reach;
+    const reachY = (modelH / 2) * scale * reach;
+    pan.current.x = THREE.MathUtils.clamp(pan.current.x, -reachX, reachX);
+    pan.current.y = THREE.MathUtils.clamp(pan.current.y, -reachY, reachY);
     const k = 1 - Math.exp(-delta * (reducedMotion ? 60 : 4)); // 부드럽게 따라가기
     g.scale.setScalar(THREE.MathUtils.lerp(g.scale.x || scale, scale, k));
-    g.position.y = THREE.MathUtils.lerp(g.position.y, y, k);
+    g.position.x = THREE.MathUtils.lerp(g.position.x, pan.current.x, k);
+    g.position.y = THREE.MathUtils.lerp(g.position.y, y + pan.current.y, k);
 
     // 기울이기: 확대한 동안에만. 원래 크기로 돌아오거나 방향을 고정하는 단계에서는 똑바로 섭니다.
-    const canTilt = zoom.current > TILT_FROM && !holdRotation;
+    const canTilt = (photo || zoom.current > TILT_FROM) && !holdRotation;
     if (!canTilt) tilt.current = 0;
     const tiltK = drag.current.active ? 1 - Math.exp(-delta * (reducedMotion ? 60 : 16)) : k; // 끄는 동안에는 손을 바로 따라갑니다
     g.rotation.x = THREE.MathUtils.lerp(g.rotation.x, tilt.current, tiltK);
@@ -271,8 +330,8 @@ function Globe(props: StageSceneProps) {
     } else if (!drag.current.active) {
       g.rotation.y += drag.current.velocity;
       drag.current.velocity *= Math.exp(-delta * 3);
-      if (!reducedMotion && Math.abs(drag.current.velocity) < 0.0005)
-        g.rotation.y += delta * 0.08; // 천천히 저절로 돕니다
+      if (!reducedMotion && !photo && Math.abs(drag.current.velocity) < 0.0005)
+        g.rotation.y += delta * 0.08; // 천천히 저절로 돕니다 (사진 찍기 화면에서는 맞춘 각도 그대로 멈춰 있습니다)
     }
 
     // 명판 위치를 화면 좌표로 알려 줍니다. 명판이 뒤로 돌아가면 보이는 정도가 0 이 됩니다.
