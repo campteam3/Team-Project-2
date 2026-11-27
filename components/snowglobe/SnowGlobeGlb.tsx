@@ -13,6 +13,8 @@ import { placeOrnaments, type OrnamentLike, type OrnamentShape, type PlacedOrnam
 
 const MODEL_URL = "/models/snowglobe.glb";
 const ORNAMENT_URL = "/models/ornaments.glb";
+// 추가 소품(루돌프 · 과자집). 고른 사람만 내려받도록 스노우볼 본체와 다른 파일에 둡니다 (이민정)
+const PROPS_URL = "/models/props.glb";
 const TEMPLATE_NAMES: Record<OrnamentShape, string> = { ball: "t_Orn_Ball", star: "t_Orn_Star", heart: "t_Orn_Heart" };
 
 // 유리: 두께가 느껴지는 유리 구. 가운데는 맑고, 가장자리로 갈수록 유리가 두꺼워 보입니다.
@@ -180,6 +182,8 @@ type ShaderExtras = {
   rim?: { color: string; strength: number };
   // 표면에 잔 입자감 (눈처럼 포슬포슬한 느낌)
   grain?: { scale: number; strength: number };
+  // 볼터치: 두 점에서 부드럽게 번지는 색. 점의 자리는 모델 파일 기준 좌표이고, matrix 는 그 메시를 모델 파일 기준으로 옮기는 값입니다.
+  blush?: { points: [[number, number, number], [number, number, number]]; radius: number; color: string; strength: number; matrix: { value: THREE.Matrix4 } };
 };
 
 const GRAIN_GLSL = /* glsl */ `
@@ -221,6 +225,29 @@ function applyShaderExtras(material: THREE.MeshStandardMaterial, extras: ShaderE
         normal = normalize(normal + grainVector * uGrainStrength);`,
       );
     }
+    if (extras.blush) {
+      shader.uniforms.uBlushMatrix = extras.blush.matrix;
+      shader.uniforms.uBlushA = { value: new THREE.Vector3(...extras.blush.points[0]) };
+      shader.uniforms.uBlushB = { value: new THREE.Vector3(...extras.blush.points[1]) };
+      shader.uniforms.uBlushRadius = { value: extras.blush.radius };
+      shader.uniforms.uBlushColor = { value: new THREE.Color(extras.blush.color) };
+      shader.uniforms.uBlushStrength = { value: extras.blush.strength };
+      vertex = vertex
+        .replace("#include <common>", "#include <common>\nuniform mat4 uBlushMatrix;\nvarying vec3 vBlushPos;")
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\nvBlushPos = (uBlushMatrix * vec4(position, 1.0)).xyz;");
+      fragment = fragment
+        .replace(
+          "#include <common>",
+          "#include <common>\nvarying vec3 vBlushPos;\nuniform vec3 uBlushA;\nuniform vec3 uBlushB;\nuniform float uBlushRadius;\nuniform vec3 uBlushColor;\nuniform float uBlushStrength;",
+        )
+        .replace(
+          "#include <color_fragment>",
+          `#include <color_fragment>
+          float blushNear = min(distance(vBlushPos, uBlushA), distance(vBlushPos, uBlushB));
+          float blushAmount = 1.0 - smoothstep(0.0, uBlushRadius, blushNear);
+          diffuseColor.rgb = mix(diffuseColor.rgb, uBlushColor, blushAmount * uBlushStrength);`,
+        );
+    }
     if (extras.rim) {
       shader.uniforms.uRimColor = { value: new THREE.Color(extras.rim.color) };
       shader.uniforms.uRimStrength = { value: extras.rim.strength };
@@ -236,7 +263,7 @@ function applyShaderExtras(material: THREE.MeshStandardMaterial, extras: ShaderE
     shader.vertexShader = vertex;
     shader.fragmentShader = fragment;
   };
-  material.customProgramCacheKey = () => JSON.stringify(extras);
+  material.customProgramCacheKey = () => JSON.stringify({ ...extras, blush: extras.blush && { ...extras.blush, matrix: 0 } });
 }
 
 // 광택 없는 매끈한 클레이: 번쩍임과 주변 반사를 줄입니다.
@@ -266,6 +293,18 @@ function makeSoftGloss(material: THREE.MeshStandardMaterial) {
   }
 }
 
+// 은은한 윤기: 무광과 약한 유광 사이. 번쩍이지 않고 빛을 받는 곳만 부드럽게 윤이 납니다. (루돌프)
+function makeSatin(material: THREE.MeshStandardMaterial) {
+  material.roughness = 0.58;
+  material.metalness = 0;
+  material.envMapIntensity = 0.32;
+  if (material instanceof THREE.MeshPhysicalMaterial) {
+    material.clearcoat = 0.22;
+    material.clearcoatRoughness = 0.38;
+    material.sheen = 0;
+  }
+}
+
 // 금속: 주변 빛을 또렷하게 비추는 밝은 금. 어두운 밤 배경이 비쳐 탁해지지 않도록 반사를 키웁니다.
 function makeGold(material: THREE.MeshStandardMaterial, roughness: number) {
   material.color.set("#ffcc66");
@@ -279,6 +318,10 @@ function makeGold(material: THREE.MeshStandardMaterial, roughness: number) {
     material.sheen = 0;
   }
 }
+
+// 루돌프 볼터치가 쓰는 값: 털 메시를 모델 파일 기준 좌표로 옮기는 행렬. 모델을 불러올 때 GlobeExtras 가 채웁니다.
+const reindeerBlushMatrix = { value: new THREE.Matrix4() };
+const REINDEER_FUR = "W_RD_Fur";
 
 const TREE_MATERIAL = "W_Ceramic_Green";
 const TRUNK_MATERIAL = "W_Ceramic_Trunk";
@@ -352,6 +395,51 @@ const MATERIAL_TUNES: Record<string, Tune> = {
   W_SM_Coal: (material) => makeMatte(material, 0.8, 0.2),
   W_SM_Carrot: (material) => makeMatte(material, 0.8, 0.2),
   W_SM_Twig: (material) => makeMatte(material, 0.9, 0.1),
+  // 루돌프: 매끈하고 은은하게 윤기가 도는 재질 (트리보다는 덜 번쩍이게). 밤 조명에서 칙칙해지지 않도록 제 색으로 조금 밝힙니다.
+  W_RD_Fur: (material) => {
+    makeSatin(material);
+    material.emissive.set("#a8562f");
+    material.emissiveIntensity = 0.4;
+    // 양쪽 볼의 은은한 분홍 볼터치 (입체가 아니라 색으로만). 자리는 Blender 에서 잰 볼 겉면의 두 점입니다.
+    applyShaderExtras(material, {
+      blush: { points: [[-0.4342, 0.3543, 0.7013], [-0.274, 0.3617, 0.643]], radius: 0.036, color: "#ee6f7c", strength: 0.6, matrix: reindeerBlushMatrix },
+    });
+  },
+  W_RD_Cream: (material) => {
+    makeSatin(material);
+    material.emissive.set("#8a6a4c");
+    material.emissiveIntensity = 0.35;
+  },
+  W_RD_Blush: (material) => {
+    makeSatin(material);
+    material.emissive.set("#c9566a");
+    material.emissiveIntensity = 0.5;
+  },
+  W_RD_Hoof: (material) => makeSatin(material),
+  W_RD_Antler: (material) => makeSatin(material),
+  // 눈: 유리알처럼 반짝이는 유광. 오른쪽 위의 흰 하이라이트(W_RD_EyeGlint)는 모델에 붙어 있어 어느 조명에서도 보입니다.
+  W_RD_Eye: (material) => {
+    material.roughness = 0.08;
+    material.metalness = 0;
+    material.envMapIntensity = 1.2;
+    if (material instanceof THREE.MeshPhysicalMaterial) {
+      material.clearcoat = 1;
+      material.clearcoatRoughness = 0.04;
+    }
+  },
+  W_RD_EyeGlint: (material) => {
+    material.color.set("#ffffff");
+    material.emissive.set("#ffffff");
+    material.emissiveIntensity = 0.9;
+  },
+  // 코: 스스로 환하게 빛나는 빨강
+  W_RD_Nose: (material) => {
+    makeSatin(material);
+    material.color.set("#f0121c");
+    material.emissive.set("#ff0026");
+    material.emissiveIntensity = 1.9;
+  },
+  // 과자집(W_GH_*)은 따로 다듬지 않습니다. Blender 에서 선물 상자와 같은 재질 값(거칠기 0.36, 얇은 코팅)을 주어 그대로 씁니다.
 };
 
 // 전구 줄의 색. 따뜻한 흰빛이 많고, 사이사이 여러 색이 섞입니다. 뒤의 수는 밝기입니다.
@@ -840,6 +928,41 @@ export function GlobeModel({ title = "", treeColor, trunkColor, baseColor, showG
     }
     return copy;
   }, [scene, nameplate, treeColor, trunkColor, baseColor, showGifts, showSnowman]);
+
+  return <primitive object={model} />;
+}
+
+type ExtraLook = { showReindeer?: boolean; showGingerHouse?: boolean };
+
+// 추가 소품: 눈사람 자리의 루돌프, 선물 자리의 과자집. 이 컴포넌트를 그릴 때에만 props.glb 를 내려받습니다.
+export function GlobeExtras({ showReindeer = false, showGingerHouse = false }: ExtraLook) {
+  const { scene } = useGLTF(PROPS_URL);
+  const model = useMemo(() => {
+    const copy = scene.clone(true);
+    const tuned = new Map<string, THREE.MeshStandardMaterial>();
+    copy.updateMatrixWorld(true);
+    copy.traverse((child) => {
+      if (child.name.startsWith("w_Reindeer")) child.visible = showReindeer;
+      if (child.name.startsWith("w_GingerHouse")) child.visible = showGingerHouse;
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const material = mesh.material as THREE.MeshStandardMaterial;
+      if (Array.isArray(material)) return;
+      const name = material.name.replace(/\.\d+$/, "");
+      const tune = MATERIAL_TUNES[name];
+      if (!tune) return;
+      // 볼터치 자리를 맞추려면 털 메시가 모델 안에서 놓인 자리를 알아야 합니다
+      if (name === REINDEER_FUR) reindeerBlushMatrix.value.copy(mesh.matrixWorld);
+      let next = tuned.get(name);
+      if (!next) {
+        next = material.clone();
+        tune(next);
+        tuned.set(name, next);
+      }
+      mesh.material = next;
+    });
+    return copy;
+  }, [scene, showReindeer, showGingerHouse]);
 
   return <primitive object={model} />;
 }
