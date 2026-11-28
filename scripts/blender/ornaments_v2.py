@@ -8,6 +8,7 @@
 #  - 재질: Orn_Main(보내는 사람이 고른 색), Orn_Accent(무늬. 웹에서 크림 · 분홍으로), Orn_Metal(금속, 색 고정)
 
 import math
+import random
 
 import bmesh
 import bpy
@@ -258,16 +259,23 @@ norigae.tube([(0, Y, -0.26), (0, Y, -0.33)], 0.035, ACCENT, 8)
 norigae.ball((0, Y, -0.4), (0.15, 0.14, 0.11), MAIN)
 for z, r in ((-0.47, 0.135), (-0.52, 0.13)):
     norigae.tube([(r * math.cos(a), Y + r * 0.92 * math.sin(a), z) for a in (2 * math.pi * k / 20 for k in range(20))], 0.024, METAL, 6, closed=True)
-# 술: 속을 채운 원뿔 둘레로 실 가닥이 살짝 퍼지며 늘어집니다
-norigae.revolve([(0, -0.5), (0.11, -0.52), (0.17, -0.78), (0.2, -1.0), (0, -1.0)], MAIN, 16, 0.92, None, (0, Y, 0))
-for k in range(16):
-    a = 2 * math.pi * k / 16
-    strand = []
-    for t in (0.0, 0.35, 0.7, 1.0):
-        r = 0.115 + 0.115 * t
-        wobble = 0.012 * math.sin(k * 2.3 + t * 4)
-        strand.append((r * math.cos(a) + wobble, Y + r * 0.92 * math.sin(a), -0.5 - 0.52 * t - 0.02 * math.cos(k * 1.7)))
-    norigae.tube(strand, [0.03, 0.031, 0.03, 0.022], MAIN, 5)
+# 술: 가는 비단실 가닥을 두 겹으로 늘어뜨립니다. 가닥마다 길이와 휘는 정도가 조금씩 달라 끝이 가지런하지 않습니다.
+# 속에는 가닥 사이로 뒤가 비치지 않게 가는 원뿔을 넣습니다. (웹에서 실의 결 · 광택을 더 얹습니다: components/snowglobe/NewYearOrnamentLook.ts)
+# 맨 아래 끝(-1.04 안팎)과 술이 시작되는 높이(-0.5)는 웹 코드와 자리 계산이 쓰는 값이라 그대로 둡니다.
+norigae.revolve([(0, -0.5), (0.1, -0.52), (0.135, -0.78), (0.14, -0.93), (0, -0.93)], MAIN, 16, 0.92, None, (0, Y, 0))
+rng = random.Random(2027)
+for layer, (count, top, bottom, thick) in enumerate(((22, 0.118, 0.235, 0.019), (24, 0.085, 0.165, 0.018))):
+    for k in range(count):
+        a = 2 * math.pi * (k + 0.5 * layer) / count + rng.uniform(-0.05, 0.05)
+        length = 0.545 - rng.uniform(0.0, 0.085) - 0.03 * layer
+        lean = rng.uniform(-0.22, 0.22)  # 가닥이 옆으로 살짝 쏠림
+        flare = rng.uniform(0.9, 1.08)
+        strand = []
+        for t in (0.0, 0.3, 0.6, 0.85, 1.0):
+            r = top + (bottom * flare - top) * t**1.25
+            turn = a + lean * t * t
+            strand.append((r * math.cos(turn), Y + r * 0.92 * math.sin(turn), -0.5 - length * t))
+        norigae.tube(strand, [thick, thick, thick * 0.95, thick * 0.8, thick * 0.5], MAIN, 5)
 norigae.build("Orn_Norigae", (9.2, 0, 0))
 
 for unused in list(bpy.data.meshes):

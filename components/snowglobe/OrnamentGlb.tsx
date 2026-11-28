@@ -9,6 +9,7 @@ import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import type { OrnamentShape } from "@/lib/snowglobe";
 import { ornamentOptionIndex } from "@/lib/theme";
+import { applyNewYearLook, isNewYearShape } from "./NewYearOrnamentLook";
 
 export const ORNAMENT_URL = "/models/ornaments.glb";
 // 새해 스노우볼 전용 오너먼트(복주머니 · 방패연 · 노리개). 새해 스노우볼을 그릴 때에만 받습니다. (차명근)
@@ -38,6 +39,7 @@ export type TemplatePart = {
   geometry: THREE.BufferGeometry;
   role: "main" | "accent" | "metal";
   material: THREE.MeshStandardMaterial;
+  origin: THREE.Matrix4; // 모델 파일 안에서 이 부분이 놓인 자리 (새해 오너먼트의 질감이 씁니다)
 };
 
 // 오너먼트 원형(볼 · 별 · 하트 · 지팡이 사탕 · 선물 상자, 새해는 복주머니 · 방패연 · 노리개)을 부분별로 꺼냅니다. 본체 색과 무늬 색은 오너먼트마다 바꿉니다.
@@ -52,7 +54,8 @@ export function useOrnamentTemplates(url: string = ORNAMENT_URL) {
         if (!mesh.isMesh) return;
         const material = mesh.material as THREE.MeshStandardMaterial;
         const role = material.name.startsWith("Orn_Main") ? "main" : material.name.startsWith("Orn_Accent") ? "accent" : "metal";
-        templates[shape].push({ shape, geometry: mesh.geometry, role, material });
+        mesh.updateWorldMatrix(true, false);
+        templates[shape].push({ shape, geometry: mesh.geometry, role, material, origin: mesh.matrixWorld.clone() });
       });
     }
     return templates;
@@ -270,6 +273,9 @@ export function useOrnamentMaterials(parts: TemplatePart[], color: string, metal
     const look = mainPart?.shape === "ball" ? BALL_LOOKS[option] : undefined;
     // 볼이 아닌 모양은 금색과 빨강 + 금색만 따로 정합니다 (COOKIE_LOOKS)
     const cookie = mainPart && mainPart.shape !== "ball" ? COOKIE_LOOKS[option] : undefined;
+    // 새해 오너먼트(복주머니 · 방패연 · 노리개)는 천 · 한지 · 실의 질감을 입힙니다. 금색도 금속이 아니라 금색 천 · 종이로 그립니다
+    const mainShape = mainPart?.shape;
+    const newYear = isNewYearShape(mainShape) ? mainShape : undefined;
     const fixed = look?.color ?? cookie?.color;
     const body = fixed ? new THREE.Color(fixed) : pastel(color);
     if (main) {
@@ -290,7 +296,8 @@ export function useOrnamentMaterials(parts: TemplatePart[], color: string, metal
         main.emissive.copy(body);
         main.emissiveIntensity = 0.55;
       }
-      if (cookie?.gold === "body") makeGold(main, highlight);
+      if (cookie?.gold === "body" && !newYear) makeGold(main, highlight);
+      if (newYear && mainPart) applyNewYearLook(main, newYear, "main", mainPart.origin);
       // 볼에는 무늬를 입힙니다
       if (look && mainPart) {
         const glow = main.emissiveIntensity; // 금속이 아닌 부분이 스스로 내는 빛
@@ -335,8 +342,11 @@ export function useOrnamentMaterials(parts: TemplatePart[], color: string, metal
       accent.emissiveIntensity = 0.2;
       if (cookie?.gold === "accent") {
         accent.color.set(GOLD);
-        makeGold(accent, highlight);
+        if (newYear) accent.emissive.copy(accent.color);
+        else makeGold(accent, highlight);
       }
+      const accentPart = parts.find((part) => part.role === "accent");
+      if (newYear && accentPart) applyNewYearLook(accent, newYear, "accent", accentPart.origin);
     }
     return { main, accent };
   }, [parts, color, metallic, highlight]);
