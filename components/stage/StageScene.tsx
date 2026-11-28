@@ -50,6 +50,8 @@ export type StageSceneProps = {
   lockFront?: boolean; // 명판에 입력할 때는 앞면을 고정합니다
   photo?: boolean; // 사진 찍기 화면: 저절로 돌지 않고, 각도 · 크기를 마음대로 맞출 수 있습니다 (이민정)
   focusId?: string; // 이 오너먼트가 정면에 오도록 돌립니다 (친구가 고른 · 단 오너먼트)
+  // focusId 의 오너먼트 쪽으로 확대합니다 (주인이 메시지를 읽을 때, 이민정). 고정은 아니어서 휠 · 두 손가락으로 다시 줄일 수 있습니다
+  focusZoom?: boolean;
   // 화면 위 UI(제목) 아래 끝과 화면 아래 UI(안내 · 도크 · 입력) 위 끝의 px 좌표.
   // 스노우볼은 이 사이의 빈 공간 안에서만 크기와 위치를 잡아, 어떤 화면 크기에서도 UI 와 겹치지 않습니다.
   // plateHalf: 명판 위 글자 · 입력칸 높이의 절반(px). 명판은 아래쪽 UI 와 겹치지 않게 지킵니다.
@@ -74,6 +76,13 @@ const TILT_DOWN = -0.3; // 아래에서 올려다보는 쪽으로 최대 (약 17
 // 사진 찍기 화면에서는 오너먼트 하나를 가까이 담을 수 있게 더 크게 확대합니다 (이민정)
 const PHOTO_ZOOM_MAX = 3.5;
 
+// 메시지를 읽을 때 그 오너먼트 쪽으로 확대하는 배율 (빈 공간에 꼭 맞는 크기 대비, 이민정)
+// 읽는 동안에는 평소(ZOOM_MAX)보다 조금 더 크게 볼 수 있습니다
+const FOCUS_ZOOM = 4;
+const FOCUS_ZOOM_MAX = 5;
+// 너무 키우면 유리 구가 카메라에 닿아 화면이 깨지므로, 유리 앞면이 카메라에서 이만큼은 떨어져 있게 합니다 (장면 단위)
+const CAMERA_GAP = 0.9;
+
 function Globe(props: StageSceneProps) {
   const {
     theme,
@@ -91,6 +100,7 @@ function Globe(props: StageSceneProps) {
     reducedMotion,
   } = props;
   const focusIndex = focusId ? ornaments.findIndex((o) => o.id === focusId) : -1;
+  const reading = !!props.focusZoom && focusIndex >= 0; // 메시지를 읽는 중인지 (그 오너먼트 쪽으로 확대)
   // n 번째 오너먼트의 자리. 아직 달리지 않은 오너먼트(미리보기)는 모양에 따라 자리가 달라서 모양을 함께 넘깁니다.
   // 스노우볼 크기는 주제마다 다릅니다 (생일 스노우볼은 유리 구가 더 큼)
   const MODEL = modelFor(theme.kind);
@@ -119,6 +129,20 @@ function Globe(props: StageSceneProps) {
     if (lockFront) zoom.current = 1;
   }, [lockFront]);
 
+  // 메시지 읽기: 오너먼트를 고를 때마다 그쪽으로 확대하고, 닫으면 읽기 전 크기로 돌아갑니다.
+  // 읽는 동안에도 휠 · 두 손가락으로 줄일 수 있고, 다음 메시지로 넘어가면 다시 확대합니다.
+  const zoomBefore = useRef<number | null>(null);
+  useEffect(() => {
+    if (!props.focusZoom) return;
+    if (focusId) {
+      zoomBefore.current ??= zoom.current;
+      zoom.current = Math.max(zoom.current, FOCUS_ZOOM);
+    } else if (zoomBefore.current !== null) {
+      zoom.current = zoomBefore.current;
+      zoomBefore.current = null;
+    }
+  }, [focusId, props.focusZoom]);
+
   // 사진 찍기 화면: 확대한 곳이 화면 가운데에 오도록 스노우볼을 옮긴 거리 (장면 단위, 스노우볼 가운데 기준)
   const pan = useRef({ x: 0, y: 0 });
   // 매 프레임 재 두는 값: 화면 1px 의 장면 길이, 옮기기 전 스노우볼 가운데 높이
@@ -139,7 +163,7 @@ function Globe(props: StageSceneProps) {
     // at: 확대 · 축소의 기준이 되는 화면 위치. 사진 찍기 화면에서는 그곳이 제자리에 머물도록 스노우볼을 함께 옮깁니다
     const setZoom = (z: number, at?: { x: number; y: number }) => {
       if (lockFront) return;
-      const next = THREE.MathUtils.clamp(z, ZOOM_MIN, photo ? PHOTO_ZOOM_MAX : ZOOM_MAX);
+      const next = THREE.MathUtils.clamp(z, ZOOM_MIN, photo ? PHOTO_ZOOM_MAX : reading ? FOCUS_ZOOM_MAX : ZOOM_MAX);
       if (photo && at && view.current.toWorld > 0) {
         const rect = target.getBoundingClientRect();
         const px = (at.x - rect.left - rect.width / 2) * view.current.toWorld;
@@ -232,7 +256,7 @@ function Globe(props: StageSceneProps) {
       target.removeEventListener("wheel", wheel);
       target.removeEventListener("dblclick", reset);
     };
-  }, [gl, holdRotation, lockFront, photo]);
+  }, [gl, holdRotation, lockFront, photo, reading]);
 
   useFrame((frame, delta) => {
     const g = group.current;
@@ -291,9 +315,22 @@ function Globe(props: StageSceneProps) {
     }
     // 확대 · 축소: 스노우볼 가운데를 기준으로 키웁니다 (키우면 UI 뒤로 겹쳐도 됨, 사용자가 고른 크기)
     const center = y + mid * scale;
+    // 메시지 읽기: 화면이 넓어 스노우볼이 이미 크면, 유리가 카메라에 닿지 않는 데까지만 키웁니다
+    if (reading) zoom.current = Math.min(zoom.current, Math.max(1, (dist - CAMERA_GAP) / (MODEL.width / 2) / scale));
     if (zoom.current !== 1) {
       scale *= zoom.current;
       y = center - mid * scale;
+    }
+    // 메시지 읽기: 확대한 만큼, 읽는 오너먼트가 제목과 아래쪽 카드 사이 빈 곳의 가운데에 오도록 스노우볼을 위아래로 옮깁니다.
+    // 원래 크기로 줄이면 스노우볼도 제자리로 돌아옵니다. (좌우는 스노우볼이 돌아서 오너먼트가 정면에 옵니다)
+    if (reading && zoom.current > 1) {
+      const [ox, oy, oz] = spotOf(focusIndex);
+      const toWorld = vh / size.height;
+      const bandCenter = safe ? vh / 2 - ((safe.top + safe.bottom) / 2) * toWorld : 0;
+      // 오너먼트는 트리 앞쪽(카메라 쪽)에 있어 원근 때문에 화면 가운데에서 더 멀리 보이므로 그만큼 보정합니다
+      const persp = dist / (dist - Math.hypot(ox, oz) * scale);
+      const amount = THREE.MathUtils.clamp((zoom.current - 1) / (FOCUS_ZOOM - 1), 0, 1);
+      y = THREE.MathUtils.lerp(y, bandCenter / persp - oy * scale, amount);
     }
     // 사진 찍기 화면: 확대한 만큼만 옮길 수 있습니다 (스노우볼 안의 어느 곳이든 화면에 담을 수 있는 만큼). 원래 크기에서는 가운데로 돌아옵니다
     view.current.toWorld = vh / size.height;

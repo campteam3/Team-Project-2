@@ -151,6 +151,8 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
       plateText={name}
       highlightId={selected?.id}
       focusId={selected?.id}
+      // 읽는 메시지의 오너먼트 쪽으로 확대합니다. 고정은 아니어서 다시 줄일 수 있습니다 (이민정)
+      focusZoom
       onSelectOrnament={select}
       extraShake={openShake}
       below={

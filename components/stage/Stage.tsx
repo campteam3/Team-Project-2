@@ -89,6 +89,7 @@ export type StageProps = {
   extraShake?: number; // 바깥에서 눈을 날리고 싶을 때 이 값을 늘립니다 (예: 스노우볼 열기)
   arrivingId?: string; // 지금 막 달리는 오너먼트
   focusId?: string; // 이 오너먼트가 정면에 오도록 스노우볼을 돌립니다
+  focusZoom?: boolean; // focusId 의 오너먼트 쪽으로 확대합니다. 다시 줄일 수 있습니다 (주인이 메시지를 읽을 때, 이민정)
   lockFront?: boolean;
   holdGlobe?: boolean; // 스노우볼을 직전 크기 · 자리에 그대로 두고, 아래쪽 UI 가 그 위로 올라오게 합니다 (12 메시지 쓰기)
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
@@ -115,7 +116,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, topLeft, onBack, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, focusZoom, lockFront, holdGlobe, children, topLeft, onBack, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
   // 뒤로 가기 (홈이 아닌 화면의 왼쪽 위)
   const router = useRouter();
   const pathname = usePathname();
@@ -555,6 +556,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             onSelectOrnament={photo ? undefined : onSelectOrnament}
             arrivingId={arrivingId}
             focusId={photo ? undefined : focusId}
+            focusZoom={focusZoom}
             getSafeArea={getSafeArea}
             onPinMove={pin && !photo ? movePin : undefined}
             lockFront={photo ? false : lockFront}

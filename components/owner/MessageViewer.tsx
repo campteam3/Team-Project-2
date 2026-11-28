@@ -27,7 +27,8 @@ export default function MessageViewer({ ornament, index, total, canDelete, delet
   return (
     <article
       aria-live="polite"
-      className="glass glass-shadow pointer-events-auto flex w-full max-w-[480px] animate-rise flex-col gap-3 rounded-3xl p-5 sm:p-6"
+      // 읽는 동안 스노우볼이 오너먼트 쪽으로 확대되어 카드 뒤에 흰 눈 · 빨간 받침대가 놓이므로, 바탕을 짙게 깔아 글자가 읽히게 합니다 (이민정)
+      className="glass glass-shadow pointer-events-auto flex w-full max-w-[480px] animate-rise flex-col gap-3 rounded-3xl bg-night-900/70 p-5 sm:p-6"
     >
       <header className="flex items-center gap-3">
         <span className="size-4 shrink-0 rounded-full border border-glass-border" style={{ background: ornamentSwatch(ornament.color) }} aria-hidden="true" />
