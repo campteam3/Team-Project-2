@@ -177,33 +177,48 @@ def paper(x, z, lift=0.0):
     return Vector((x, -0.08 - bow - lift, z))
 
 
-COLS, ROWS = 28, 30
-grid = [[(-W + 2 * W * i / COLS, MID - H + 2 * H * j / ROWS) for j in range(ROWS + 1)] for i in range(COLS + 1)]
-for layer, lift in enumerate((0.0, -0.05)):  # 앞면과 뒷면
-    verts = [[kite.bm.verts.new(paper(x, z, lift)) for x, z in column] for column in grid]
-    made = []
-    for i in range(COLS):
-        for j in range(ROWS):
-            cx = (grid[i][j][0] + grid[i + 1][j][0]) / 2
-            cz = (grid[i][j][1] + grid[i][j + 1][1]) / 2
-            if math.hypot(cx, cz - MID) < HOLE:  # 방구멍
-                continue
-            quad = [verts[i][j], verts[i + 1][j], verts[i + 1][j + 1], verts[i][j + 1]]
+# 종이: 방구멍(원)에서 네모 가장자리까지 부챗살처럼 나눕니다. 그래야 구멍이 동그랗게 뚫립니다 (네모 칸으로 나누면 구멍 둘레가 계단처럼 됩니다).
+# 앞면 · 뒷면 사이는 얇게(THICK) 두고 바깥 둘레와 구멍 둘레를 벽으로 막아, 옆에서 봐도 종이와 테 사이가 뜨지 않게 합니다.
+THICK = 0.03
+RINGS = 10
+angles = sorted({2 * math.pi * k / 64 for k in range(64)} | {math.atan2(sz * H, sx * W) % (2 * math.pi) for sx in (-1, 1) for sz in (-1, 1)})
+
+
+def spoke(angle, t):
+    """방구멍 둘레(t=0)에서 종이 가장자리(t=1)까지, 가운데에서 angle 방향으로 뻗은 선 위의 점 (x, z)."""
+    c, s_ = math.cos(angle), math.sin(angle)
+    reach = min(W / abs(c) if abs(c) > 1e-9 else 1e9, H / abs(s_) if abs(s_) > 1e-9 else 1e9)
+    r = HOLE + (reach - HOLE) * t
+    return r * c, MID + r * s_
+
+
+layers = []
+for layer, lift in enumerate((0.0, -THICK)):  # 앞면과 뒷면
+    verts = [[kite.bm.verts.new(paper(*spoke(angle, j / RINGS), lift)) for j in range(RINGS + 1)] for angle in angles]
+    for i in range(len(angles)):
+        i2 = (i + 1) % len(angles)
+        for j in range(RINGS):
+            quad = [verts[i][j], verts[i][j + 1], verts[i2][j + 1], verts[i2][j]]
             kite.bm.faces.new(quad if layer == 0 else list(reversed(quad)))
-            made += quad
-    kite.paint(list(dict.fromkeys(made)), MAIN)
-# 종이 가장자리를 두른 테와 방구멍 테
-edge = [paper(-W + 2 * W * k / 14, MID + H, 0.025) for k in range(15)] + [paper(W, MID + H - 2 * H * k / 14, 0.025) for k in range(1, 15)]
-edge += [paper(W - 2 * W * k / 14, MID - H, 0.025) for k in range(1, 15)] + [paper(-W, MID - H + 2 * H * k / 14, 0.025) for k in range(1, 14)]
+    layers.append(verts)
+front, back = layers
+for i in range(len(angles)):  # 바깥 둘레와 구멍 둘레의 벽
+    i2 = (i + 1) % len(angles)
+    kite.bm.faces.new((front[i][RINGS], back[i][RINGS], back[i2][RINGS], front[i2][RINGS]))
+    kite.bm.faces.new((front[i][0], front[i2][0], back[i2][0], back[i][0]))
+kite.paint([v for verts in layers for column in verts for v in column], MAIN)
+# 종이 가장자리를 두른 테와 방구멍 테. 종이 두께의 가운데에 두어 종이 옆면을 감쌉니다
+edge = [paper(-W + 2 * W * k / 14, MID + H, -THICK / 2) for k in range(15)] + [paper(W, MID + H - 2 * H * k / 14, -THICK / 2) for k in range(1, 15)]
+edge += [paper(W - 2 * W * k / 14, MID - H, -THICK / 2) for k in range(1, 15)] + [paper(-W, MID - H + 2 * H * k / 14, -THICK / 2) for k in range(1, 14)]
 kite.tube(edge, 0.034, ACCENT, 8, closed=True)
-kite.tube([paper(HOLE * 1.06 * math.cos(a), MID + HOLE * 1.06 * math.sin(a), 0.025) for a in (2 * math.pi * k / 32 for k in range(32))], 0.045, ACCENT, 8, closed=True)
+kite.tube([paper(HOLE * 1.06 * math.cos(a), MID + HOLE * 1.06 * math.sin(a), -THICK / 2) for a in (2 * math.pi * k / 32 for k in range(32))], 0.045, ACCENT, 8, closed=True)
 # 대나무 살: 머릿살(맨 위 가로), 허릿살(가운데 가로), 중살(가운데 세로), 귀살(대각선 둘). 방구멍은 가로지르지 않습니다
 STICK = 0.026
 
 
 def stick(start, end):
     (x0, z0), (x1, z1) = start, end
-    kite.tube([paper(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, 0.03) for t in (k / 6 for k in range(7))], STICK, ACCENT, 6)
+    kite.tube([paper(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, 0.02) for t in (k / 6 for k in range(7))], STICK, ACCENT, 6)
 
 
 stick((-W, MID + H * 0.78), (W, MID + H * 0.78))
