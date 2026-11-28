@@ -127,7 +127,7 @@ export default function GlobeView() {
     }
   };
 
-  if (view.status === "loading") return <GlobeStatus kind="loading" />;
+  if (view.status === "loading") return <GlobeStatus kind="loading" globeKind={isDemo ? previewKind : undefined} />;
   if (view.status === "missing") return <GlobeStatus kind="missing" />;
   if (view.status === "error") return <GlobeStatus kind="error" message={view.message} onRetry={refresh} />;
 

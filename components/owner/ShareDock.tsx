@@ -9,6 +9,7 @@ import { Dock } from "@/components/ui/Dock";
 import { Icon } from "@/components/ui/Icons";
 import { copyText, showLinkToCopy } from "@/lib/copy";
 import { loadKakao, shareKakao } from "@/lib/kakao";
+import { itemWord, type GlobeKind } from "@/lib/theme";
 
 // ─────────────────────────────────────────────────────────────
 // 카카오톡 공유 (차명근 연결): lib/kakao.ts 의 shareKakao 가 카카오 공유 창을 엽니다.
@@ -18,6 +19,12 @@ import { loadKakao, shareKakao } from "@/lib/kakao";
 // ─────────────────────────────────────────────────────────────
 // 공유 글자. 주지 않으면 "내 스노우볼에 오너먼트를 달아 줘" 공유입니다. 기념 메시지(F1)는 다른 글자를 넘깁니다 (차명근)
 export type ShareText = { description: string; button: string; text: string };
+
+// 스노우볼 공유 글자: 크리스마스는 "오너먼트", 생일 · 새해는 "장식" (이민정)
+function globeShareText(kind?: GlobeKind): ShareText {
+  const item = itemWord(kind);
+  return { description: `스노우볼에 마음을 담은 ${item.obj} 달아 주세요.`, button: `${item.noun} 달러 가기`, text: `내 스노우볼에 ${item.obj} 달아 줘!` };
+}
 
 async function shareToKakao(url: string, title: string, share?: ShareText): Promise<boolean> {
   if (await shareKakao(url, title, share)) return true;
@@ -51,15 +58,19 @@ export default function ShareDock({
   url,
   title,
   onNotice: show,
-  share,
+  share: customShare,
+  kind,
   onShared,
 }: {
   url: string;
   title: string;
   onNotice: (message: string) => void;
   share?: ShareText;
+  kind?: GlobeKind; // 공유하는 스노우볼의 주제 (share 를 주지 않았을 때 글자를 정합니다)
   onShared?: () => void; // 링크 복사나 카카오톡 보내기를 누른 뒤에 부릅니다 (기념 메시지 완료 화면에서 다음 할 일을 강조할 때)
 }) {
+
+  const share = customShare ?? globeShareText(kind);
 
   // 카카오 SDK 를 미리 불러 둡니다. 버튼을 누른 뒤에 불러오면 브라우저가 공유 창을 막을 수 있습니다.
   useEffect(() => {

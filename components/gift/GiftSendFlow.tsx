@@ -16,12 +16,11 @@ import { useNotice } from "@/components/stage/useNotice";
 import { createGift } from "@/lib/api";
 import { backdropScene } from "@/components/stage/VillageBackdrop";
 import { shapesFor, type OrnamentShape } from "@/lib/snowglobe";
-import { defaultTheme, ORNAMENT_OPTIONS, toKind } from "@/lib/theme";
+import { defaultTheme, itemWord, ORNAMENT_OPTIONS, toKind } from "@/lib/theme";
 
 type Step = "pick" | "write" | "done";
 
 const SHARE_TEXT = {
-  description: "눌러서 오너먼트를 열어 보세요.",
   button: "메시지 열어 보기",
   text: "기념 메시지를 보냈어요. 눌러서 열어 봐!",
 };
@@ -38,6 +37,7 @@ export default function GiftSendFlow() {
   // 홈에 떠 있던 스노우볼의 주제(/gift/new?kind=newyear). 그 주제의 오너먼트 · 배경으로 고릅니다. 없으면 크리스마스 (차명근)
   const kind = toKind(useSearchParams().get("kind"));
   const theme = defaultTheme(kind);
+  const item = itemWord(kind); // 크리스마스는 "오너먼트", 생일 · 새해는 "장식"
   const [step, setStep] = useState<Step>("pick");
   const [shape, setShape] = useState<OrnamentShape>(() => shapesFor(kind)[0]);
   // 홈에서 다른 주제를 고르고 다시 오면 그 주제의 첫 모양 · 첫 단계부터 (떠난 화면이 그대로 남아 있기 때문)
@@ -102,7 +102,7 @@ export default function GiftSendFlow() {
 
   if (step === "pick") {
     return (
-      <Stage theme={theme} scene={scene} title="어떤 오너먼트로 보낼까요?" subtitle="1 / 2 단계" hint="고르는 대로 바로 바뀌어요" hintMobile="고르는 대로 바로 바뀌어요">
+      <Stage theme={theme} scene={scene} title={`어떤 ${item.by} 보낼까요?`} subtitle="1 / 2 단계" hint="고르는 대로 바로 바뀌어요" hintMobile="고르는 대로 바로 바뀌어요">
         <div key={step} className="flex w-full animate-rise justify-center">
           <OrnamentPickDock
             kind={kind}
@@ -144,7 +144,7 @@ export default function GiftSendFlow() {
     <Stage
       theme={theme}
       scene={scene}
-      title="마음을 오너먼트에 담았어요"
+      title={`마음을 ${item.noun}에 담았어요`}
       subtitle={"링크를 보내면 받은 사람이 열어 보고\n자기 스노우볼에 달 수 있어요"}
       notice={notice}
       below={
@@ -160,7 +160,7 @@ export default function GiftSendFlow() {
       }
     >
       <div key={step} className="flex w-full animate-rise justify-center">
-        <ShareDock url={url} title={`${sentBy}님이 기념 메시지를 보냈어요`} onNotice={say} share={SHARE_TEXT} onShared={() => setShared(true)} />
+        <ShareDock url={url} title={`${sentBy}님이 기념 메시지를 보냈어요`} onNotice={say} share={{ ...SHARE_TEXT, description: `눌러서 ${item.obj} 열어 보세요.` }} onShared={() => setShared(true)} />
       </div>
     </Stage>
   );

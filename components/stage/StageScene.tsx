@@ -65,6 +65,9 @@ export type StageSceneProps = {
   shakeSignal: number;
   reducedMotion: boolean;
   onReady?: () => void; // 스노우볼과 배경이 다 그려졌을 때 한 번
+  // 대체 화면(같은 배경 그림)이 위에 덮여 있는 동안인지. 이때는 배경 그림을 서서히 나타내지 않고 바로 그립니다:
+  // 가려져 보이지 않는 0.5초를 기다리느라 대체 화면이 늦게 걷히지 않게 (이민정)
+  covered?: boolean;
 };
 
 const UI_OVERLAP = 0.3; // 스노우볼 몸체가 아래쪽 UI 뒤로 들어가도 되는 비율
@@ -527,7 +530,7 @@ export default function StageScene(props: StageSceneProps) {
       {/* 겨울밤 조명과 빛 번짐은 배경(SnowGlobeAtmosphere)에 맞춘 값입니다. (이민정) */}
       {/* 생일 스노우볼은 밝은 하늘 배경이라 낮 조명을 씁니다 (김미영) */}
       {props.theme.kind === "birthday" ? <DayLights /> : <NightLights />}
-      <VillageBackdrop scene={backdropScene(props.theme.kind)} />
+      <VillageBackdrop scene={backdropScene(props.theme.kind)} instant={props.covered} />
       <Globe {...props} />
       <NightBloom />
       {props.onReady && <ReadyWatch onReady={props.onReady} />}

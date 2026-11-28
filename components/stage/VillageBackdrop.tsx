@@ -16,6 +16,7 @@ export const backdropScene = (kind?: GlobeKind): BackdropScene => (kind === "new
 
 // sunrise: 새해 스노우볼은 눈 내린 마을 대신 일출 그림을 깝니다 (차명근)
 // scene: 생일 스노우볼의 파티 배경 등 주제별 그림 (김미영). 주면 sunrise 보다 먼저 봅니다.
-export default function VillageBackdrop({ sunrise = false, scene }: { sunrise?: boolean; scene?: BackdropScene }) {
-  return <PhotoBackdrop sunrise={sunrise} scene={scene} />;
+// instant: 그림을 서서히 나타내지 않고 바로 그립니다 (첫 접속의 대체 화면이 덮고 있는 동안)
+export default function VillageBackdrop({ sunrise = false, scene, instant = false }: { sunrise?: boolean; scene?: BackdropScene; instant?: boolean }) {
+  return <PhotoBackdrop sunrise={sunrise} scene={scene} instant={instant} />;
 }

@@ -179,21 +179,36 @@ input {
 .lost-illustration:hover .lost-hint { color: var(--color-ink); }
 
 /* 3D 를 불러오는 동안의 대체 화면 (components/stage/StageFallback.tsx)
-   마을 배경은 3D 배경(PhotoBackdrop)과 같은 그림 · 같은 맞춤(꽉 채우고 가운데 기준으로 자름)이라, 3D 로 바뀔 때 배경이 움직이지 않습니다. */
+   배경은 3D 배경(PhotoBackdrop)과 같은 그림 · 같은 맞춤(꽉 채우고 가운데 기준으로 자름)이라, 3D 로 바뀔 때 배경이 움직이지 않습니다.
+   그림은 스노우볼 주제마다 다릅니다(.stage-kind-*, components/stage/backdropShared.ts 와 같은 파일). 주제를 모르면 그림 없이 밤하늘 색만 깝니다.
+   서버가 주제를 먼저 알면 :root 에 --stage-web · --stage-mobile 을 내려 줍니다 (app/globe/[id]/page.tsx). */
 .stage-backdrop {
-  background: var(--color-night-sky) url("/backgrounds/village-web.webp") center / cover no-repeat;
+  background: var(--color-night-sky) var(--stage-web, none) center / cover no-repeat;
 }
 @media (orientation: portrait) {
-  .stage-backdrop { background-image: url("/backgrounds/village-mobile.webp"); }
+  .stage-backdrop { background-image: var(--stage-mobile, none); }
 }
-/* 기본 스노우볼을 흐리게 한 그림. 자리와 크기는 3D 스노우볼이 놓이는 곳에 맞춘 값입니다 */
-.stage-poster {
+.stage-kind-christmas { --stage-web: url("/backgrounds/village-web.webp"); --stage-mobile: url("/backgrounds/village-mobile.webp"); }
+.stage-kind-newyear { --stage-web: url("/backgrounds/sunrise-web.webp"); --stage-mobile: url("/backgrounds/sunrise-mobile.webp"); }
+.stage-kind-birthday { --stage-web: url("/backgrounds/birthday-web.webp"); --stage-mobile: url("/backgrounds/birthday-mobile.webp"); }
+/* 스노우볼 자리의 은은한 빛 (이민정). 자리와 크기는 3D 스노우볼의 유리 구가 놓이는 곳에 맞춘 값입니다 */
+.stage-glow {
   position: absolute;
   left: 50%;
-  top: 49%;
-  width: min(92vw, 62dvh);
-  aspect-ratio: 480 / 494;
+  top: 44%;
+  width: min(70vw, 46dvh);
+  aspect-ratio: 1;
   translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.07) 45%, transparent 70%);
+  animation: stage-glow 2.4s ease-in-out infinite;
+}
+@keyframes stage-glow {
+  0%, 100% { opacity: 0.55; scale: 0.96; }
+  50% { opacity: 1; scale: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-glow { animation: none; }
 }
 .stage-loading-text {
   position: absolute;
@@ -204,7 +219,7 @@ input {
   padding-inline: 16px;
   animation: fade 400ms var(--ease-soft) 1200ms both;
 }
-.stage-loading-text-on-poster { top: 40%; }
+.stage-loading-text-on-glow { top: 42%; }
 @media (max-width: 767px) {
   .lost-figure { max-width: 320px; }
   .lost-speech { top: 0; right: -4px; padding: 8px 12px; font-size: 12px; }

@@ -554,9 +554,9 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       <div className="absolute inset-0 z-0">
         {webgl === false ? (
           scene ? (
-            <StageFallback poster={false} />
+            <StageFallback poster={false} kind={bgmKind} />
           ) : (
-            <StageFallback plate={plateContent} centerFromTop={layout.centerFromTop} height={layout.height} />
+            <StageFallback plate={plateContent} kind={bgmKind} centerFromTop={layout.centerFromTop} height={layout.height} />
           )
         ) : webgl && scene ? (
           scene
@@ -585,19 +585,20 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             shakeSignal={shakeSignal + extraShake}
             reducedMotion={reducedMotion}
             onReady={onSceneReady}
+            covered={cover && !sceneReady}
           />
         ) : scene ? (
-          <StageFallback poster={false} />
+          <StageFallback poster={false} kind={bgmKind} />
         ) : null}
       </div>
 
-      {/* 첫 접속 대체 화면: 마을 배경 + 흐린 스노우볼 그림. 3D 가 다 그려지면 서서히 사라집니다 */}
+      {/* 첫 접속 대체 화면: 주제에 맞는 배경 + 스노우볼 자리의 은은한 빛. 3D 가 다 그려지면 걷히며 스노우볼이 서서히 나타납니다 */}
       {!scene && webgl !== false && cover && (
         <div
-          className={`pointer-events-none absolute inset-0 z-[7] transition-opacity duration-500 ease-soft ${sceneReady ? "opacity-0" : "opacity-100"}`}
+          className={`pointer-events-none absolute inset-0 z-[7] transition-opacity duration-300 ease-soft ${sceneReady ? "opacity-0" : "opacity-100"}`}
           onTransitionEnd={() => sceneReady && setCover(false)}
         >
-          <StageFallback message="스노우볼을 불러오고 있어요" />
+          <StageFallback message="스노우볼을 불러오고 있어요" kind={bgmKind} />
         </div>
       )}
 

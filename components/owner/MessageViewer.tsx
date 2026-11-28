@@ -13,6 +13,7 @@ type Props = {
   canDelete: boolean;
   deleting: boolean;
   onDelete: () => void;
+  itemName?: string; // 지우기 버튼에 적을 이름: 크리스마스는 "오너먼트", 생일 · 새해는 "장식" (lib/theme.ts 의 itemWord)
 };
 
 function formatDate(value: string) {
@@ -21,7 +22,7 @@ function formatDate(value: string) {
   return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 }
 
-export default function MessageViewer({ ornament, index, total, canDelete, deleting, onDelete }: Props) {
+export default function MessageViewer({ ornament, index, total, canDelete, deleting, onDelete, itemName = "오너먼트" }: Props) {
   const date = formatDate(ornament.created_at);
 
   return (
@@ -50,7 +51,7 @@ export default function MessageViewer({ ornament, index, total, canDelete, delet
           disabled={deleting}
           className="-mb-2 inline-flex min-h-11 items-center self-end px-1 text-[13px] text-danger underline underline-offset-4 disabled:opacity-40"
         >
-          {deleting ? "지우고 있어요" : "이 오너먼트 지우기"}
+          {deleting ? "지우고 있어요" : `이 ${itemName} 지우기`}
         </button>
       )}
     </article>

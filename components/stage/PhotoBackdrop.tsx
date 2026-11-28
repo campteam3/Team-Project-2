@@ -55,7 +55,8 @@ function createParameters(): THREE.ShaderMaterialParameters {
 
 // sunrise: 새해 스노우볼의 일출 배경 (차명근)
 // scene: 생일 스노우볼의 파티 배경처럼 주제별 그림을 고릅니다 (없으면 sunrise 로 정함)
-export default function PhotoBackdrop({ sunrise = false, scene }: { sunrise?: boolean; scene?: BackdropScene }) {
+// instant: 그림을 서서히 나타내지 않고 바로 그립니다 (같은 그림의 대체 화면이 위에 덮여 있어 보이지 않는 동안)
+export default function PhotoBackdrop({ sunrise = false, scene, instant = false }: { sunrise?: boolean; scene?: BackdropScene; instant?: boolean }) {
   const size = useThree((state) => state.size);
   const kind = size.width < size.height ? "mobile" : "web";
   const picture = backdropImages(scene ?? (sunrise ? "sunrise" : "village"))[kind];
@@ -101,7 +102,7 @@ export default function PhotoBackdrop({ sunrise = false, scene }: { sunrise?: bo
       uniforms.uImageAspect.value = image.current?.aspect ?? 1;
       uniforms.uShow.value = 0;
     }
-    if (texture && uniforms.uShow.value < 1) uniforms.uShow.value = Math.min(1, uniforms.uShow.value + delta / 0.5);
+    if (texture && uniforms.uShow.value < 1) uniforms.uShow.value = instant ? 1 : Math.min(1, uniforms.uShow.value + delta / 0.5);
   });
 
   return (

@@ -12,7 +12,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { SAMPLE_GLOBE } from "@/lib/sample-data";
 import GlobeKindPicker from "@/components/ui/GlobeKindPicker";
-import { defaultTheme, type GlobeKind } from "@/lib/theme";
+import { defaultTheme, itemWord, type GlobeKind } from "@/lib/theme";
 
 // 예시용 오너먼트(가짜 데이터, 모양 · 색 · 자리만 있음). 다섯 모양을 섞어 24개: 앞쪽 14 · 옆 5 · 뒤 5 (볼 · 별 · 사탕 · 선물 5개씩, 하트 4개)
 // 세 번째 값은 트리의 자리 번호(lib/snowglobe-slots.json)입니다. 순서대로 자동으로 달면 옆을 다 채워야 뒤로 넘어가서, 자리를 직접 정했습니다.
@@ -129,7 +129,7 @@ export default function OpeningView() {
       display
       // 문구: Impeccable clarify 로 다듬음. 제목은 "무엇인지", 설명은 제목에 없는 "어떻게"만 (각각 한 줄)
       title="친구 마음이 쌓이는 스노우볼"
-      subtitle="링크를 보내면 친구들이 오너먼트를 달아 줘요"
+      subtitle={`링크를 보내면 친구들이 ${itemWord(kind).obj} 달아 줘요`}
       hint="드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
       hintMobile={kind === "newyear" || kind === "birthday" ? "폰을 흔들어 폭죽을 터뜨려 보세요" : "폰을 흔들어 눈을 내려 보세요"}
       layout={{ desktop: { centerFromTop: 0.47 }, mobile: { centerFromTop: 0.48 } }}

@@ -21,6 +21,15 @@ export const toKind = (value: unknown): GlobeKind => ((GLOBE_KINDS as readonly u
 
 export type GlobeTheme = Record<ThemePart, string> & { kind: GlobeKind };
 
+// 친구가 스노우볼에 다는 것을 부르는 말 (이민정). 크리스마스는 "오너먼트", 생일 · 새해는 "장식"입니다
+// (생일은 케이크 토핑, 새해는 복주머니 · 방패연 · 노리개라 오너먼트가 아님). 주제를 모르면 "오너먼트"입니다.
+// 받침이 달라 조사도 달라지므로(오너먼트를 · 장식을), 조사를 붙인 꼴을 함께 줍니다: noun 그대로, obj ~을/를, subj ~이/가, by ~(으)로
+export function itemWord(kind?: GlobeKind) {
+  const plain = kind === "birthday" || kind === "newyear";
+  const noun = plain ? "장식" : "오너먼트";
+  return { noun, obj: `${noun}${plain ? "을" : "를"}`, subj: `${noun}${plain ? "이" : "가"}`, by: `${noun}${plain ? "으로" : "로"}` };
+}
+
 type ThemePartInfo = { key: ThemePart; label: string; options: ThemeOption[] };
 
 export const THEME_PARTS: ThemePartInfo[] = [

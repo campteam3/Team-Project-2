@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import NotFoundView from "@/components/NotFoundView";
 import StageFallback from "./StageFallback";
+import type { GlobeKind } from "@/lib/theme";
 
+// globeKind: 스노우볼 주제를 알면 넘깁니다 (로딩 화면의 배경 그림). 모르면 그림 없이 밤하늘 색입니다
 type Props =
-  | { kind: "loading" }
+  | { kind: "loading"; globeKind?: GlobeKind }
   | { kind: "missing" }
   | { kind: "error"; message: string; onRetry: () => void };
 
@@ -22,7 +24,7 @@ export default function GlobeStatus(props: Props) {
 
   return (
     <main className="relative h-dvh w-full overflow-hidden">
-      <StageFallback message={props.kind === "loading" ? "스노우볼을 불러오고 있어요" : undefined} />
+      <StageFallback message={props.kind === "loading" ? "스노우볼을 불러오고 있어요" : undefined} kind={props.kind === "loading" ? props.globeKind : "christmas"} />
       {props.kind !== "loading" && (
         <div className="relative z-10 flex h-full flex-col px-4 pb-[max(env(safe-area-inset-bottom),20px)] pt-14 sm:px-8 sm:pb-8 sm:pt-10">
           <header className="mx-auto max-w-[900px] animate-fade text-center">

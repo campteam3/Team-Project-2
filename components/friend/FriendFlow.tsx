@@ -15,7 +15,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { addOrnament, type Globe, type Ornament } from "@/lib/api";
 import { MAX_ORNAMENTS, shapesFor, type OrnamentShape } from "@/lib/snowglobe";
-import { ORNAMENT_OPTIONS, parseTheme } from "@/lib/theme";
+import { itemWord, ORNAMENT_OPTIONS, parseTheme } from "@/lib/theme";
 import { FLY_TOTAL } from "@/components/snowglobe/ornamentFlight";
 import MessageCard from "./MessageCard";
 import OrnamentPickDock from "./OrnamentPickDock";
@@ -70,6 +70,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
   }, [step]);
 
   const theme = parseTheme(globe.theme);
+  const item = itemWord(theme.kind); // 크리스마스는 "오너먼트", 생일 · 새해는 "장식"
   const name = globeName(globe);
   const color = ORNAMENT_OPTIONS.find((o) => o.id === colorId)!.color;
   // 3D 에 그릴 오너먼트: 기존 + (달았으면) 내 오너먼트들 + (고르는 중이면) 미리 보기
@@ -122,10 +123,10 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         title={name}
         subtitle={
           full
-            ? `오너먼트 ${count}개로 가득 찼어요`
+            ? `${item.noun} ${count}개로 가득 찼어요`
             : count > 0
-              ? `오너먼트 ${count}개가 달려 있어요`
-              : "아직 오너먼트가 없어요. 첫 번째로 마음을 달아 주세요"
+              ? `${item.noun} ${count}개가 달려 있어요`
+              : `아직 ${item.subj} 없어요. 첫 번째로 마음을 달아 주세요`
         }
         hint={full ? "자리가 모두 찼어요. 이제 마음은 더 달 수 없어요" : HINT}
         hintMobile={full ? "자리가 모두 찼어요. 이제 마음은 더 달 수 없어요" : HINT_MOBILE}
@@ -133,7 +134,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         // 내가 단 오너먼트는 모두 "내 오너먼트" 말풍선으로 알려 줍니다 (FEEDBACK A6)
         pinId={mine?.id}
         morePinIds={earlierIds}
-        pin={mine ? <PinLabel text="내 오너먼트" /> : undefined}
+        pin={mine ? <PinLabel text={`내 ${item.noun}`} /> : undefined}
         below={
           <Link
             href={`/login?nickname=${encodeURIComponent(nickname)}`}
@@ -163,7 +164,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
       <Stage
         {...common}
         onBack={() => setStep("view")}
-        title="오너먼트를 골라 주세요"
+        title={`${item.obj} 골라 주세요`}
         subtitle="1 / 2 단계"
         // 고르는 동안에는 스노우볼 대신 고른 오너먼트 하나를 크게 보여 줍니다. 스노우볼에 달린 모습은 작아서 모양 · 색을 견주기 어렵다는 의견 (차명근)
         // 달릴 자리는 다음 단계(메시지 쓰기)에서 스노우볼로 돌아와 보여 줍니다.
@@ -212,6 +213,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
             busy={busy}
             onBack={() => setStep("pick")}
             onSubmit={submit}
+            submitLabel={`${item.noun} 달기`}
           />
         </div>
       </Stage>
@@ -223,7 +225,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
     <Stage
       {...common}
       onBack={() => setStep("view")}
-      title="오너먼트를 달았어요"
+      title={`${item.obj} 달았어요`}
       subtitle={`${name} 주인이 열어 보면 메시지를 읽을 수 있어요`}
       hint={undefined}
       hintMobile={undefined}
@@ -233,7 +235,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
       focusId={landed ? undefined : mine?.id}
       pinId={landed ? mine?.id : undefined}
       morePinIds={earlierIds}
-      pin={landed ? <PinLabel text="내 오너먼트" /> : undefined}
+      pin={landed ? <PinLabel text={`내 ${item.noun}`} /> : undefined}
     >
       <div key={step} className="flex w-full animate-rise justify-center">
         <Dock label="다음 할 일">
