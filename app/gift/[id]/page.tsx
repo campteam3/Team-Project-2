@@ -7,7 +7,7 @@ import { OG_IMAGE, SITE_NAME } from "@/lib/site";
 // 받은 기념 메시지 /gift/<번호> (FEEDBACK F1)
 // 링크 미리보기는 DB 를 읽지 않고 모두 같은 글자로 둡니다. 카카오톡 공유 카드는 보낼 때 보내는 사람 이름을 넣습니다.
 const TITLE = "기념 메시지가 도착했어요";
-const DESCRIPTION = "눌러서 오너먼트를 열어 보세요.";
+const DESCRIPTION = "눌러서 메시지를 열어 보세요.";
 
 export async function generateMetadata({ params }: PageProps<"/gift/[id]">): Promise<Metadata> {
   const { id } = await params;

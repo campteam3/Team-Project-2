@@ -16,7 +16,7 @@ import { Icon } from "@/components/ui/Icons";
 import { NICKNAME_RULE, addGiftToGlobe, createGlobe, getGlobe, type Ornament } from "@/lib/api";
 import { giftParam } from "@/lib/gift-link";
 import { globePath, loadOwnerToken, saveOwnerToken } from "@/lib/owner-token";
-import { defaultTheme, themeParts, toKind, type GlobeTheme, type ThemePart } from "@/lib/theme";
+import { defaultTheme, itemWord, themeParts, toKind, type GlobeTheme, type ThemePart } from "@/lib/theme";
 import CustomizeDock from "./CustomizeDock";
 import NameplateForm, { NameplateInput } from "./NameplateForm";
 import ShareDock from "./ShareDock";
@@ -35,6 +35,7 @@ export default function OwnerFlow() {
   const [step, setStep] = useState<Step>("customize");
   // 홈 화면에서 고른 스노우볼 주제 (/new?kind=newyear). 없으면 크리스마스입니다 (차명근)
   const kind = toKind(search.get("kind"));
+  const item = itemWord(kind); // 크리스마스는 "오너먼트", 생일 · 새해는 "장식"
   const [theme, setTheme] = useState<GlobeTheme>(() => defaultTheme(kind));
   const [part, setPart] = useState<ThemePart>(() => themeParts(kind)[0].key);
   // 홈에서 다른 주제를 고르고 다시 오면 그 주제로 처음부터 시작합니다.
@@ -92,7 +93,7 @@ export default function OwnerFlow() {
     setGiftFailed(false);
     const globe = await getGlobe(name);
     if (globe.ok && globe.data) setGiftOrnaments(globe.data.ornaments);
-    say(added.data.already ? "이미 달려 있어요" : "받은 오너먼트를 달았어요");
+    say(added.data.already ? "이미 달려 있어요" : `받은 ${item.obj} 달았어요`);
   };
 
   const retryGift = async () => {
@@ -108,7 +109,7 @@ export default function OwnerFlow() {
       <Stage
         theme={theme}
         title="스노우볼을 꾸며 주세요"
-        subtitle={gift ? "1 / 2 단계 · 다 만들면 받은 오너먼트가 달려요" : "1 / 2 단계"}
+        subtitle={gift ? `1 / 2 단계 · 다 만들면 받은 ${item.subj} 달려요` : "1 / 2 단계"}
         hint="고르는 대로 바로 바뀌어요. 드래그로 돌리고, 스크롤로 크게 볼 수 있어요"
         hintMobile="고르는 대로 바로 바뀌어요"
         plateText="내 스노우볼"
@@ -161,7 +162,7 @@ export default function OwnerFlow() {
       theme={theme}
       title="스노우볼이 완성됐어요"
       ornaments={giftOrnaments}
-      subtitle="링크를 보내면 친구들이 오너먼트에 마음을 담아 달아 줘요"
+      subtitle={`링크를 보내면 친구들이 ${item.noun}에 마음을 담아 달아 줘요`}
       notice={notice}
       saveAs={`${created}의 스노우볼`}
       onNotice={say}
@@ -175,7 +176,7 @@ export default function OwnerFlow() {
               disabled={busy}
               className="pointer-events-auto -my-1.5 inline-flex min-h-11 items-center px-3 text-[15px] font-medium text-glow underline underline-offset-4 disabled:opacity-50"
             >
-              받은 오너먼트 다시 달기
+              받은 {item.noun} 다시 달기
             </button>
           )}
         <Link
@@ -190,7 +191,7 @@ export default function OwnerFlow() {
     >
       {/* 휴대폰에서는 링크 주소를 따로 보여 주지 않습니다. 복사 · 카카오톡 버튼이면 충분합니다 (FEEDBACK C5). 넓은 화면은 도크 안에 주소가 보입니다 */}
       <div key={step} className="flex w-full animate-rise flex-col items-center gap-3">
-        <ShareDock url={url} title={`${created}의 스노우볼`} onNotice={say} />
+        <ShareDock url={url} title={`${created}의 스노우볼`} onNotice={say} kind={kind} />
       </div>
     </Stage>
   );

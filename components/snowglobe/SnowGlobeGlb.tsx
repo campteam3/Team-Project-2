@@ -7,6 +7,7 @@ import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { FLY_SECONDS, FLY_TOTAL, FLY_WAIT, LAND_POP, handSpot } from "./ornamentFlight";
 import { BEFORE_TONE_MAPPING_GLSL, backdropUniforms } from "@/components/stage/backdropShared";
 import bakedBulbSeats from "@/lib/tree-bulb-seats.json";
 import { placeOrnaments, type OrnamentLike, type PlacedOrnament } from "@/lib/snowglobe";
@@ -1321,6 +1322,15 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
 
   const model = useMemo(() => {
     const copy = scene.clone(true);
+    // 크리스마스 스노우볼: 트리 뒤쪽에도 선물 상자 묶음을 하나 더 놓습니다. 이름이 "w_Gift_" 로 시작해서 아래에서 앞쪽 선물과 함께 켜지고 꺼집니다.
+    if (kind === "christmas") {
+      const back = new THREE.Group();
+      back.name = "w_Gift_Back";
+      back.rotation.y = BACK_GIFTS.turn;
+      back.position.y = BACK_GIFTS.lower;
+      for (const child of copy.children) if (BACK_GIFTS.boxes.includes(child.name)) back.add(child.clone(true));
+      copy.add(back);
+    }
     const glassFront = createGlassMaterial(false);
     const glassBack = createGlassMaterial(true);
     // 트리에 두른 점 줄은 여러 색의 작은 전구처럼 스스로 빛나고, 이따금 반짝입니다
@@ -1486,10 +1496,22 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
   return <primitive object={model} />;
 }
 
-type ExtraLook = { showReindeer?: boolean; showGingerHouse?: boolean };
+// 트리 뒤쪽의 선물 상자 묶음 (이민정): 앞쪽 묶음 여섯 상자 가운데 네 개(큰 빨강 + 그 위의 초록, 작은 것 둘)를 그대로 본떠,
+// 스노우볼 가운데를 축으로 돌려 놓습니다. 옆 · 뒤 자리로 간 루돌프(왼쪽 옆)와 과자집(오른쪽 뒤) 사이 한가운데입니다.
+// 돌린 자리의 눈이 조금 낮아 상자 하나가 떠 보여서 1.5cm 내려 눈에 살짝 묻었습니다. (Blender 에서 뒤 · 옆 · 위로 확인)
+const BACK_GIFTS = { boxes: ["w_Gift_A", "w_Gift_E", "w_Gift_C", "w_Gift_F"], turn: THREE.MathUtils.degToRad(162), lower: -0.015 };
 
-// 추가 소품: 눈사람 자리의 루돌프, 선물 자리의 과자집. 이 컴포넌트를 그릴 때에만 props.glb 를 내려받습니다.
-export function GlobeExtras({ showReindeer = false, showGingerHouse = false }: ExtraLook) {
+type ExtraLook = { showReindeer?: boolean; showGingerHouse?: boolean; reindeerAside?: boolean; houseAside?: boolean };
+
+// 앞자리가 차 있을 때 루돌프 · 과자집을 옮겨 놓는 자리. 스노우볼 가운데를 축으로 이만큼 돌려 놓습니다 (위에서 볼 때 시계 반대 방향이 +).
+// 바닥 눈의 높이가 어느 방향이든 거의 같아서(차이 1cm 안쪽) 돌리기만 해도 바닥에 그대로 앉고, 트리 · 유리와의 거리도 그대로입니다.
+// 돌린 만큼 몸도 함께 돌아서, 뒤에서 봐도 바깥을 바라보고 서 있습니다. (Blender 에서 앞 · 옆 · 뒤 · 위로 확인, 이민정)
+const REINDEER_ASIDE = THREE.MathUtils.degToRad(-67); // 왼쪽 옆 (눈사람의 왼쪽 뒤)
+const HOUSE_ASIDE = THREE.MathUtils.degToRad(88); // 오른쪽 뒤 (선물 상자 묶음의 뒤)
+
+// 추가 소품: 루돌프 · 과자집. 이 컴포넌트를 그릴 때에만 props.glb 를 내려받습니다.
+// 모델 파일에는 앞자리(루돌프는 눈사람 자리, 과자집은 선물 자리)에 놓여 있습니다. 그 자리에 눈사람 · 선물 상자가 있으면(reindeerAside · houseAside) 옆 · 뒤 자리로 옮깁니다.
+export function GlobeExtras({ showReindeer = false, showGingerHouse = false, reindeerAside = false, houseAside = false }: ExtraLook) {
   const { scene } = useGLTF(PROPS_URL);
   const model = useMemo(() => {
     const copy = scene.clone(true);
@@ -1515,8 +1537,14 @@ export function GlobeExtras({ showReindeer = false, showGingerHouse = false }: E
       }
       mesh.material = next;
     });
+    // 자리 옮기기는 볼터치 자리를 잰 뒤에 합니다 (볼터치는 모델 파일 기준 좌표로 찍어서, 몸과 함께 돌면 됩니다)
+    const spin = new THREE.Matrix4();
+    for (const child of copy.children) {
+      if (reindeerAside && child.name.startsWith("w_Reindeer")) child.applyMatrix4(spin.makeRotationY(REINDEER_ASIDE));
+      if (houseAside && child.name.startsWith("w_GingerHouse")) child.applyMatrix4(spin.makeRotationY(HOUSE_ASIDE));
+    }
     return copy;
-  }, [scene, showReindeer, showGingerHouse]);
+  }, [scene, showReindeer, showGingerHouse, reindeerAside, houseAside]);
 
   return <primitive object={model} />;
 }
@@ -1528,12 +1556,47 @@ const MESSAGE_SCALE = 1.25;
 const DROP_FROM: [number, number, number] = [0, 1.38, 0];
 const DROP_SECONDS = 1.6;
 
+// ── 손에 든 오너먼트 (마음 달기 2단계, 이민정) ──
+// 메시지를 쓰는 동안에는 고른 오너먼트 하나가 화면 가운데에 크게 떠서 천천히 돕니다 (고르기 화면 GiftOrnamentScene 과 같은 크기 · 자리).
+// [오너먼트 달기]를 누르면 그 모습 그대로 작아지며 트리의 제자리로 날아가 달립니다.
+// 값은 모두 화면(카메라) 기준입니다. 오너먼트는 스노우볼 묶음 안에 있어서, 매 프레임 화면 기준 자세를 묶음 안의 자세로 바꿔 넣습니다.
+const HAND_Z = 2.6; // 카메라 쪽으로 이만큼 앞 (유리 구보다 앞이라 스노우볼이 올라와도 겹치지 않습니다)
+const HAND_NEAR = (7 - HAND_Z) / 7; // 앞으로 당긴 만큼 작게 그려야 화면에서 같은 크기로 보입니다 (카메라 거리 7)
+// 크기 · 자리 · 시간 값은 ornamentFlight.ts 에 있습니다 (화면 코드도 함께 읽어서 따로 둠)
+const HAND_SPIN = 0.5; // 저절로 도는 속도
+const FLY_LIFT = 0.22; // 날아가는 길을 살짝 위로 휘게
+
+// 마지막으로 손에 들고 있던 모습 (화면 기준). 달리는 오너먼트는 id 가 새로 생겨 다시 그려지므로, 여기 남겨 둔 모습에서 출발합니다.
+const hand = { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), scale: 1, at: -1e9 };
+const HAND_FRESH = 1200; // 이 시간(ms) 안에 들고 있었으면 손에서 출발합니다. 아니면 예전처럼 위에서 내려옵니다
+
+const flyMatrix = new THREE.Matrix4();
+const flyInverse = new THREE.Matrix4();
+const flyScale = new THREE.Vector3();
+const flyPosition = new THREE.Vector3();
+const flyQuaternion = new THREE.Quaternion();
+const flyTargetPosition = new THREE.Vector3();
+const flyTargetQuaternion = new THREE.Quaternion();
+const flyTargetScale = new THREE.Vector3();
+const UP = new THREE.Vector3(0, 1, 0);
+
+// 화면 기준 자세를 item 의 부모 묶음 안의 자세로 바꿔 넣습니다
+function setWorldPose(item: THREE.Object3D, position: THREE.Vector3, quaternion: THREE.Quaternion, scale: number) {
+  const parent = item.parent;
+  if (!parent) return;
+  parent.updateWorldMatrix(true, false);
+  flyMatrix.compose(position, quaternion, flyScale.setScalar(scale));
+  flyMatrix.premultiply(flyInverse.copy(parent.matrixWorld).invert());
+  flyMatrix.decompose(item.position, item.quaternion, item.scale);
+}
+
 function OrnamentItem({
   placed,
   parts,
   selected,
   highlight,
   arriving,
+  held,
   reducedMotion,
   onSelect,
 }: {
@@ -1542,21 +1605,77 @@ function OrnamentItem({
   selected: boolean;
   highlight: boolean; // 빛나게 보여 줄 오너먼트 (방금 고른 것)
   arriving: boolean; // 지금 막 달리는 오너먼트
+  held: boolean; // 손에 든 오너먼트: 트리 자리가 아니라 화면 가운데에 크게 띄웁니다
   reducedMotion: boolean;
   onSelect?: (id: string) => void;
 }) {
   const { slot, color, metallic, ornament } = placed;
   const group = useRef<THREE.Group>(null);
   const arriveStart = useRef<number | null>(null);
+  const heldSpin = useRef(0); // 손에 든 동안 돈 각도
+  const heldAt = useRef<{ x: number; y: number; height: number } | null>(null); // 손에 든 오너먼트가 지금 떠 있는 자리 · 크기
+  const heldFrames = useRef(0); // 손에 든 뒤 그린 프레임 수
+  // 손에서 출발하는 경우의 출발 모습 (화면 기준). null 이면 예전처럼 위에서 내려옵니다
+  const flyFrom = useRef<{ position: THREE.Vector3; quaternion: THREE.Quaternion; scale: number } | null>(null);
 
   const materials = useOrnamentMaterials(parts, color, metallic, highlight);
 
   const baseScale = placed.scale * (ornament ? MESSAGE_SCALE : 1);
   const [homeX, homeY, homeZ] = placed.position;
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     const item = group.current;
     if (!item) return;
+    // 손에 든 동안: 화면 가운데에 크게 떠서 천천히 돌고, 위아래로 살짝 떠다닙니다 (움직임 줄이기에서는 가만히)
+    if (held) {
+      if (!reducedMotion) heldSpin.current += delta * HAND_SPIN;
+      // 빈 곳이 바뀌면(화면 크기, 키보드) 그 자리로 부드럽게 옮겨 갑니다
+      // 처음 두 프레임은 무대가 빈 곳을 막 재는 중이라, 미끄러져 들어오지 않게 바로 그 자리에 둡니다
+      if (heldFrames.current++ < 2) heldAt.current = null;
+      const at = (heldAt.current ??= { ...handSpot });
+      const follow = 1 - Math.exp(-delta * (reducedMotion ? 60 : 8));
+      at.x = THREE.MathUtils.lerp(at.x, handSpot.x, follow);
+      at.y = THREE.MathUtils.lerp(at.y, handSpot.y, follow);
+      at.height = THREE.MathUtils.lerp(at.height, handSpot.height, follow);
+      const bob = reducedMotion ? 0 : Math.sin(clock.elapsedTime * 1.4) * 0.04 * at.height;
+      hand.position.set(at.x * HAND_NEAR, (at.y + bob) * HAND_NEAR, HAND_Z);
+      hand.quaternion.setFromAxisAngle(UP, heldSpin.current);
+      hand.scale = (at.height / 2) * HAND_NEAR; // 오너먼트 원형은 가장 긴 쪽이 2 입니다
+      hand.at = performance.now();
+      setWorldPose(item, hand.position, hand.quaternion, hand.scale);
+      arriveStart.current = null;
+      return;
+    }
+    // 방금까지 손에 들고 있었으면, 그 모습에서 트리의 제자리로 날아가 달립니다
+    if (arriving && !reducedMotion && arriveStart.current === null && performance.now() - hand.at < HAND_FRESH) {
+      flyFrom.current = { position: hand.position.clone(), quaternion: hand.quaternion.clone(), scale: hand.scale };
+    }
+    if (arriving && !reducedMotion && flyFrom.current && item.parent) {
+      arriveStart.current ??= clock.elapsedTime;
+      const from = flyFrom.current;
+      const since = clock.elapsedTime - arriveStart.current;
+      const t = THREE.MathUtils.clamp((since - FLY_WAIT) / FLY_SECONDS, 0, 1);
+      const eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2; // 천천히 떠나 빠르게 날고 천천히 앉습니다
+      // 도착할 자리의 화면 기준 자세 (스노우볼이 올라오고 도는 중이라 매 프레임 다시 잽니다)
+      item.parent.updateWorldMatrix(true, false);
+      const landed = baseScale * 1.3; // 빛나는 오너먼트의 크기 (아래 highlight 와 같게)
+      flyMatrix.compose(flyPosition.set(homeX, homeY, homeZ), flyQuaternion.set(...slot.quaternion), flyScale.setScalar(landed)).premultiply(item.parent.matrixWorld);
+      flyMatrix.decompose(flyTargetPosition, flyTargetQuaternion, flyTargetScale);
+      // 기다리는 동안에는 손에 든 것처럼 계속 떠다닙니다
+      const bob = Math.sin(clock.elapsedTime * 1.4) * 0.08 * from.scale * (1 - eased);
+      flyPosition.copy(from.position).lerp(flyTargetPosition, eased);
+      flyPosition.y += bob + Math.sin(Math.PI * eased) * FLY_LIFT;
+      flyQuaternion.copy(from.quaternion).slerp(flyTargetQuaternion, eased);
+      // 크기는 비율로 줄여야 처음부터 끝까지 고르게 작아져 보입니다. 달린 뒤에는 살짝 커졌다 돌아옵니다
+      const pop = 1 + Math.sin(Math.PI * THREE.MathUtils.clamp((since - FLY_WAIT - FLY_SECONDS) / LAND_POP, 0, 1)) * 0.16;
+      const size = from.scale * (flyTargetScale.x / from.scale) ** eased * pop;
+      setWorldPose(item, flyPosition, flyQuaternion, size);
+      if (since < FLY_TOTAL) return;
+      // 다 달렸으면 아래의 평소 자세로 넘어갑니다 (시작한 지 DROP_SECONDS 가 지나서, 아래에서는 바로 제자리에 놓입니다)
+      flyFrom.current = null;
+      item.quaternion.set(...slot.quaternion);
+    }
+    if (flyFrom.current && !arriving) flyFrom.current = null;
     // 달리는 중이면 위에서 제자리로 천천히 내려옵니다.
     if (arriving && !reducedMotion) {
       arriveStart.current ??= clock.elapsedTime;
@@ -1602,6 +1721,7 @@ export function Ornaments({
   selectedId = null,
   highlightId,
   arrivingId,
+  heldId,
   reducedMotion = false,
   onSelect,
 }: {
@@ -1610,6 +1730,7 @@ export function Ornaments({
   selectedId?: string | null;
   highlightId?: string;
   arrivingId?: string;
+  heldId?: string; // 손에 든 오너먼트 (화면 가운데에 크게)
   reducedMotion?: boolean;
   onSelect?: (id: string) => void;
 }) {
@@ -1626,6 +1747,7 @@ export function Ornaments({
           selected={item.ornament !== null && item.ornament.id === selectedId}
           highlight={item.ornament !== null && item.ornament.id === highlightId}
           arriving={item.ornament !== null && item.ornament.id === arrivingId}
+          held={item.ornament !== null && heldId !== undefined && item.ornament.id === heldId}
           reducedMotion={reducedMotion}
           onSelect={onSelect}
         />

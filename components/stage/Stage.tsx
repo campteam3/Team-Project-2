@@ -2,7 +2,7 @@
 
 // 모든 화면의 공통 틀 (DESIGN.md 4장)
 //   뒤: 화면 전체 3D 무대 (마을 + 스노우볼)
-//   앞: 위쪽 띠(전체 화면 · 소리 · 눈 버튼) + 제목, 아래쪽 안내 문구 + 도크
+//   앞: 위쪽 띠(전체 화면 · 소리 · 흔들기 버튼) + 제목, 아래쪽 안내 문구 + 도크
 // UI 는 위쪽 띠와 아래쪽에만 두고, 스노우볼 위에 겹치지 않습니다.
 
 import dynamic from "next/dynamic";
@@ -10,10 +10,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import type { Ornament } from "@/lib/api";
-import type { GlobeTheme } from "@/lib/theme";
+import type { GlobeKind, GlobeTheme } from "@/lib/theme";
 import { isBgmOn, isBgmOnServer, setBgmKind, subscribeBgm, toggleBgm } from "@/lib/bgm";
 import { saveGlobeImage } from "@/lib/save-image";
 import { Button, IconButton } from "@/components/ui/Button";
+import type { IconName } from "@/components/ui/Icons";
 import SavedImage from "./SavedImage";
 import StageFallback from "./StageFallback";
 import type { GlobeLayout } from "./StageScene";
@@ -25,6 +26,13 @@ let movedInSite = false;
 
 // 소리 버튼 (차명근 연결): 배경 음악을 켜고 끕니다. 재생은 lib/bgm.ts 가 맡습니다.
 const SHOW_SOUND = true;
+
+// 흔들기 버튼(오른쪽 위): 주제마다 흔들면 일어나는 일이 달라서 그림과 이름도 다릅니다 (이민정)
+const SHAKE_BUTTON: Record<GlobeKind, { icon: IconName; label: string }> = {
+  christmas: { icon: "snowflake", label: "눈 내리기" },
+  birthday: { icon: "party-popper", label: "폭죽 터뜨리기" },
+  newyear: { icon: "fireworks", label: "불꽃놀이 터뜨리기" },
+};
 
 // 불러오는 동안에는 Stage 가 대체 화면(흐린 스노우볼 그림)을 위에 덮어 두므로, 여기서는 아무것도 그리지 않습니다.
 const StageScene = dynamic(() => import("./StageScene"), { ssr: false, loading: () => null });
@@ -80,7 +88,9 @@ export type StageProps = {
   onSelectOrnament?: (id: string) => void; // 오너먼트를 눌렀을 때 (주인 화면)
   extraShake?: number; // 바깥에서 눈을 날리고 싶을 때 이 값을 늘립니다 (예: 스노우볼 열기)
   arrivingId?: string; // 지금 막 달리는 오너먼트
+  heldId?: string; // 손에 든 오너먼트: 이것만 화면 가운데에 크게 띄우고 스노우볼은 화면 아래로 내려 둡니다 (마음 달기 2단계, 이민정)
   focusId?: string; // 이 오너먼트가 정면에 오도록 스노우볼을 돌립니다
+  focusZoom?: boolean; // focusId 의 오너먼트 쪽으로 확대합니다. 다시 줄일 수 있습니다 (주인이 메시지를 읽을 때, 이민정)
   lockFront?: boolean;
   holdGlobe?: boolean; // 스노우볼을 직전 크기 · 자리에 그대로 두고, 아래쪽 UI 가 그 위로 올라오게 합니다 (12 메시지 쓰기)
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
@@ -107,7 +117,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, topLeft, onBack, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, heldId, focusId, focusZoom, lockFront, holdGlobe, children, topLeft, onBack, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
   // 뒤로 가기 (홈이 아닌 화면의 왼쪽 위)
   const router = useRouter();
   const pathname = usePathname();
@@ -149,6 +159,7 @@ export default function Stage(props: StageProps) {
   const soundOn = useSyncExternalStore(subscribeBgm, isBgmOn, isBgmOnServer); // 배경 음악을 켜 둔 상태인지
   // 이 화면의 스노우볼 주제에 맞는 곡으로 (홈에서 주제를 바꿀 때, 링크로 다른 주제의 스노우볼에 들어올 때 모두. 차명근)
   const bgmKind = theme.kind ?? "christmas";
+  const shakeButton = SHAKE_BUTTON[bgmKind];
   useEffect(() => setBgmKind(bgmKind), [bgmKind]);
   const [saving, setSaving] = useState(false); // 이미지를 만드는 중인지
   const [savedUrl, setSavedUrl] = useState(""); // 화면에 띄울 저장용 이미지 (공유 창을 열 수 없는 휴대폰 브라우저에서만)
@@ -223,6 +234,24 @@ export default function Stage(props: StageProps) {
     };
     if (!hold.current) heldArea.current = area;
     return area;
+  }, []);
+
+  // 손에 든 오너먼트(heldId)를 띄울 빈 곳: 가운데의 px 좌표와 들어갈 수 있는 크기 (3D 무대 왼쪽 위에서부터, 이민정)
+  // 메시지 카드에 가리지 않게, 제목과 카드 사이(휴대폰)나 카드 왼쪽(넓은 화면) 가운데 더 넓은 쪽을 고릅니다.
+  const getHandSpot = useCallback(() => {
+    const stage = sceneEl.current?.getBoundingClientRect();
+    const head = headerEl.current?.getBoundingClientRect();
+    // 아래쪽 UI 는 화면 너비를 다 차지하는 상자라, 그 안의 실제 카드(입력 폼)를 찾아 잽니다. 없으면 아래쪽 UI 전체로 봅니다
+    const box = (footerEl.current?.querySelector("form") ?? footerEl.current)?.getBoundingClientRect();
+    if (!stage || !head || !box) return null;
+    const GAP = 20;
+    const above = box.top - head.bottom - GAP * 2; // 제목과 카드 사이의 높이
+    const beside = box.left - stage.left - GAP * 2; // 카드 왼쪽의 너비
+    if (beside > above) {
+      // 카드 왼쪽: 카드 높이의 가운데보다 조금 위
+      return { x: (stage.left + box.left) / 2 - stage.left, y: box.top + box.height * 0.42 - stage.top, size: Math.max(24, beside * 0.8) };
+    }
+    return { x: stage.width / 2, y: (head.bottom + box.top) / 2 - stage.top, size: Math.max(24, above) };
   }, []);
 
   // 화면 키보드 (FEEDBACK A2).
@@ -525,9 +554,9 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
       <div className="absolute inset-0 z-0">
         {webgl === false ? (
           scene ? (
-            <StageFallback poster={false} />
+            <StageFallback poster={false} kind={bgmKind} />
           ) : (
-            <StageFallback plate={plateContent} centerFromTop={layout.centerFromTop} height={layout.height} />
+            <StageFallback plate={plateContent} kind={bgmKind} centerFromTop={layout.centerFromTop} height={layout.height} />
           )
         ) : webgl && scene ? (
           scene
@@ -545,7 +574,10 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             highlightId={photo ? undefined : highlightId}
             onSelectOrnament={photo ? undefined : onSelectOrnament}
             arrivingId={arrivingId}
+            heldId={photo ? undefined : heldId}
+            getHandSpot={heldId ? getHandSpot : undefined}
             focusId={photo ? undefined : focusId}
+            focusZoom={focusZoom}
             getSafeArea={getSafeArea}
             onPinMove={pin && !photo ? movePin : undefined}
             lockFront={photo ? false : lockFront}
@@ -553,19 +585,20 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             shakeSignal={shakeSignal + extraShake}
             reducedMotion={reducedMotion}
             onReady={onSceneReady}
+            covered={cover && !sceneReady}
           />
         ) : scene ? (
-          <StageFallback poster={false} />
+          <StageFallback poster={false} kind={bgmKind} />
         ) : null}
       </div>
 
-      {/* 첫 접속 대체 화면: 마을 배경 + 흐린 스노우볼 그림. 3D 가 다 그려지면 서서히 사라집니다 */}
+      {/* 첫 접속 대체 화면: 주제에 맞는 배경 + 스노우볼 자리의 은은한 빛. 3D 가 다 그려지면 걷히며 스노우볼이 서서히 나타납니다 */}
       {!scene && webgl !== false && cover && (
         <div
-          className={`pointer-events-none absolute inset-0 z-[7] transition-opacity duration-500 ease-soft ${sceneReady ? "opacity-0" : "opacity-100"}`}
+          className={`pointer-events-none absolute inset-0 z-[7] transition-opacity duration-300 ease-soft ${sceneReady ? "opacity-0" : "opacity-100"}`}
           onTransitionEnd={() => sceneReady && setCover(false)}
         >
-          <StageFallback message="스노우볼을 불러오고 있어요" />
+          <StageFallback message="스노우볼을 불러오고 있어요" kind={bgmKind} />
         </div>
       )}
 
@@ -621,8 +654,8 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
               onClick={toggleBgm}
             />
           )}
-          {/* 스노우볼이 없는 장면(scene)에서는 눈 버튼을 숨깁니다 */}
-          {!scene && <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />}
+          {/* 스노우볼이 없는 장면(scene)에서는 흔들기 버튼을 숨깁니다 */}
+          {!scene && <IconButton icon={shakeButton.icon} label={shakeButton.label} onClick={shake} />}
         </div>
 
         {/* 키보드가 올라오면 제목은 접어 둡니다 (자리는 남겨 스노우볼 위치 계산에 씁니다) */}
@@ -680,7 +713,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             <IconButton icon="x" label="사진 찍기 닫기" onClick={closePhoto} />
           </div>
           <div className="pointer-events-auto absolute right-4 top-4 sm:right-8 sm:top-8">
-            <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />
+            <IconButton icon={shakeButton.icon} label={shakeButton.label} onClick={shake} />
           </div>
           <p role="status" className="sr-only">
             {notice}

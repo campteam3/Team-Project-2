@@ -10,7 +10,7 @@ import { Button, IconButton } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { Icon } from "@/components/ui/Icons";
 import { SHAPE_LABEL, shapesFor, type OrnamentShape } from "@/lib/snowglobe";
-import { ORNAMENT_OPTIONS, ornamentSwatch, type GlobeKind } from "@/lib/theme";
+import { itemWord, ORNAMENT_OPTIONS, ornamentSwatch, type GlobeKind } from "@/lib/theme";
 
 type Props = {
   kind?: GlobeKind; // 오너먼트를 달 스노우볼의 주제. 주제마다 고를 수 있는 모양이 다릅니다 (안 넘기면 볼 · 별 · 하트)
@@ -23,11 +23,12 @@ type Props = {
 };
 
 export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick, onBack, onNext }: Props) {
+  const { noun } = itemWord(kind); // 크리스마스는 "오너먼트", 생일 · 새해는 "장식"
   return (
-    <Dock label="오너먼트 고르기" className="max-[959px]:w-full max-[959px]:max-w-[440px] max-[959px]:flex-col max-[959px]:items-stretch max-[959px]:rounded-[28px]">
+    <Dock label={`${noun} 고르기`} className="max-[959px]:w-full max-[959px]:max-w-[440px] max-[959px]:flex-col max-[959px]:items-stretch max-[959px]:rounded-[28px]">
       <IconButton icon="arrow-left" label="돌아가기" onClick={onBack} className="max-[959px]:hidden" />
 
-      <div className="flex items-center justify-between gap-1 min-[960px]:ml-1 min-[960px]:justify-start" role="group" aria-label="오너먼트 모양">
+      <div className="flex items-center justify-between gap-1 min-[960px]:ml-1 min-[960px]:justify-start" role="group" aria-label={`${noun} 모양`}>
         {shapesFor(kind).map((s) => {
           const selected = s === shape;
           return (
@@ -49,7 +50,7 @@ export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick
 
       <span className="mx-1.5 hidden h-7 w-px bg-glass-strong min-[960px]:block" aria-hidden="true" />
 
-      <div className="flex items-center justify-between gap-0.5 min-[960px]:justify-start" role="group" aria-label="오너먼트 색">
+      <div className="flex items-center justify-between gap-0.5 min-[960px]:justify-start" role="group" aria-label={`${noun} 색`}>
         {ORNAMENT_OPTIONS.map((o) => {
           const selected = o.id === colorId;
           return (
@@ -57,7 +58,7 @@ export default function OrnamentPickDock({ kind, shape, onShape, colorId, onPick
               key={o.id}
               type="button"
               aria-pressed={selected}
-              aria-label={`오너먼트 색: ${o.label}`}
+              aria-label={`${noun} 색: ${o.label}`}
               title={o.label}
               onClick={() => onPick(o.id)}
               className={`flex size-11 items-center justify-center rounded-full transition duration-200 ease-soft ${

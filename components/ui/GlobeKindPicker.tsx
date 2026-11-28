@@ -10,7 +10,8 @@ import { useEffect, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/ui/Icons";
 import { AVAILABLE_KINDS, KIND_LABEL, type GlobeKind } from "@/lib/theme";
 
-const KIND_ICON: Record<GlobeKind, IconName> = { christmas: "tree", birthday: "cake", newyear: "sheep" };
+// 새해는 해돋이 (양에서 바꿈, 이민정)
+const KIND_ICON: Record<GlobeKind, IconName> = { christmas: "tree", birthday: "cake", newyear: "sunrise" };
 
 export default function GlobeKindPicker({ kind, onPick }: { kind: GlobeKind; onPick: (kind: GlobeKind) => void }) {
   const [open, setOpen] = useState(false);
@@ -45,8 +46,9 @@ export default function GlobeKindPicker({ kind, onPick }: { kind: GlobeKind; onP
         <Icon name="chevron-down" className={`transition-transform duration-200 ease-soft ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        // 제목 위에 펼쳐지므로 바탕을 조금 짙게 해서 뒤의 글자가 비치지 않게 합니다
-        <div role="group" aria-label="스노우볼 종류" className="glass flex animate-rise flex-col gap-1 rounded-full bg-night-900/80 p-1">
+        // 위의 동그란 버튼들과 같은 너비(44px) · 같은 유리 바탕이라, 왼쪽 · 오른쪽 줄이 버튼과 맞습니다.
+        // 짙은 바탕을 따로 깔면 생일처럼 밝은 배경에서 목록만 검게 튀어서 뺐습니다 (이민정)
+        <div role="group" aria-label="스노우볼 종류" className="glass flex w-11 animate-rise flex-col gap-1 rounded-full">
           {AVAILABLE_KINDS.map((item) => {
             const selected = item === kind;
             return (
@@ -60,8 +62,8 @@ export default function GlobeKindPicker({ kind, onPick }: { kind: GlobeKind; onP
                   onPick(item);
                   setOpen(false);
                 }}
-                className={`inline-flex size-11 items-center justify-center rounded-full transition duration-200 ease-soft active:scale-[0.97] ${
-                  selected ? "bg-glass-strong text-ink ring-2 ring-inset ring-accent" : "text-ink-sub hover:bg-glass hover:text-ink"
+                className={`inline-flex aspect-square w-full items-center justify-center rounded-full transition duration-200 ease-soft active:scale-[0.97] ${
+                  selected ? "bg-glass-strong text-ink ring-2 ring-inset ring-accent" : "text-ink hover:bg-glass-strong"
                 }`}
               >
                 <Icon name={KIND_ICON[item]} size={22} />

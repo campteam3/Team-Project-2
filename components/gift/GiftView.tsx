@@ -18,7 +18,7 @@ import { getGift, type Gift } from "@/lib/api";
 import { withGift } from "@/lib/gift-link";
 import { backdropScene } from "@/components/stage/VillageBackdrop";
 import { kindOfShape, toShape } from "@/lib/snowglobe";
-import { DEFAULT_THEME, defaultTheme } from "@/lib/theme";
+import { DEFAULT_THEME, defaultTheme, itemWord } from "@/lib/theme";
 
 type View = { status: "loading" } | { status: "missing" } | { status: "error"; message: string } | { status: "ready"; gift: Gift };
 
@@ -58,7 +58,7 @@ export default function GiftView() {
   if (view.status === "missing") return <NotFoundView kind="gift" />;
   if (view.status === "error") {
     return (
-      <Stage theme={DEFAULT_THEME} scene={<StageFallback poster={false} />} title="기념 메시지를 불러오지 못했어요" subtitle={view.message}>
+      <Stage theme={DEFAULT_THEME} scene={<StageFallback poster={false} kind="christmas" />} title="기념 메시지를 불러오지 못했어요" subtitle={view.message}>
         <Dock label="다시 시도">
           <Button onClick={load}>다시 시도하기</Button>
         </Dock>
@@ -69,14 +69,15 @@ export default function GiftView() {
   const { gift } = view;
   // 보낸 오너먼트의 주제(새해 · 생일 모양이면 그 주제)에 맞춰 배경을 깔고, 만들기도 그 주제로 시작합니다 (차명근)
   const kind = kindOfShape(gift.shape);
+  const item = itemWord(kind); // 크리스마스는 "오너먼트", 생일 · 새해는 "장식"
   return (
     <Stage
       theme={defaultTheme(kind)}
       scene={<GiftOrnamentScene shape={toShape(gift.shape)} color={gift.color} onOpen={() => setOpened(true)} scene={backdropScene(kind)} />}
-      title={`${gift.sender_name}님이 보낸 오너먼트`}
-      subtitle={opened ? "이 오너먼트를 내 스노우볼에 달아 간직해 보세요" : "눌러서 열어 보세요"}
-      hint={opened ? undefined : "오너먼트를 누르면 메시지가 열려요"}
-      hintMobile={opened ? undefined : "오너먼트를 누르면 메시지가 열려요"}
+      title={`${gift.sender_name}님이 보낸 ${item.noun}`}
+      subtitle={opened ? `이 ${item.obj} 내 스노우볼에 달아 간직해 보세요` : "눌러서 열어 보세요"}
+      hint={opened ? undefined : `${item.obj} 누르면 메시지가 열려요`}
+      hintMobile={opened ? undefined : `${item.obj} 누르면 메시지가 열려요`}
       below={
         <Link href={withGift("/login", gift.id)} className={linkClass}>
           이미 스노우볼이 있어요

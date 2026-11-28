@@ -19,7 +19,7 @@ import { clearOwnerToken, globePath } from "@/lib/owner-token";
 import { giftResult } from "@/lib/gift-link";
 import { loadReadState, saveReadState, type ReadState } from "@/lib/read-state";
 import { MAX_ORNAMENTS } from "@/lib/snowglobe";
-import { parseTheme } from "@/lib/theme";
+import { itemWord, parseTheme } from "@/lib/theme";
 import { globeName } from "@/components/friend/FriendFlow";
 import ShareDock from "./ShareDock";
 import MessageViewer from "./MessageViewer";
@@ -40,6 +40,8 @@ type Props = {
 
 export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }: Props) {
   const [state, setState] = useState<ReadState>(() => loadReadState(nickname));
+  const kind = parseTheme(globe.theme).kind;
+  const item = itemWord(kind); // 크리스마스는 "오너먼트", 생일 · 새해는 "장식"
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [notice, say] = useNotice(); // "링크를 복사했어요" 같은 알림. 안내 알약 자리에 뜹니다
@@ -48,8 +50,10 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
   const arrived = giftResult(useSearchParams());
   useEffect(() => {
     if (!arrived) return;
-    say(arrived === "already" ? "이미 달려 있어요" : "받은 오너먼트를 달았어요");
+    say(arrived === "already" ? "이미 달려 있어요" : `받은 ${item.obj} 달았어요`);
     window.history.replaceState(null, "", globePath(nickname));
+    // 알림 글자의 낱말(item)은 주제가 바뀔 때만 달라지고, 이 알림은 들어올 때 한 번만 띄웁니다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrived, nickname, say]);
   const [openShake, setOpenShake] = useState(0);
 
@@ -92,11 +96,11 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
 
   const remove = async () => {
     if (!selected || !token) return;
-    if (!window.confirm(`${selected.sender_name} 님의 오너먼트를 지울까요? 지우면 되돌릴 수 없어요.`)) return;
+    if (!window.confirm(`${selected.sender_name} 님의 ${item.obj} 지울까요? 지우면 되돌릴 수 없어요.`)) return;
     setDeleting(true);
     const result = await deleteOrnament(nickname, token, selected.id);
     setDeleting(false);
-    say(result.ok ? "오너먼트를 지웠어요" : result.message);
+    say(result.ok ? `${item.obj} 지웠어요` : result.message);
     if (result.ok) {
       setSelectedId(null);
       await onRefresh();
@@ -117,25 +121,25 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
   const full = total >= MAX_ORNAMENTS; // 자리가 모두 찼음. 하나를 지우면 다시 자리가 생깁니다
   const subtitle =
     full && opened
-      ? `오너먼트 ${total}개로 가득 찼어요 · ${readCount}개 읽었어요`
+      ? `${item.noun} ${total}개로 가득 찼어요 · ${readCount}개 읽었어요`
       : full
-        ? `오너먼트 ${total}개로 가득 찼어요`
+        ? `${item.noun} ${total}개로 가득 찼어요`
         : total === 0
-      ? "아직 오너먼트가 없어요"
+      ? `아직 ${item.subj} 없어요`
       : !opened
-        ? `오너먼트 ${total}개가 도착했어요`
+        ? `${item.noun} ${total}개가 도착했어요`
         : readCount === total
-          ? `오너먼트 ${total}개를 모두 읽었어요`
+          ? `${item.noun} ${total}개를 모두 읽었어요`
           : `${total}개 중 ${readCount}개 읽었어요`;
 
   const hint =
     total === 0
       ? "링크를 보내 친구를 불러 보세요"
       : !opened
-        ? "열면 오너먼트를 눌러 메시지를 읽을 수 있어요"
+        ? `열면 ${item.obj} 눌러 메시지를 읽을 수 있어요`
         : selected
           ? undefined
-          : "오너먼트를 눌러 메시지를 읽어 보세요";
+          : `${item.obj} 눌러 메시지를 읽어 보세요`;
 
   return (
     <Stage
@@ -151,6 +155,8 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
       plateText={name}
       highlightId={selected?.id}
       focusId={selected?.id}
+      // 읽는 메시지의 오너먼트 쪽으로 확대합니다. 고정은 아니어서 다시 줄일 수 있습니다 (이민정)
+      focusZoom
       onSelectOrnament={select}
       extraShake={openShake}
       below={
@@ -174,6 +180,7 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
             canDelete={!isDemo && !!token}
             deleting={deleting}
             onDelete={remove}
+            itemName={item.noun}
           />
           <Dock label="메시지 넘기기">
             <Button variant="secondary" icon="arrow-left" onClick={() => move(-1)} disabled={total < 2}>
@@ -204,7 +211,7 @@ export default function OwnerHome({ nickname, globe, token, isDemo, onRefresh }:
               {readCount < total ? "안 읽은 메시지 읽기" : "메시지 다시 읽기"}
             </Button>
           )}
-          <ShareDock url={url} title={name} onNotice={say} />
+          <ShareDock url={url} title={name} onNotice={say} kind={kind} />
         </div>
       )}
     </Stage>

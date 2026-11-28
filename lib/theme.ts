@@ -21,6 +21,15 @@ export const toKind = (value: unknown): GlobeKind => ((GLOBE_KINDS as readonly u
 
 export type GlobeTheme = Record<ThemePart, string> & { kind: GlobeKind };
 
+// 친구가 스노우볼에 다는 것을 부르는 말 (이민정). 크리스마스는 "오너먼트", 생일 · 새해는 "장식"입니다
+// (생일은 케이크 토핑, 새해는 복주머니 · 방패연 · 노리개라 오너먼트가 아님). 주제를 모르면 "오너먼트"입니다.
+// 받침이 달라 조사도 달라지므로(오너먼트를 · 장식을), 조사를 붙인 꼴을 함께 줍니다: noun 그대로, obj ~을/를, subj ~이/가, by ~(으)로
+export function itemWord(kind?: GlobeKind) {
+  const plain = kind === "birthday" || kind === "newyear";
+  const noun = plain ? "장식" : "오너먼트";
+  return { noun, obj: `${noun}${plain ? "을" : "를"}`, subj: `${noun}${plain ? "이" : "가"}`, by: `${noun}${plain ? "으로" : "로"}` };
+}
+
 type ThemePartInfo = { key: ThemePart; label: string; options: ThemeOption[] };
 
 export const THEME_PARTS: ThemePartInfo[] = [
@@ -40,11 +49,11 @@ export const THEME_PARTS: ThemePartInfo[] = [
     key: "prop",
     label: "소품",
     // 별은 트리 꼭대기에 항상 있고, 트리 아래 소품만 고릅니다 (#14 에서 이민정 님과 정함)
-    // 소품은 하나만 고르는 것이 아니라 켜고 끄는 것입니다: 둘 다 · 하나만 · 둘 다 없이 (김미영).
-    // 저장하는 값은 예전과 같은 글자 하나입니다: "both"(둘 다, 기본) · "gift" · "snowman" · "none"(없음). 아래 hasProp · toggleProp 참고
+    // 소품은 하나만 고르는 것이 아니라 켜고 끄는 것입니다: 네 가지를 저마다 켜고 끕니다 (김미영 · 이민정).
+    // 저장하는 값은 예전과 같은 글자 하나입니다: "both"(눈사람 + 선물 상자, 기본) · "gift" · "snowman" · "none"(없음). 아래 hasProp · toggleProp 참고
     // 루돌프("reindeer") · 과자집("house")도 hasProp · toggleProp 가 받습니다. 여기 options 에 넣으면 고르기 버튼이 생깁니다 (이슈 #75).
     options: [
-      // 버튼 순서: 선물 자리 둘(선물 상자 · 과자집), 눈사람 자리 둘(눈사람 · 루돌프). 같은 자리끼리 붙여 둡니다 (김미영, 이슈 #75)
+      // 버튼 순서: 선물 상자 · 과자집, 눈사람 · 루돌프 (김미영, 이슈 #75)
       { id: "gift", label: "선물 상자", color: "#C8363D" },
       { id: "house", label: "과자집", color: "#BD7D4D" },
       { id: "snowman", label: "눈사람", color: "#F5F1EA" },
@@ -146,31 +155,27 @@ export function themeOption(part: ThemePart, id: string, kind?: GlobeKind): Them
   return options.find((o) => o.id === id) ?? options[0];
 }
 
-// 소품은 자리 두 곳에 하나씩 놓습니다. 같은 자리의 소품은 함께 놓을 수 없습니다. (루돌프 · 과자집 추가, 이민정)
-//  - 눈사람 자리: 눈사람("snowman") 또는 루돌프("reindeer")
-//  - 선물 자리: 선물 상자("gift") 또는 과자집("house")
+// 소품은 저마다 켜고 끕니다. 크리스마스 스노우볼은 네 가지를 함께 놓을 수 있습니다. (루돌프 · 과자집 추가, 네 가지 함께 놓기: 이민정)
+//  - 눈사람("snowman") · 선물 상자("gift"): 앞쪽 제자리(눈사람 자리 · 선물 자리)에 놓입니다.
+//    선물 상자는 트리 뒤쪽에도 작은 묶음이 하나 더 놓입니다 (SnowGlobeGlb.tsx 의 BACK_GIFTS)
+//  - 루돌프("reindeer") · 과자집("house"): 앞자리가 비어 있으면 거기에(루돌프는 눈사람 자리, 과자집은 선물 자리),
+//    차 있으면 옆 · 뒤 자리에 놓입니다 (components/snowglobe/SnowGlobeGlb.tsx 의 GlobeExtras)
 //  - 새해 스노우볼의 윷("yut") · 복조리("bokjori")는 저마다 따로 자리가 있습니다 (차명근)
 export type PropItem = "gift" | "snowman" | "reindeer" | "house" | "yut" | "bokjori";
-const OWN_SPOT: PropItem[] = ["yut", "bokjori"];
-const SNOWMAN_SPOT: PropItem[] = ["snowman", "reindeer"];
-const GIFT_SPOT: PropItem[] = ["gift", "house"];
+// 저장하는 값에 적는 순서
+const PROP_ORDER: PropItem[] = ["snowman", "reindeer", "gift", "house", "yut", "bokjori"];
 
-// 놓인 소품 → 저장하는 값. 예전부터 쓰던 값("both" · "gift" · "snowman" · "none")은 그대로 쓰고,
-// 새 소품이 들어간 조합만 "눈사람 자리+선물 자리" 모양으로 적습니다 (예: "reindeer+house", "snowman+house", "reindeer").
+// 놓인 소품 → 저장하는 값. 놓인 것을 위 순서대로 "+" 로 이어 적습니다 (예: "reindeer+house", "snowman+house", "bokjori").
+// 예전부터 쓰던 값은 그대로입니다: 눈사람 + 선물 상자는 "both" 로 줄여 적고(예: "both+yut+bokjori", "both+reindeer+house"), 아무것도 없으면 "none".
 function propValue(items: PropItem[]): string {
-  const left = SNOWMAN_SPOT.find((item) => items.includes(item));
-  const right = GIFT_SPOT.find((item) => items.includes(item));
-  const pair = left === "snowman" && right === "gift" ? "both" : [left, right].filter(Boolean).join("+");
-  // 제 자리가 따로 있는 소품은 뒤에 이어 적습니다 (예: "both+yut+bokjori", "snowman+yut", "bokjori")
-  return [pair, ...OWN_SPOT.filter((item) => items.includes(item))].filter(Boolean).join("+") || "none";
+  const placed = PROP_ORDER.filter((item) => items.includes(item));
+  const both = placed.includes("snowman") && placed.includes("gift");
+  const names = both ? ["both", ...placed.filter((item) => item !== "snowman" && item !== "gift")] : placed;
+  return names.join("+") || "none";
 }
 
-// 저장할 수 있는 값 전부 (자리마다 비움 · 첫째 · 둘째, 모두 9가지)
-// 여기에 제 자리가 따로 있는 소품(윷 · 복조리)을 켜고 끈 경우가 곱해집니다
-const OWN_SETS: PropItem[][] = [[], ["yut"], ["bokjori"], ["yut", "bokjori"]];
-const PROP_VALUES = [undefined, ...SNOWMAN_SPOT].flatMap((left) =>
-  [undefined, ...GIFT_SPOT].flatMap((right) => OWN_SETS.map((own) => propValue([left, right, ...own].filter((item): item is PropItem => Boolean(item))))),
-);
+// 저장할 수 있는 값 전부 (소품 6가지를 저마다 켜고 끈 64가지)
+const PROP_VALUES = Array.from({ length: 2 ** PROP_ORDER.length }, (_, bits) => propValue(PROP_ORDER.filter((_, index) => bits & (1 << index))));
 
 // 저장된 값 → 놓인 소품. 모르는 값은 예전처럼 둘 다(눈사람 + 선물 상자)로 봅니다.
 function propItems(prop: string): PropItem[] {
@@ -182,12 +187,10 @@ function propItems(prop: string): PropItem[] {
 // 소품 값에 이 소품이 들어 있는지
 export const hasProp = (prop: string, item: PropItem) => propItems(prop).includes(item);
 
-// 소품 하나를 켜거나 끈 뒤의 소품 값. 켤 때 같은 자리에 있던 소품은 꺼집니다 (눈사람을 켜면 루돌프가 꺼짐).
+// 소품 하나를 켜거나 끈 뒤의 소품 값. 다른 소품은 그대로입니다.
 export function toggleProp(prop: string, item: PropItem): string {
   const items = propItems(prop);
-  if (items.includes(item)) return propValue(items.filter((other) => other !== item));
-  const spot = SNOWMAN_SPOT.includes(item) ? SNOWMAN_SPOT : GIFT_SPOT.includes(item) ? GIFT_SPOT : [item];
-  return propValue([...items.filter((other) => !spot.includes(other)), item]);
+  return propValue(items.includes(item) ? items.filter((other) => other !== item) : [...items, item]);
 }
 
 export const themeColor = (theme: GlobeTheme, part: ThemePart) => themeOption(part, theme[part], theme.kind).color;

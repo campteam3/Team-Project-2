@@ -13,6 +13,7 @@ type Props = {
   canDelete: boolean;
   deleting: boolean;
   onDelete: () => void;
+  itemName?: string; // 지우기 버튼에 적을 이름: 크리스마스는 "오너먼트", 생일 · 새해는 "장식" (lib/theme.ts 의 itemWord)
 };
 
 function formatDate(value: string) {
@@ -21,13 +22,14 @@ function formatDate(value: string) {
   return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 }
 
-export default function MessageViewer({ ornament, index, total, canDelete, deleting, onDelete }: Props) {
+export default function MessageViewer({ ornament, index, total, canDelete, deleting, onDelete, itemName = "오너먼트" }: Props) {
   const date = formatDate(ornament.created_at);
 
   return (
     <article
       aria-live="polite"
-      className="glass glass-shadow pointer-events-auto flex w-full max-w-[480px] animate-rise flex-col gap-3 rounded-3xl p-5 sm:p-6"
+      // 읽는 동안 스노우볼이 오너먼트 쪽으로 확대되어 카드 뒤에 흰 눈 · 빨간 받침대가 놓이므로, 바탕을 짙게 깔아 글자가 읽히게 합니다 (이민정)
+      className="glass glass-shadow pointer-events-auto flex w-full max-w-[480px] animate-rise flex-col gap-3 rounded-3xl bg-night-900/70 p-5 sm:p-6"
     >
       <header className="flex items-center gap-3">
         <span className="size-4 shrink-0 rounded-full border border-glass-border" style={{ background: ornamentSwatch(ornament.color) }} aria-hidden="true" />
@@ -49,7 +51,7 @@ export default function MessageViewer({ ornament, index, total, canDelete, delet
           disabled={deleting}
           className="-mb-2 inline-flex min-h-11 items-center self-end px-1 text-[13px] text-danger underline underline-offset-4 disabled:opacity-40"
         >
-          {deleting ? "지우고 있어요" : "이 오너먼트 지우기"}
+          {deleting ? "지우고 있어요" : `이 ${itemName} 지우기`}
         </button>
       )}
     </article>
