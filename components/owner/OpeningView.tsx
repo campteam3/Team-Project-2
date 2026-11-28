@@ -56,8 +56,25 @@ const EXAMPLE = (
   // position 은 Stage 를 거쳐 lib/snowglobe.ts 의 placeOrnaments 까지 그대로 전해져, 그 자리에 달립니다
 ).map(([shape, color, slot], i) => ({ id: `example-${i}`, shape, color, position: { slot } }));
 
-// 말풍선에 돌아가며 보여 줄 예시 메시지 (sample-data 의 가짜 메시지)
-const MESSAGES = SAMPLE_GLOBE.ornaments.map((o) => ({ sender: o.sender_name, message: o.message ?? "" }));
+// 말풍선에 돌아가며 보여 줄 예시 메시지. 스노우볼 주제마다 그 주제에 맞는 글을 보여 줍니다 (이민정)
+// 크리스마스는 sample-data 의 가짜 메시지 그대로이고, 생일 · 새해는 같은 가짜 이름으로 여기에 적었습니다. 실제 사람의 글이 아닙니다.
+const MESSAGES: Record<GlobeKind, { sender: string; message: string }[]> = {
+  christmas: SAMPLE_GLOBE.ornaments.map((o) => ({ sender: o.sender_name, message: o.message ?? "" })),
+  birthday: [
+    { sender: "하늘", message: "생일 축하해! 올해도 좋은 일만 가득하길." },
+    { sender: "바다", message: "태어나 줘서 고마워. 오늘은 네가 주인공이야." },
+    { sender: "구름", message: "생일 축하해!" },
+    { sender: "노을", message: "케이크는 내가 살게. 주말에 꼭 보자." },
+    { sender: "별", message: "행복한 하루 보내." },
+  ],
+  newyear: [
+    { sender: "하늘", message: "새해 복 많이 받아! 올해도 같이 달리자." },
+    { sender: "바다", message: "지난 한 해 덕분에 든든했어. 고마워." },
+    { sender: "구름", message: "해피 뉴 이어!" },
+    { sender: "노을", message: "올해는 바라는 일 다 이루어지길 바랄게." },
+    { sender: "별", message: "건강하고 따뜻한 한 해 보내." },
+  ],
+};
 const CYCLE = 5000; // 말풍선이 바뀌는 간격
 const VISIBLE = 2500; // 말풍선이 떠 있는 시간 (나머지는 스노우볼만 보이게 쉽니다)
 const FIRST = 800; // 화면을 열고 첫 말풍선까지
@@ -101,7 +118,8 @@ export default function OpeningView() {
     };
   }, []);
 
-  const current = MESSAGES[turn % MESSAGES.length];
+  const messages = MESSAGES[kind];
+  const current = messages[turn % messages.length];
 
   return (
     <Stage
