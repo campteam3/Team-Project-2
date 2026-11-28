@@ -12,6 +12,7 @@ import bakedBulbSeats from "@/lib/tree-bulb-seats.json";
 import { placeOrnaments, type OrnamentLike, type PlacedOrnament } from "@/lib/snowglobe";
 import type { GlobeKind } from "@/lib/theme";
 // 오너먼트 모델을 읽고 색을 입히는 부분은 OrnamentGlb.tsx 로 옮겼습니다 (기념 메시지 화면도 함께 씀, 차명근)
+import { applyEaveLook } from "./NewYearEaveLook";
 import { BIRTHDAY_ORNAMENT_URL, NEWYEAR_ORNAMENT_URL, ORNAMENT_URL, OrnamentParts, useOrnamentMaterials, useOrnamentTemplates, type TemplatePart } from "./OrnamentGlb";
 
 const MODEL_URL = "/models/snowglobe.glb";
@@ -753,6 +754,27 @@ const MATERIAL_TUNES: Record<string, Tune> = {
     makeSatin(material);
     material.emissive.set("#161922");
     material.emissiveIntensity = 0.3;
+  },
+  // 받침대의 기와 처마 (새해): 담장 기와와 같은 먹색에 기와가 포개진 턱, 금빛 막새에는 연꽃무늬 (NewYearEaveLook.ts, 차명근)
+  W_Eave_Tile: (material) => {
+    makeSatin(material);
+    material.emissive.set("#12141c");
+    material.emissiveIntensity = 0.3;
+    applyEaveLook(material, "tile");
+  },
+  W_Eave_TileEnd: (material) => {
+    makeSatin(material);
+    material.emissive.set("#161922");
+    material.emissiveIntensity = 0.3;
+  },
+  W_Eave_Gold: (material) => {
+    makeGold(material, 0.42);
+    // 막새 얼굴은 작고 아래를 향해 어두운 바닥이 비치므로, 거울 같은 금속 대신 제 빛이 도는 금박으로 (무늬가 읽히게)
+    material.metalness = 0.55;
+    material.envMapIntensity = 1.2;
+    material.emissive.set("#b4863a");
+    material.emissiveIntensity = 0.7;
+    applyEaveLook(material, "gold");
   },
   W_Wall_StoneDark: (material) => {
     makeMatte(material, 0.95, 0.1);

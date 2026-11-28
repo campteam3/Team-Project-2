@@ -111,6 +111,7 @@ const COOKIE_LOOKS: (CookieLook | undefined)[] = [
   { color: DEEP_RED, gold: "accent" }, // 짙은 빨강 본체에 금색 아이싱
 ];
 
+const RED_GOLD_OPTION = 2; // 고르는 색 가운데 "빨강과 금색"의 순서
 const SWIRL_COUNT = 5; // 비스듬한 줄무늬: 한 바퀴에 본체 색 줄 수
 const BAND_COUNT = 8; // 세로 띠: 한 바퀴에 띠 수
 const BAND_WIDTH = 0.6; // 세로 띠가 차지하는 비율 (나머지는 흰 바탕)
@@ -270,7 +271,9 @@ export function useOrnamentMaterials(parts: TemplatePart[], color: string, metal
     // 볼은 고른 색의 순서에 따라 색 · 무늬가 정해집니다 (BALL_LOOKS)
     const mainPart = parts.find((part) => part.role === "main");
     const option = ornamentOptionIndex(color);
-    const look = mainPart?.shape === "ball" ? BALL_LOOKS[option] : undefined;
+    // 생일 토핑(머랭 키스 · 사탕 구슬 · 젤리 별)은 본체 하나뿐이라 무늬 부분이 없습니다. 빨강 + 금색을 고르면 볼처럼 줄무늬를 색으로 입힙니다 (차명근)
+    const striped = !!mainPart && BIRTHDAY_SHAPES.includes(mainPart.shape) && option === RED_GOLD_OPTION;
+    const look = mainPart?.shape === "ball" ? BALL_LOOKS[option] : striped ? BALL_LOOKS[RED_GOLD_OPTION] : undefined;
     // 볼이 아닌 모양은 금색과 빨강 + 금색만 따로 정합니다 (COOKIE_LOOKS)
     const cookie = mainPart && mainPart.shape !== "ball" ? COOKIE_LOOKS[option] : undefined;
     // 새해 오너먼트(복주머니 · 방패연 · 노리개)는 천 · 한지 · 실의 질감을 입힙니다. 금색도 금속이 아니라 금색 천 · 종이로 그립니다
