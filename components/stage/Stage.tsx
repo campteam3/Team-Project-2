@@ -2,7 +2,7 @@
 
 // 모든 화면의 공통 틀 (DESIGN.md 4장)
 //   뒤: 화면 전체 3D 무대 (마을 + 스노우볼)
-//   앞: 위쪽 띠(전체 화면 · 소리 · 눈 버튼) + 제목, 아래쪽 안내 문구 + 도크
+//   앞: 위쪽 띠(전체 화면 · 소리 · 흔들기 버튼) + 제목, 아래쪽 안내 문구 + 도크
 // UI 는 위쪽 띠와 아래쪽에만 두고, 스노우볼 위에 겹치지 않습니다.
 
 import dynamic from "next/dynamic";
@@ -10,10 +10,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import type { Ornament } from "@/lib/api";
-import type { GlobeTheme } from "@/lib/theme";
+import type { GlobeKind, GlobeTheme } from "@/lib/theme";
 import { isBgmOn, isBgmOnServer, setBgmKind, subscribeBgm, toggleBgm } from "@/lib/bgm";
 import { saveGlobeImage } from "@/lib/save-image";
 import { Button, IconButton } from "@/components/ui/Button";
+import type { IconName } from "@/components/ui/Icons";
 import SavedImage from "./SavedImage";
 import StageFallback from "./StageFallback";
 import type { GlobeLayout } from "./StageScene";
@@ -25,6 +26,13 @@ let movedInSite = false;
 
 // 소리 버튼 (차명근 연결): 배경 음악을 켜고 끕니다. 재생은 lib/bgm.ts 가 맡습니다.
 const SHOW_SOUND = true;
+
+// 흔들기 버튼(오른쪽 위): 주제마다 흔들면 일어나는 일이 달라서 그림과 이름도 다릅니다 (이민정)
+const SHAKE_BUTTON: Record<GlobeKind, { icon: IconName; label: string }> = {
+  christmas: { icon: "snowflake", label: "눈 내리기" },
+  birthday: { icon: "party-popper", label: "폭죽 터뜨리기" },
+  newyear: { icon: "fireworks", label: "불꽃놀이 터뜨리기" },
+};
 
 // 불러오는 동안에는 Stage 가 대체 화면(흐린 스노우볼 그림)을 위에 덮어 두므로, 여기서는 아무것도 그리지 않습니다.
 const StageScene = dynamic(() => import("./StageScene"), { ssr: false, loading: () => null });
@@ -149,6 +157,7 @@ export default function Stage(props: StageProps) {
   const soundOn = useSyncExternalStore(subscribeBgm, isBgmOn, isBgmOnServer); // 배경 음악을 켜 둔 상태인지
   // 이 화면의 스노우볼 주제에 맞는 곡으로 (홈에서 주제를 바꿀 때, 링크로 다른 주제의 스노우볼에 들어올 때 모두. 차명근)
   const bgmKind = theme.kind ?? "christmas";
+  const shakeButton = SHAKE_BUTTON[bgmKind];
   useEffect(() => setBgmKind(bgmKind), [bgmKind]);
   const [saving, setSaving] = useState(false); // 이미지를 만드는 중인지
   const [savedUrl, setSavedUrl] = useState(""); // 화면에 띄울 저장용 이미지 (공유 창을 열 수 없는 휴대폰 브라우저에서만)
@@ -621,8 +630,8 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
               onClick={toggleBgm}
             />
           )}
-          {/* 스노우볼이 없는 장면(scene)에서는 눈 버튼을 숨깁니다 */}
-          {!scene && <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />}
+          {/* 스노우볼이 없는 장면(scene)에서는 흔들기 버튼을 숨깁니다 */}
+          {!scene && <IconButton icon={shakeButton.icon} label={shakeButton.label} onClick={shake} />}
         </div>
 
         {/* 키보드가 올라오면 제목은 접어 둡니다 (자리는 남겨 스노우볼 위치 계산에 씁니다) */}
@@ -680,7 +689,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             <IconButton icon="x" label="사진 찍기 닫기" onClick={closePhoto} />
           </div>
           <div className="pointer-events-auto absolute right-4 top-4 sm:right-8 sm:top-8">
-            <IconButton icon="snowflake" label="눈 내리기" onClick={shake} />
+            <IconButton icon={shakeButton.icon} label={shakeButton.label} onClick={shake} />
           </div>
           <p role="status" className="sr-only">
             {notice}

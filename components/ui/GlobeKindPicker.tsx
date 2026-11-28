@@ -10,7 +10,8 @@ import { useEffect, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/ui/Icons";
 import { AVAILABLE_KINDS, KIND_LABEL, type GlobeKind } from "@/lib/theme";
 
-const KIND_ICON: Record<GlobeKind, IconName> = { christmas: "tree", birthday: "cake", newyear: "sheep" };
+// 새해는 해돋이 (양에서 바꿈, 이민정)
+const KIND_ICON: Record<GlobeKind, IconName> = { christmas: "tree", birthday: "cake", newyear: "sunrise" };
 
 export default function GlobeKindPicker({ kind, onPick }: { kind: GlobeKind; onPick: (kind: GlobeKind) => void }) {
   const [open, setOpen] = useState(false);
