@@ -16,6 +16,7 @@ import { Dock } from "@/components/ui/Dock";
 import { addOrnament, type Globe, type Ornament } from "@/lib/api";
 import { MAX_ORNAMENTS, shapesFor, type OrnamentShape } from "@/lib/snowglobe";
 import { ORNAMENT_OPTIONS, parseTheme } from "@/lib/theme";
+import { FLY_TOTAL } from "@/components/snowglobe/ornamentFlight";
 import MessageCard from "./MessageCard";
 import OrnamentPickDock from "./OrnamentPickDock";
 
@@ -61,10 +62,10 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
   const [earlier, setEarlier] = useState<Ornament[]>([]); // 이번에 들어와서 그 전에 단 내 오너먼트들 (FEEDBACK A6)
   const [landed, setLanded] = useState(false); // 달리는 움직임이 끝났는지
 
-  // 달리는 움직임(1.6초)이 끝난 뒤 "내 오너먼트" 말풍선을 보여 줍니다
+  // 달리는 움직임(손에서 트리로 날아가 앉기)이 끝난 뒤 "내 오너먼트" 말풍선을 보여 줍니다
   useEffect(() => {
     if (step !== "done") return;
-    const id = setTimeout(() => setLanded(true), 1700);
+    const id = setTimeout(() => setLanded(true), FLY_TOTAL * 1000 + 100);
     return () => clearTimeout(id);
   }, [step]);
 
@@ -191,8 +192,10 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
         {...common}
         onBack={() => setStep("pick")}
         title="마음을 적어 주세요"
-        // 스노우볼은 고르던 크기 · 자리 그대로 두고 카드가 그 위로 올라옵니다 (FEEDBACK B5. 넓은 화면도 같게: 이슈 #67)
+        // 스노우볼 크기는 직전 그대로 둡니다 (카드에 맞춰 줄어들지 않게. FEEDBACK B5, 이슈 #67)
         holdGlobe
+        // 쓰는 동안에는 고른 오너먼트를 화면 가운데에 크게 띄워 둡니다. [오너먼트 달기]를 누르면 그대로 트리로 날아가 달립니다 (이민정)
+        heldId={PENDING}
         subtitle="2 / 2 단계 · 메시지는 스노우볼 주인만 읽을 수 있어요"
         hint={undefined}
         hintMobile={undefined}

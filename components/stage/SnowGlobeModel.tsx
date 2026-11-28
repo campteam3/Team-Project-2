@@ -77,11 +77,12 @@ type Props = ThreeElements["group"] & {
   selectedId?: string | null; // 주인이 눌러 읽고 있는 오너먼트 (김미영: 주인 화면용 전달)
   onSelect?: (id: string) => void; // 오너먼트를 눌렀을 때 (김미영: 주인 화면용 전달)
   arrivingId?: string; // 지금 막 달리는 오너먼트
+  heldId?: string; // 손에 든 오너먼트: 트리 자리가 아니라 화면 가운데에 크게 띄웁니다 (마음 달기 2단계, 이민정)
   plateText?: string; // 받침대 명판에 새길 이름
   reducedMotion?: boolean;
 };
 
-export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, selectedId, onSelect, arrivingId, plateText, reducedMotion = false, ...group }: Props) {
+export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, selectedId, onSelect, arrivingId, heldId, plateText, reducedMotion = false, ...group }: Props) {
   const kind = theme.kind;
   useEffect(() => {
     remember(ornaments, kind);
@@ -104,7 +105,7 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
       <group position={[0, LIFT, 0]}>
         <Suspense fallback={null}>
           <GlobeModel kind={kind} title={plateText} treeColor={treeColor} trunkColor={cake ? cake.icing : trunkColor(theme)} balloonColors={cake?.balloons} baseColor={baseColor} showGifts={kind === "newyear" ? hasProp(theme.prop, "gift") : showGifts} showSnowman={kind === "newyear" ? hasProp(theme.prop, "snowman") : showSnowman} showYut={hasProp(theme.prop, "yut")} showBokjori={hasProp(theme.prop, "bokjori")} />
-          <Ornaments ornaments={ornaments} kind={kind} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} reducedMotion={reducedMotion} />
+          <Ornaments ornaments={ornaments} kind={kind} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} heldId={heldId} reducedMotion={reducedMotion} />
         </Suspense>
         {/* 추가 소품은 보일 때에만 파일을 내려받고, 받는 동안 스노우볼은 그대로 보입니다 */}
         {(showReindeer || showGingerHouse) && (

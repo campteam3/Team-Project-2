@@ -88,6 +88,7 @@ export type StageProps = {
   onSelectOrnament?: (id: string) => void; // 오너먼트를 눌렀을 때 (주인 화면)
   extraShake?: number; // 바깥에서 눈을 날리고 싶을 때 이 값을 늘립니다 (예: 스노우볼 열기)
   arrivingId?: string; // 지금 막 달리는 오너먼트
+  heldId?: string; // 손에 든 오너먼트: 이것만 화면 가운데에 크게 띄우고 스노우볼은 화면 아래로 내려 둡니다 (마음 달기 2단계, 이민정)
   focusId?: string; // 이 오너먼트가 정면에 오도록 스노우볼을 돌립니다
   focusZoom?: boolean; // focusId 의 오너먼트 쪽으로 확대합니다. 다시 줄일 수 있습니다 (주인이 메시지를 읽을 때, 이민정)
   lockFront?: boolean;
@@ -116,7 +117,7 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, focusZoom, lockFront, holdGlobe, children, topLeft, onBack, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, heldId, focusId, focusZoom, lockFront, holdGlobe, children, topLeft, onBack, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
   // 뒤로 가기 (홈이 아닌 화면의 왼쪽 위)
   const router = useRouter();
   const pathname = usePathname();
@@ -233,6 +234,24 @@ export default function Stage(props: StageProps) {
     };
     if (!hold.current) heldArea.current = area;
     return area;
+  }, []);
+
+  // 손에 든 오너먼트(heldId)를 띄울 빈 곳: 가운데의 px 좌표와 들어갈 수 있는 크기 (3D 무대 왼쪽 위에서부터, 이민정)
+  // 메시지 카드에 가리지 않게, 제목과 카드 사이(휴대폰)나 카드 왼쪽(넓은 화면) 가운데 더 넓은 쪽을 고릅니다.
+  const getHandSpot = useCallback(() => {
+    const stage = sceneEl.current?.getBoundingClientRect();
+    const head = headerEl.current?.getBoundingClientRect();
+    // 아래쪽 UI 는 화면 너비를 다 차지하는 상자라, 그 안의 실제 카드(입력 폼)를 찾아 잽니다. 없으면 아래쪽 UI 전체로 봅니다
+    const box = (footerEl.current?.querySelector("form") ?? footerEl.current)?.getBoundingClientRect();
+    if (!stage || !head || !box) return null;
+    const GAP = 20;
+    const above = box.top - head.bottom - GAP * 2; // 제목과 카드 사이의 높이
+    const beside = box.left - stage.left - GAP * 2; // 카드 왼쪽의 너비
+    if (beside > above) {
+      // 카드 왼쪽: 카드 높이의 가운데보다 조금 위
+      return { x: (stage.left + box.left) / 2 - stage.left, y: box.top + box.height * 0.42 - stage.top, size: Math.max(24, beside * 0.8) };
+    }
+    return { x: stage.width / 2, y: (head.bottom + box.top) / 2 - stage.top, size: Math.max(24, above) };
   }, []);
 
   // 화면 키보드 (FEEDBACK A2).
@@ -555,6 +574,8 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             highlightId={photo ? undefined : highlightId}
             onSelectOrnament={photo ? undefined : onSelectOrnament}
             arrivingId={arrivingId}
+            heldId={photo ? undefined : heldId}
+            getHandSpot={heldId ? getHandSpot : undefined}
             focusId={photo ? undefined : focusId}
             focusZoom={focusZoom}
             getSafeArea={getSafeArea}

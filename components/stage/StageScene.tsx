@@ -22,6 +22,7 @@ import SnowGlobeModel, {
   ornamentPosition,
 } from "./SnowGlobeModel";
 import { DayLights, NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
+import { HAND_HEIGHT, handSpot } from "@/components/snowglobe/ornamentFlight";
 import Fireworks from "./Fireworks";
 import Snow from "./Snow";
 import VillageBackdrop, { backdropScene } from "./VillageBackdrop";
@@ -44,6 +45,11 @@ export type StageSceneProps = {
   highlightId?: string;
   onSelectOrnament?: (id: string) => void; // 주인 화면: 오너먼트를 눌러 메시지 읽기
   arrivingId?: string;
+  // 손에 든 오너먼트: 이 오너먼트만 화면 가운데에 크게 띄우고, 스노우볼은 화면 아래로 내려 둡니다 (마음 달기 2단계, 이민정).
+  // 값을 비우면 스노우볼이 올라오고, arrivingId 로 넘긴 오너먼트가 손에서 트리로 날아가 달립니다.
+  heldId?: string;
+  // 손에 든 오너먼트를 띄울 빈 곳: 가운데의 px 좌표와 들어갈 수 있는 크기(px). 메시지 카드에 가리지 않는 곳을 Stage 가 잽니다
+  getHandSpot?: () => { x: number; y: number; size: number } | null;
   morePinIds?: string[]; // 같은 말풍선을 더 붙일 오너먼트들 (친구가 먼저 단 내 오너먼트, FEEDBACK A6)
   // 고른 오너먼트 바로 위의 화면 좌표와 보이는 정도. slot 0 은 pinId · pinKey 로 고른 것, 1 부터는 morePinIds 순서입니다
   onPinMove?: (x: number, y: number, visibility: number, slot?: number) => void;
@@ -100,7 +106,9 @@ function Globe(props: StageSceneProps) {
     reducedMotion,
   } = props;
   const focusIndex = focusId ? ornaments.findIndex((o) => o.id === focusId) : -1;
+  const holding = !!props.heldId && ornaments.some((o) => o.id === props.heldId); // 오너먼트를 손에 든 단계인지
   const reading = !!props.focusZoom && focusIndex >= 0; // 메시지를 읽는 중인지 (그 오너먼트 쪽으로 확대)
+  const placedOnce = useRef(false); // 스노우볼을 한 번이라도 자리에 놓았는지
   // n 번째 오너먼트의 자리. 아직 달리지 않은 오너먼트(미리보기)는 모양에 따라 자리가 달라서 모양을 함께 넘깁니다.
   // 스노우볼 크기는 주제마다 다릅니다 (생일 스노우볼은 유리 구가 더 큼)
   const MODEL = modelFor(theme.kind);
@@ -340,7 +348,22 @@ function Globe(props: StageSceneProps) {
     const reachY = (modelH / 2) * scale * reach;
     pan.current.x = THREE.MathUtils.clamp(pan.current.x, -reachX, reachX);
     pan.current.y = THREE.MathUtils.clamp(pan.current.y, -reachY, reachY);
-    const k = 1 - Math.exp(-delta * (reducedMotion ? 60 : 4)); // 부드럽게 따라가기
+    // 오너먼트를 손에 든 단계: 스노우볼은 화면 아래로 완전히 내려 둡니다. 달 때 여기서부터 올라옵니다.
+    if (holding) {
+      y = -vh / 2 - (MODEL.top + 0.5) * scale;
+      // 손에 든 오너먼트가 뜰 자리 · 크기를 px 에서 장면 길이로 바꿔 적어 둡니다
+      const spot = props.getHandSpot?.();
+      if (spot) {
+        const toWorld = vh / size.height;
+        handSpot.x = (spot.x - size.width / 2) * toWorld;
+        handSpot.y = (size.height / 2 - spot.y) * toWorld;
+        handSpot.height = Math.min(HAND_HEIGHT, spot.size * toWorld);
+      }
+    }
+    // 손에 든 단계로 바로 들어온 경우에는 스노우볼이 내려가는 모습이 보이지 않게, 처음부터 아래에 둡니다
+    const snap = holding && !placedOnce.current;
+    placedOnce.current = true;
+    const k = snap ? 1 : 1 - Math.exp(-delta * (reducedMotion ? 60 : 4)); // 부드럽게 따라가기
     g.scale.setScalar(THREE.MathUtils.lerp(g.scale.x || scale, scale, k));
     g.position.x = THREE.MathUtils.lerp(g.position.x, pan.current.x, k);
     g.position.y = THREE.MathUtils.lerp(g.position.y, y + pan.current.y, k);
@@ -454,6 +477,7 @@ function Globe(props: StageSceneProps) {
           selectedId={props.onSelectOrnament ? (props.highlightId ?? null) : undefined}
           onSelect={props.onSelectOrnament}
           arrivingId={props.arrivingId}
+          heldId={props.heldId}
           plateText={props.plateText}
           reducedMotion={reducedMotion}
         />
