@@ -11,9 +11,10 @@
 import { type ThreeElements } from "@react-three/fiber";
 import { Suspense, useEffect } from "react";
 import { GlowDust } from "@/components/SnowGlobeAtmosphere";
+import CandleFlames from "@/components/snowglobe/CandleFlames";
 import { GlobeExtras, GlobeInnerLights, GlobeModel, Ornaments } from "@/components/snowglobe/SnowGlobeGlb";
 import { GLASS, ornamentSpot, placeOrnaments, shapesFor, type OrnamentLike, type OrnamentShape } from "@/lib/snowglobe";
-import { hasProp, themeColor, trunkColor, type GlobeKind, type GlobeTheme } from "@/lib/theme";
+import { birthdayCake, hasProp, themeColor, trunkColor, type GlobeKind, type GlobeTheme } from "@/lib/theme";
 
 // 모델 원본은 유리 구의 가운데가 y = 0.55 입니다. 이만큼 내려서 구의 가운데를 원점에 둡니다.
 const LIFT = -GLASS.center[1];
@@ -25,6 +26,11 @@ export const MODEL = {
   glassRadius: 1,
   floorY: -0.42, // 구 안 눈 바닥
 };
+
+// 생일 스노우볼은 받침대 · 명판은 같고 유리 구만 더 큽니다: 반지름 1.28, 가운데가 0.11 더 높습니다 (design/blender/birthdayglobe.blend, 김미영)
+const BIRTHDAY_MODEL = { ...MODEL, top: 1.41, width: 2.56 };
+// 그 주제 스노우볼의 크기 (화면에 맞출 때 씁니다)
+export const modelFor = (kind?: GlobeKind) => (kind === "birthday" ? BIRTHDAY_MODEL : MODEL);
 
 // 받침대 앞면 명판의 가운데 (이름 · 닉네임 입력칸이 붙는 곳)
 export const NAMEPLATE: [number, number, number] = [0, -0.88, 1.04];
@@ -82,8 +88,10 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
   }, [ornaments, kind]);
 
   // 꾸미기: 기본값(초록 트리, 레드 받침대)은 모델 원래 색을 쓰고, 다른 선택지는 lib/theme.ts 의 색을 입힙니다.
-  const treeColor = theme.tree === "green" ? undefined : themeColor(theme, "tree");
-  const baseColor = theme.base === "red" ? undefined : themeColor(theme, "base");
+  // 생일 스노우볼: 케이크 색마다 몸통 · 아이싱 · 풍선 색이 정해져 있고(lib/theme.ts 의 BIRTHDAY_CAKES), 받침대는 연보라가 모델 원래 색입니다.
+  const cake = kind === "birthday" ? birthdayCake(theme) : undefined;
+  const treeColor = cake ? cake.body : theme.tree === "green" ? undefined : themeColor(theme, "tree");
+  const baseColor = (kind === "birthday" ? theme.base === "lavender" : theme.base === "red") ? undefined : themeColor(theme, "base");
   // 소품: 별은 항상 트리 꼭대기에 있습니다. 눈사람 자리에는 눈사람이나 루돌프, 선물 자리에는 선물 상자나 과자집이 놓입니다 (lib/theme.ts 의 hasProp).
   const showSnowman = hasProp(theme.prop, "snowman");
   const showGifts = hasProp(theme.prop, "gift");
@@ -95,7 +103,7 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
     <group {...group}>
       <group position={[0, LIFT, 0]}>
         <Suspense fallback={null}>
-          <GlobeModel kind={kind} title={plateText} treeColor={treeColor} trunkColor={trunkColor(theme)} baseColor={baseColor} showGifts={kind === "newyear" ? hasProp(theme.prop, "gift") : showGifts} showSnowman={kind === "newyear" ? hasProp(theme.prop, "snowman") : showSnowman} showYut={hasProp(theme.prop, "yut")} showBokjori={hasProp(theme.prop, "bokjori")} />
+          <GlobeModel kind={kind} title={plateText} treeColor={treeColor} trunkColor={cake ? cake.icing : trunkColor(theme)} balloonColors={cake?.balloons} baseColor={baseColor} showGifts={kind === "newyear" ? hasProp(theme.prop, "gift") : showGifts} showSnowman={kind === "newyear" ? hasProp(theme.prop, "snowman") : showSnowman} showYut={hasProp(theme.prop, "yut")} showBokjori={hasProp(theme.prop, "bokjori")} />
           <Ornaments ornaments={ornaments} kind={kind} highlightId={highlightId} selectedId={selectedId} onSelect={onSelect} arrivingId={arrivingId} reducedMotion={reducedMotion} />
         </Suspense>
         {/* 추가 소품은 보일 때에만 파일을 내려받고, 받는 동안 스노우볼은 그대로 보입니다 */}
@@ -105,7 +113,10 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
           </Suspense>
         )}
         <GlobeInnerLights kind={kind} />
-        <GlowDust still={reducedMotion} />
+        {/* 생일 케이크의 일렁이는 촛불 */}
+        {kind === "birthday" && <CandleFlames still={reducedMotion} />}
+        {/* 밤 배경에서 떠다니는 빛 알갱이. 낮 배경인 생일 스노우볼에는 두지 않습니다 */}
+        {kind !== "birthday" && <GlowDust still={reducedMotion} />}
       </group>
     </group>
   );

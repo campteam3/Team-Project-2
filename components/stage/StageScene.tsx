@@ -16,15 +16,15 @@ import * as THREE from "three";
 import type { Ornament } from "@/lib/api";
 import { themeColor, type GlobeTheme } from "@/lib/theme";
 import SnowGlobeModel, {
-  MODEL,
   NAMEPLATE,
   NAMEPLATE_WIDTH,
+  modelFor,
   ornamentPosition,
 } from "./SnowGlobeModel";
-import { NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
+import { DayLights, NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
 import Fireworks from "./Fireworks";
 import Snow from "./Snow";
-import VillageBackdrop from "./VillageBackdrop";
+import VillageBackdrop, { backdropScene } from "./VillageBackdrop";
 import { backdropUniforms } from "./backdropShared";
 import { toShape } from "@/lib/snowglobe";
 
@@ -92,6 +92,8 @@ function Globe(props: StageSceneProps) {
   } = props;
   const focusIndex = focusId ? ornaments.findIndex((o) => o.id === focusId) : -1;
   // n 번째 오너먼트의 자리. 아직 달리지 않은 오너먼트(미리보기)는 모양에 따라 자리가 달라서 모양을 함께 넘깁니다.
+  // 스노우볼 크기는 주제마다 다릅니다 (생일 스노우볼은 유리 구가 더 큼)
+  const MODEL = modelFor(theme.kind);
   const spotOf = (i: number) => ornamentPosition(i, toShape(ornaments[i]?.shape, theme.kind));
   const holdRotation = lockFront || focusIndex >= 0; // 정해진 방향으로 돌리는 동안에는 드래그로 돌리지 않습니다
   const group = useRef<THREE.Group>(null);
@@ -418,8 +420,8 @@ function Globe(props: StageSceneProps) {
           plateText={props.plateText}
           reducedMotion={reducedMotion}
         />
-        {/* 새해 스노우볼은 눈 대신 폭죽과 금가루 (차명근) */}
-        {theme.kind === "newyear" ? (
+        {/* 새해 스노우볼은 눈 대신 폭죽과 금가루 (차명근). 생일 스노우볼도 눈 대신 폭죽입니다 (김미영) */}
+        {theme.kind === "newyear" || theme.kind === "birthday" ? (
           <Fireworks shakeSignal={shakeSignal} reducedMotion={reducedMotion} />
         ) : (
           <Snow color={themeColor(theme, "snow")} shakeSignal={shakeSignal} reducedMotion={reducedMotion} takeDragKick={takeDragKick} />
@@ -462,8 +464,9 @@ export default function StageScene(props: StageSceneProps) {
       aria-hidden="true"
     >
       {/* 겨울밤 조명과 빛 번짐은 배경(SnowGlobeAtmosphere)에 맞춘 값입니다. (이민정) */}
-      <NightLights />
-      <VillageBackdrop sunrise={props.theme.kind === "newyear"} />
+      {/* 생일 스노우볼은 밝은 하늘 배경이라 낮 조명을 씁니다 (김미영) */}
+      {props.theme.kind === "birthday" ? <DayLights /> : <NightLights />}
+      <VillageBackdrop scene={backdropScene(props.theme.kind)} />
       <Globe {...props} />
       <NightBloom />
       {props.onReady && <ReadyWatch onReady={props.onReady} />}

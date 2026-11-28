@@ -16,7 +16,7 @@ import { getGlobe, getMessages, type Globe } from "@/lib/api";
 import { clearOwnerToken, loadOwnerToken } from "@/lib/owner-token";
 import { SAMPLE_GLOBE } from "@/lib/sample-data";
 import { MAX_ORNAMENTS, shapesFor } from "@/lib/snowglobe";
-import { defaultTheme } from "@/lib/theme";
+import { defaultTheme, toKind, type GlobeKind } from "@/lib/theme";
 import FriendFlow from "./friend/FriendFlow";
 import OwnerHome from "./owner/OwnerHome";
 import GlobeStatus from "./stage/GlobeStatus";
@@ -47,15 +47,15 @@ function fillSample(globe: Globe): Globe {
   return { ...globe, ornaments };
 }
 
-// 샘플을 새해 스노우볼로 바꿉니다: 새해 꾸미기 기본값에, 오너먼트 모양은 새해 전용 세 가지를 번갈아
-function newYearSample(globe: Globe): Globe {
-  const shapes = shapesFor("newyear");
-  return { ...globe, theme: defaultTheme("newyear"), ornaments: globe.ornaments.map((item, i) => ({ ...item, shape: shapes[i % shapes.length] })) };
+// 샘플을 새해 · 생일 스노우볼로 바꿉니다: 그 주제의 꾸미기 기본값에, 오너먼트 모양은 그 주제 전용 세 가지를 번갈아
+function kindSample(globe: Globe, kind: GlobeKind): Globe {
+  const shapes = shapesFor(kind);
+  return { ...globe, theme: defaultTheme(kind), ornaments: globe.ornaments.map((item, i) => ({ ...item, shape: shapes[i % shapes.length] })) };
 }
 
-async function loadView(nickname: string, previewFriend = false, previewFull = false, previewNewYear = false): Promise<View> {
+async function loadView(nickname: string, previewFriend = false, previewFull = false, previewKind: GlobeKind = "christmas"): Promise<View> {
   if (nickname === DEMO) {
-    const sample = previewNewYear ? newYearSample(SAMPLE_GLOBE) : SAMPLE_GLOBE;
+    const sample = previewKind === "christmas" ? SAMPLE_GLOBE : kindSample(SAMPLE_GLOBE, previewKind);
     const globe = previewFull ? fillSample(sample) : sample;
     return { status: "ready", globe, isOwner: !previewFriend, token: null };
   }
@@ -82,7 +82,7 @@ export default function GlobeView() {
   const searchParams = useSearchParams();
   const previewFriend = isDemo && searchParams.get("preview") === "friend";
   const previewFull = isDemo && searchParams.get("full") === "1";
-  const previewNewYear = isDemo && searchParams.get("kind") === "newyear";
+  const previewKind: GlobeKind = isDemo ? toKind(searchParams.get("kind")) : "christmas"; // 미리 보기: /globe/demo?kind=newyear · ?kind=birthday
 
   const [view, setView] = useState<View>({ status: "loading" });
   const [shakeSignal, setShakeSignal] = useState(0);
@@ -90,15 +90,15 @@ export default function GlobeView() {
 
   useEffect(() => {
     let cancelled = false;
-    loadView(nickname, previewFriend, previewFull, previewNewYear).then((next) => {
+    loadView(nickname, previewFriend, previewFull, previewKind).then((next) => {
       if (!cancelled) setView(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [nickname, previewFriend, previewFull, previewNewYear]);
+  }, [nickname, previewFriend, previewFull, previewKind]);
 
-  const refresh = async () => setView(await loadView(nickname, previewFriend, previewFull, previewNewYear));
+  const refresh = async () => setView(await loadView(nickname, previewFriend, previewFull, previewKind));
 
   // 휴대폰을 흔들면 눈이 내립니다.
   useEffect(() => {

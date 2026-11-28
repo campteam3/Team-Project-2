@@ -15,8 +15,8 @@ export type ThemeOption = { id: string; label: string; color: string; trunk?: st
 export const GLOBE_KINDS = ["christmas", "birthday", "newyear"] as const;
 export type GlobeKind = (typeof GLOBE_KINDS)[number];
 export const KIND_LABEL: Record<GlobeKind, string> = { christmas: "크리스마스", birthday: "생일", newyear: "새해" };
-// 지금 고를 수 있는 주제. 생일 스노우볼이 들어오면 "birthday" 를 더합니다.
-export const AVAILABLE_KINDS: GlobeKind[] = ["christmas", "newyear"];
+// 지금 고를 수 있는 주제
+export const AVAILABLE_KINDS: GlobeKind[] = ["christmas", "birthday", "newyear"];
 export const toKind = (value: unknown): GlobeKind => ((GLOBE_KINDS as readonly unknown[]).includes(value) ? (value as GlobeKind) : "christmas");
 
 export type GlobeTheme = Record<ThemePart, string> & { kind: GlobeKind };
@@ -79,7 +79,11 @@ export const DEFAULT_THEME: GlobeTheme = { tree: "green", prop: "both", base: "r
 
 // 그 주제로 처음 만들 때의 테마
 // 새해 스노우볼은 소품 네 가지(담장 · 떡국 · 윷 · 복조리)를 모두 켠 채로 시작합니다
-export const defaultTheme = (kind: GlobeKind): GlobeTheme => ({ ...DEFAULT_THEME, kind, prop: kind === "newyear" ? "both+yut+bokjori" : DEFAULT_THEME.prop });
+// 생일 스노우볼은 화이트 케이크 · 연보라 받침대로 시작합니다 (김미영)
+export const defaultTheme = (kind: GlobeKind): GlobeTheme =>
+  kind === "birthday"
+    ? { ...DEFAULT_THEME, kind, tree: "white", base: "lavender", prop: "none" }
+    : { ...DEFAULT_THEME, kind, prop: kind === "newyear" ? "both+yut+bokjori" : DEFAULT_THEME.prop };
 
 // 새해 스노우볼의 꾸미기: 트리 · 눈이 없어서 소품과 받침대만 고릅니다.
 // 소품 값은 크리스마스와 같은 것을 씁니다: 담장(+까치) = 눈사람 자리("snowman"), 떡국(+소반) = 선물 자리("gift").
@@ -98,10 +102,46 @@ const NEWYEAR_PARTS: ThemePartInfo[] = [
   THEME_PARTS.find((p) => p.key === "base")!,
 ];
 
-// 그 주제의 꾸미기 화면에 보일 선택지
-export const themeParts = (kind: GlobeKind): ThemePartInfo[] => (kind === "newyear" ? NEWYEAR_PARTS : THEME_PARTS);
+// 생일 스노우볼의 꾸미기: 케이크 색과 받침대 색만 고릅니다. 풍선 · 선물 상자는 늘 있습니다. (김미영)
+// 케이크 색은 트리 자리("tree")에 저장합니다. 케이크 색마다 아이싱 · 풍선 색이 함께 바뀝니다 (아래 BIRTHDAY_CAKES).
+// 받침대는 모델 원래 색인 연보라가 기본이고, 나머지는 크리스마스 받침대와 같은 색입니다.
+const BIRTHDAY_PARTS: ThemePartInfo[] = [
+  {
+    key: "tree",
+    label: "케이크",
+    options: [
+      { id: "white", label: "화이트", color: "#F7ECDB" },
+      { id: "pink", label: "핑크", color: "#F7C1D2" },
+      { id: "sky", label: "하늘", color: "#B9D8F4" },
+      { id: "green", label: "초록", color: "#C4E6C5" },
+      { id: "brown", label: "초코", color: "#9A6747" },
+    ],
+  },
+  {
+    key: "base",
+    label: "받침대",
+    options: [{ id: "lavender", label: "연보라", color: "#A9B7EE" }, ...THEME_PARTS.find((p) => p.key === "base")!.options],
+  },
+];
 
-export function themeOption(part: ThemePart, id: string): ThemeOption {
+// 생일 케이크 색마다의 짝: 케이크 몸통(body) · 흘러내린 아이싱과 조개 크림(icing) · 색이 바뀌는 풍선 두 개(balloons, 밝은 톤 · 진한 톤).
+// 풍선 색이 없으면 모델 원래 색(분홍)입니다. 은색 · 흰색 풍선은 어느 케이크에서나 같습니다. (김미영이 정한 짝, 2026-11-27)
+export const BIRTHDAY_CAKES: Record<string, { body: string; icing: string; balloons?: [string, string] }> = {
+  white: { body: "#F7ECDB", icing: "#F2CF8E" },
+  pink: { body: "#F7C1D2", icing: "#EC7FA5", balloons: ["#E5524D", "#C8363D"] },
+  sky: { body: "#B9D8F4", icing: "#6EA6E2", balloons: ["#9CCBF3", "#6EA6E2"] },
+  green: { body: "#C4E6C5", icing: "#78C486", balloons: ["#E5524D", "#C8363D"] },
+  brown: { body: "#9A6747", icing: "#5B3524" },
+};
+export const birthdayCake = (theme: GlobeTheme) => BIRTHDAY_CAKES[theme.tree] ?? BIRTHDAY_CAKES.white;
+
+// 그 주제의 꾸미기 화면에 보일 선택지
+export const themeParts = (kind: GlobeKind): ThemePartInfo[] => (kind === "newyear" ? NEWYEAR_PARTS : kind === "birthday" ? BIRTHDAY_PARTS : THEME_PARTS);
+
+// kind 를 넘기면 그 주제의 선택지에서 먼저 찾습니다 (생일 스노우볼의 케이크 · 받침대 색)
+export function themeOption(part: ThemePart, id: string, kind?: GlobeKind): ThemeOption {
+  const own = kind ? themeParts(kind).find((p) => p.key === part)?.options.find((o) => o.id === id) : undefined;
+  if (own) return own;
   const options = THEME_PARTS.find((p) => p.key === part)!.options;
   return options.find((o) => o.id === id) ?? options[0];
 }
@@ -150,7 +190,7 @@ export function toggleProp(prop: string, item: PropItem): string {
   return propValue([...items.filter((other) => !spot.includes(other)), item]);
 }
 
-export const themeColor = (theme: GlobeTheme, part: ThemePart) => themeOption(part, theme[part]).color;
+export const themeColor = (theme: GlobeTheme, part: ThemePart) => themeOption(part, theme[part], theme.kind).color;
 
 // 고른 트리 색에 어울리는 나무 기둥 색. 기본 트리는 모델 원래 색을 쓰므로 undefined 입니다.
 export const trunkColor = (theme: GlobeTheme) => themeOption("tree", theme.tree).trunk;
@@ -158,10 +198,14 @@ export const trunkColor = (theme: GlobeTheme) => themeOption("tree", theme.tree)
 // DB 에서 읽은 값(모양을 믿을 수 없음)을 안전한 테마로 바꿉니다.
 export function parseTheme(value: unknown): GlobeTheme {
   const source = (value && typeof value === "object" ? value : {}) as Record<string, unknown>;
-  const theme = { ...DEFAULT_THEME, kind: toKind(source.kind) };
+  const kind = toKind(source.kind);
+  // 생일 스노우볼은 선택지(케이크 · 받침대 색)와 기본값이 따로 있습니다
+  const theme = kind === "birthday" ? defaultTheme(kind) : { ...DEFAULT_THEME, kind };
+  const own = kind === "birthday" ? themeParts(kind) : [];
   for (const part of THEME_PARTS) {
     const id = source[part.key];
-    const known = part.key === "prop" ? PROP_VALUES.includes(id as string) : part.options.some((o) => o.id === id);
+    const options = own.find((p) => p.key === part.key)?.options ?? part.options;
+    const known = part.key === "prop" ? PROP_VALUES.includes(id as string) : options.some((o) => o.id === id);
     if (typeof id === "string" && known) theme[part.key] = id;
   }
   return theme;

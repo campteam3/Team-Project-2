@@ -10,7 +10,8 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
+import { DayLights, NightBloom, NightLights } from "@/components/SnowGlobeAtmosphere";
+import type { BackdropScene } from "@/components/stage/backdropShared";
 import { SingleOrnament } from "@/components/snowglobe/OrnamentGlb";
 import VillageBackdrop from "@/components/stage/VillageBackdrop";
 import type { OrnamentShape } from "@/lib/snowglobe";
@@ -30,7 +31,8 @@ const RESUME_AFTER = 2500; // 손을 뗀 뒤 다시 저절로 돌기까지 (ms)
 const CLICK_SLOP = 6; // 이만큼(px) 넘게 끌었으면 누른 것으로 치지 않습니다
 
 // sunrise: 새해 스노우볼에서 열었을 때 배경을 일출로 맞춥니다
-type Props = { shape: OrnamentShape; color: string; onOpen?: () => void; sunrise?: boolean };
+// scene: 생일 스노우볼 등 주제별 배경 (주면 sunrise 보다 먼저 봅니다)
+type Props = { shape: OrnamentShape; color: string; onOpen?: () => void; sunrise?: boolean; scene?: BackdropScene };
 
 // 움직임 줄이기 설정 (무대 바깥에서 넘겨받지 않고 여기서 직접 읽습니다)
 function useReducedMotion() {
@@ -212,11 +214,11 @@ function FloatingOrnament({ shape, color, onOpen }: Props) {
   );
 }
 
-export default function GiftOrnamentScene({ sunrise = false, ...props }: Props) {
+export default function GiftOrnamentScene({ sunrise = false, scene, ...props }: Props) {
   return (
     <Canvas camera={{ position: [0, 0, 7], fov: 35 }} dpr={[1, 2]} gl={{ alpha: true, antialias: true }} style={{ touchAction: "none" }} aria-hidden="true">
-      <NightLights />
-      <VillageBackdrop sunrise={sunrise} />
+      {scene === "birthday" ? <DayLights /> : <NightLights />}
+      <VillageBackdrop sunrise={sunrise} scene={scene} />
       <Suspense fallback={null}>
         <FloatingOrnament {...props} />
       </Suspense>

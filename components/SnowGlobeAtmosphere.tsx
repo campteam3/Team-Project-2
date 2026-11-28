@@ -35,6 +35,29 @@ export function NightLights() {
   );
 }
 
+// 생일 스노우볼의 낮 조명: 밝은 하늘 배경에서 케이크가 칙칙해 보이지 않게, 흰빛에 가까운 밝은 빛으로 고르게 비춥니다. (김미영)
+// 밤 조명(NightLights)의 푸른 달빛 · 분홍 · 하늘색 옆 조명 대신, 위에서 내리는 햇빛과 부드러운 채움 빛을 씁니다.
+export function DayLights() {
+  return (
+    <>
+      <ambientLight intensity={0.5} color="#fff6f3" />
+      <directionalLight position={[2.5, 5, 4]} intensity={1.1} color="#fffaf2" />
+      <directionalLight position={[-3.5, 2.5, 3]} intensity={0.45} color="#fff3f1" />
+      <directionalLight position={[0, 3, -4]} intensity={0.3} color="#ffe9f1" />
+      <Environment resolution={256} environmentIntensity={0.45}>
+        <mesh scale={30}>
+          <sphereGeometry args={[1, 16, 16]} />
+          <meshBasicMaterial color="#d8d3dc" side={THREE.BackSide} />
+        </mesh>
+        <Lightformer form="rect" intensity={1.2} color="#ffffff" position={[0, 7, 0]} scale={[8, 8, 1]} />
+        <Lightformer form="rect" intensity={0.9} color="#fff4f8" position={[-6, 2, 3]} scale={[2, 7, 1]} />
+        <Lightformer form="rect" intensity={0.9} color="#f1f8ff" position={[6, 1.5, 2]} scale={[2, 5, 1]} />
+        <Lightformer form="ring" intensity={0.8} color="#ffffff" position={[0, 2, 7]} scale={2.5} />
+      </Environment>
+    </>
+  );
+}
+
 // 빛 번짐: 밝은 불빛만 번지게 하고, 마지막에 화면 색으로 맞춥니다. <Canvas> 의 맨 끝에 둡니다.
 export function NightBloom() {
   return (

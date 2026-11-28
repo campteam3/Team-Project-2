@@ -14,7 +14,7 @@
 import { preload } from "react-dom";
 import type { GlobeKind } from "@/lib/theme";
 
-const modelUrl = (kind: GlobeKind) => (kind === "newyear" ? "/models/newyear.glb" : "/models/snowglobe.glb");
+const modelUrl = (kind: GlobeKind) => (kind === "newyear" ? "/models/newyear.glb" : kind === "birthday" ? "/models/birthday.glb" : "/models/snowglobe.glb");
 
 export default function ModelPreload({ kind = "christmas" }: { kind?: GlobeKind }) {
   preload(modelUrl(kind), { as: "fetch", crossOrigin: "anonymous" });

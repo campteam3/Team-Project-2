@@ -9,7 +9,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { BACKDROP_IMAGES, BEFORE_TONE_MAPPING_GLSL, SUNRISE_IMAGES, backdropUniforms } from "./backdropShared";
+import { BEFORE_TONE_MAPPING_GLSL, backdropImages, backdropUniforms, type BackdropScene } from "./backdropShared";
 
 // 그림을 받기 전에 보이는 밤하늘 색 (그림 위쪽 하늘과 비슷한 색)
 const NIGHT = "#0b1635";
@@ -54,10 +54,11 @@ function createParameters(): THREE.ShaderMaterialParameters {
 }
 
 // sunrise: 새해 스노우볼의 일출 배경 (차명근)
-export default function PhotoBackdrop({ sunrise = false }: { sunrise?: boolean }) {
+// scene: 생일 스노우볼의 파티 배경처럼 주제별 그림을 고릅니다 (없으면 sunrise 로 정함)
+export default function PhotoBackdrop({ sunrise = false, scene }: { sunrise?: boolean; scene?: BackdropScene }) {
   const size = useThree((state) => state.size);
   const kind = size.width < size.height ? "mobile" : "web";
-  const picture = (sunrise ? SUNRISE_IMAGES : BACKDROP_IMAGES)[kind];
+  const picture = backdropImages(scene ?? (sunrise ? "sunrise" : "village"))[kind];
   const material = useRef<THREE.ShaderMaterial>(null);
   const parameters = useMemo(() => createParameters(), []);
   // 받아 온 그림. 다음 프레임에 재질에 끼웁니다.
