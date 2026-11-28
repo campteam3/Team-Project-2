@@ -37,6 +37,15 @@ export default function OwnerFlow() {
   const kind = toKind(search.get("kind"));
   const [theme, setTheme] = useState<GlobeTheme>(() => defaultTheme(kind));
   const [part, setPart] = useState<ThemePart>(() => themeParts(kind)[0].key);
+  // 홈에서 다른 주제를 고르고 다시 오면 그 주제로 처음부터 시작합니다.
+  // Next.js 는 떠난 화면을 숨겨 두었다가 그대로 다시 보여 주므로, 처음 열 때 정한 주제(예: 생일)가 남아 있었습니다 (차명근)
+  const [startedKind, setStartedKind] = useState(kind);
+  if (kind !== startedKind) {
+    setStartedKind(kind);
+    setTheme(defaultTheme(kind));
+    setPart(themeParts(kind)[0].key);
+    setStep("customize");
+  }
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -121,6 +130,7 @@ export default function OwnerFlow() {
     return (
       <Stage
         theme={theme}
+        onBack={() => setStep("customize")}
         title="마지막으로 알려 주세요"
         subtitle="2 / 2 단계"
         plate={<NameplateInput value={nickname} onChange={setNickname} />}

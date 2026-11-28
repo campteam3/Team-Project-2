@@ -161,6 +161,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
     return (
       <Stage
         {...common}
+        onBack={() => setStep("view")}
         title="오너먼트를 골라 주세요"
         subtitle="1 / 2 단계"
         // 고르는 동안에는 스노우볼 대신 고른 오너먼트 하나를 크게 보여 줍니다. 스노우볼에 달린 모습은 작아서 모양 · 색을 견주기 어렵다는 의견 (차명근)
@@ -188,6 +189,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
     return (
       <Stage
         {...common}
+        onBack={() => setStep("pick")}
         title="마음을 적어 주세요"
         // 스노우볼은 고르던 크기 · 자리 그대로 두고 카드가 그 위로 올라옵니다 (FEEDBACK B5. 넓은 화면도 같게: 이슈 #67)
         holdGlobe
@@ -217,6 +219,7 @@ export default function FriendFlow({ nickname, globe, preview = false, onAdded }
   return (
     <Stage
       {...common}
+      onBack={() => setStep("view")}
       title="오너먼트를 달았어요"
       subtitle={`${name} 주인이 열어 보면 메시지를 읽을 수 있어요`}
       hint={undefined}

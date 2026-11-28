@@ -128,7 +128,8 @@ export default function OpeningView() {
       {/* 기념 메시지 보내기 (FEEDBACK F1, 차명근): 빨간 주 버튼은 하나라 보조 버튼으로. 아주 좁은 화면(400px 미만)에서는 위아래로 쌓습니다 */}
       <Dock label="시작하기" className="max-[400px]:w-full max-[400px]:flex-col max-[400px]:items-stretch max-[400px]:rounded-[28px]">
         <ButtonLink href={kind === "christmas" ? "/new" : `/new?kind=${kind}`}>내 스노우볼 만들기</ButtonLink>
-        <ButtonLink href="/gift/new" variant="secondary">
+        {/* 기념 메시지도 홈에 떠 있는 스노우볼의 오너먼트 · 배경으로 시작합니다 (차명근) */}
+        <ButtonLink href={kind === "christmas" ? "/gift/new" : `/gift/new?kind=${kind}`} variant="secondary">
           기념 메시지 보내기
         </ButtonLink>
       </Dock>

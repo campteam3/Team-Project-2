@@ -16,8 +16,9 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Dock } from "@/components/ui/Dock";
 import { getGift, type Gift } from "@/lib/api";
 import { withGift } from "@/lib/gift-link";
-import { toShape } from "@/lib/snowglobe";
-import { DEFAULT_THEME } from "@/lib/theme";
+import { backdropScene } from "@/components/stage/VillageBackdrop";
+import { kindOfShape, toShape } from "@/lib/snowglobe";
+import { DEFAULT_THEME, defaultTheme } from "@/lib/theme";
 
 type View = { status: "loading" } | { status: "missing" } | { status: "error"; message: string } | { status: "ready"; gift: Gift };
 
@@ -66,10 +67,12 @@ export default function GiftView() {
   }
 
   const { gift } = view;
+  // 보낸 오너먼트의 주제(새해 · 생일 모양이면 그 주제)에 맞춰 배경을 깔고, 만들기도 그 주제로 시작합니다 (차명근)
+  const kind = kindOfShape(gift.shape);
   return (
     <Stage
-      theme={DEFAULT_THEME}
-      scene={<GiftOrnamentScene shape={toShape(gift.shape)} color={gift.color} onOpen={() => setOpened(true)} />}
+      theme={defaultTheme(kind)}
+      scene={<GiftOrnamentScene shape={toShape(gift.shape)} color={gift.color} onOpen={() => setOpened(true)} scene={backdropScene(kind)} />}
       title={`${gift.sender_name}님이 보낸 오너먼트`}
       subtitle={opened ? "이 오너먼트를 내 스노우볼에 달아 간직해 보세요" : "눌러서 열어 보세요"}
       hint={opened ? undefined : "오너먼트를 누르면 메시지가 열려요"}
@@ -88,7 +91,7 @@ export default function GiftView() {
               메시지 열기
             </Button>
           )}
-          <ButtonLink href={withGift("/new", gift.id)}>내 스노우볼에 달기</ButtonLink>
+          <ButtonLink href={withGift(kind === "christmas" ? "/new" : `/new?kind=${kind}`, gift.id)}>내 스노우볼에 달기</ButtonLink>
         </Dock>
       </div>
     </Stage>
