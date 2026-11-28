@@ -1321,6 +1321,15 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
 
   const model = useMemo(() => {
     const copy = scene.clone(true);
+    // 크리스마스 스노우볼: 트리 뒤쪽에도 선물 상자 묶음을 하나 더 놓습니다. 이름이 "w_Gift_" 로 시작해서 아래에서 앞쪽 선물과 함께 켜지고 꺼집니다.
+    if (kind === "christmas") {
+      const back = new THREE.Group();
+      back.name = "w_Gift_Back";
+      back.rotation.y = BACK_GIFTS.turn;
+      back.position.y = BACK_GIFTS.lower;
+      for (const child of copy.children) if (BACK_GIFTS.boxes.includes(child.name)) back.add(child.clone(true));
+      copy.add(back);
+    }
     const glassFront = createGlassMaterial(false);
     const glassBack = createGlassMaterial(true);
     // 트리에 두른 점 줄은 여러 색의 작은 전구처럼 스스로 빛나고, 이따금 반짝입니다
@@ -1486,10 +1495,22 @@ export function GlobeModel({ kind = "christmas", title = "", treeColor, trunkCol
   return <primitive object={model} />;
 }
 
-type ExtraLook = { showReindeer?: boolean; showGingerHouse?: boolean };
+// 트리 뒤쪽의 선물 상자 묶음 (이민정): 앞쪽 묶음 여섯 상자 가운데 네 개(큰 빨강 + 그 위의 초록, 작은 것 둘)를 그대로 본떠,
+// 스노우볼 가운데를 축으로 돌려 놓습니다. 옆 · 뒤 자리로 간 루돌프(왼쪽 옆)와 과자집(오른쪽 뒤) 사이 한가운데입니다.
+// 돌린 자리의 눈이 조금 낮아 상자 하나가 떠 보여서 1.5cm 내려 눈에 살짝 묻었습니다. (Blender 에서 뒤 · 옆 · 위로 확인)
+const BACK_GIFTS = { boxes: ["w_Gift_A", "w_Gift_E", "w_Gift_C", "w_Gift_F"], turn: THREE.MathUtils.degToRad(162), lower: -0.015 };
 
-// 추가 소품: 눈사람 자리의 루돌프, 선물 자리의 과자집. 이 컴포넌트를 그릴 때에만 props.glb 를 내려받습니다.
-export function GlobeExtras({ showReindeer = false, showGingerHouse = false }: ExtraLook) {
+type ExtraLook = { showReindeer?: boolean; showGingerHouse?: boolean; reindeerAside?: boolean; houseAside?: boolean };
+
+// 앞자리가 차 있을 때 루돌프 · 과자집을 옮겨 놓는 자리. 스노우볼 가운데를 축으로 이만큼 돌려 놓습니다 (위에서 볼 때 시계 반대 방향이 +).
+// 바닥 눈의 높이가 어느 방향이든 거의 같아서(차이 1cm 안쪽) 돌리기만 해도 바닥에 그대로 앉고, 트리 · 유리와의 거리도 그대로입니다.
+// 돌린 만큼 몸도 함께 돌아서, 뒤에서 봐도 바깥을 바라보고 서 있습니다. (Blender 에서 앞 · 옆 · 뒤 · 위로 확인, 이민정)
+const REINDEER_ASIDE = THREE.MathUtils.degToRad(-67); // 왼쪽 옆 (눈사람의 왼쪽 뒤)
+const HOUSE_ASIDE = THREE.MathUtils.degToRad(88); // 오른쪽 뒤 (선물 상자 묶음의 뒤)
+
+// 추가 소품: 루돌프 · 과자집. 이 컴포넌트를 그릴 때에만 props.glb 를 내려받습니다.
+// 모델 파일에는 앞자리(루돌프는 눈사람 자리, 과자집은 선물 자리)에 놓여 있습니다. 그 자리에 눈사람 · 선물 상자가 있으면(reindeerAside · houseAside) 옆 · 뒤 자리로 옮깁니다.
+export function GlobeExtras({ showReindeer = false, showGingerHouse = false, reindeerAside = false, houseAside = false }: ExtraLook) {
   const { scene } = useGLTF(PROPS_URL);
   const model = useMemo(() => {
     const copy = scene.clone(true);
@@ -1515,8 +1536,14 @@ export function GlobeExtras({ showReindeer = false, showGingerHouse = false }: E
       }
       mesh.material = next;
     });
+    // 자리 옮기기는 볼터치 자리를 잰 뒤에 합니다 (볼터치는 모델 파일 기준 좌표로 찍어서, 몸과 함께 돌면 됩니다)
+    const spin = new THREE.Matrix4();
+    for (const child of copy.children) {
+      if (reindeerAside && child.name.startsWith("w_Reindeer")) child.applyMatrix4(spin.makeRotationY(REINDEER_ASIDE));
+      if (houseAside && child.name.startsWith("w_GingerHouse")) child.applyMatrix4(spin.makeRotationY(HOUSE_ASIDE));
+    }
     return copy;
-  }, [scene, showReindeer, showGingerHouse]);
+  }, [scene, showReindeer, showGingerHouse, reindeerAside, houseAside]);
 
   return <primitive object={model} />;
 }

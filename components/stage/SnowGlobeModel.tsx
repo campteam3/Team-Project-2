@@ -92,7 +92,7 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
   const cake = kind === "birthday" ? birthdayCake(theme) : undefined;
   const treeColor = cake ? cake.body : theme.tree === "green" ? undefined : themeColor(theme, "tree");
   const baseColor = (kind === "birthday" ? theme.base === "lavender" : theme.base === "red") ? undefined : themeColor(theme, "base");
-  // 소품: 별은 항상 트리 꼭대기에 있습니다. 눈사람 자리에는 눈사람이나 루돌프, 선물 자리에는 선물 상자나 과자집이 놓입니다 (lib/theme.ts 의 hasProp).
+  // 소품: 별은 항상 트리 꼭대기에 있습니다. 눈사람 · 선물 상자 · 루돌프 · 과자집을 저마다 켜고 끕니다 (lib/theme.ts 의 hasProp).
   const showSnowman = hasProp(theme.prop, "snowman");
   const showGifts = hasProp(theme.prop, "gift");
   // 루돌프 · 과자집은 크리스마스 스노우볼에만 있습니다
@@ -109,7 +109,8 @@ export default function SnowGlobeModel({ theme, ornaments = NONE, highlightId, s
         {/* 추가 소품은 보일 때에만 파일을 내려받고, 받는 동안 스노우볼은 그대로 보입니다 */}
         {(showReindeer || showGingerHouse) && (
           <Suspense fallback={null}>
-            <GlobeExtras showReindeer={showReindeer} showGingerHouse={showGingerHouse} />
+            {/* 눈사람 · 선물 상자가 앞자리에 있으면 루돌프 · 과자집은 옆 · 뒤 자리로 갑니다 */}
+            <GlobeExtras showReindeer={showReindeer} showGingerHouse={showGingerHouse} reindeerAside={showSnowman} houseAside={showGifts} />
           </Suspense>
         )}
         <GlobeInnerLights kind={kind} />

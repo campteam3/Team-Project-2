@@ -53,8 +53,8 @@ export default function CustomizeDock({ theme, part, onPart, onPick, onNext }: P
   const pick = (id: string) => onPick(part, part === "prop" ? toggleProp(theme.prop, id as PropItem) : id);
   // 휴대폰: 네 칸까지는 줄을 꽉 채워 똑같은 너비로 나누고(소품 4개), 그보다 많으면 옆으로 밀어서 넘깁니다(트리 · 받침대 색)
   const slides = current.options.length > 4;
-  // 소품은 자리 두 곳(선물 자리 · 눈사람 자리)에 하나씩 놓습니다. 같은 자리의 것을 켜면 원래 있던 것은 꺼집니다 (이슈 #75)
-  const groupLabel = part === "prop" ? "소품 고르기 (자리마다 하나씩 고를 수 있어요)" : sheetTitle(part, current.label);
+  // 소품은 네 가지를 저마다 켜고 끕니다. 네 가지를 함께 놓을 수 있습니다 (이민정)
+  const groupLabel = part === "prop" ? "소품 고르기 (여러 개를 함께 고를 수 있어요)" : sheetTitle(part, current.label);
 
   return (
     <>
