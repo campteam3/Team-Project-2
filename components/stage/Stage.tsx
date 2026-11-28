@@ -11,7 +11,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExter
 
 import type { Ornament } from "@/lib/api";
 import type { GlobeTheme } from "@/lib/theme";
-import { isBgmOn, isBgmOnServer, subscribeBgm, toggleBgm } from "@/lib/bgm";
+import { isBgmOn, isBgmOnServer, setBgmKind, subscribeBgm, toggleBgm } from "@/lib/bgm";
 import { saveGlobeImage } from "@/lib/save-image";
 import { Button, IconButton } from "@/components/ui/Button";
 import SavedImage from "./SavedImage";
@@ -147,6 +147,9 @@ export default function Stage(props: StageProps) {
   const quiet = quietHint === hintKey;
   const [shakeSignal, setShakeSignal] = useState(0);
   const soundOn = useSyncExternalStore(subscribeBgm, isBgmOn, isBgmOnServer); // 배경 음악을 켜 둔 상태인지
+  // 이 화면의 스노우볼 주제에 맞는 곡으로 (홈에서 주제를 바꿀 때, 링크로 다른 주제의 스노우볼에 들어올 때 모두. 차명근)
+  const bgmKind = theme.kind ?? "christmas";
+  useEffect(() => setBgmKind(bgmKind), [bgmKind]);
   const [saving, setSaving] = useState(false); // 이미지를 만드는 중인지
   const [savedUrl, setSavedUrl] = useState(""); // 화면에 띄울 저장용 이미지 (공유 창을 열 수 없는 휴대폰 브라우저에서만)
   const closeSaved = useCallback(() => setSavedUrl(""), []);
