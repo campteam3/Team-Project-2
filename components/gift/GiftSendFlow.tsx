@@ -5,7 +5,7 @@
 // 설계: docs/superpowers/specs/2026-11-27-gift-message-design.md
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLayoutEffect, useRef, useState } from "react";
 import MessageCard from "@/components/friend/MessageCard";
 import OrnamentPickDock from "@/components/friend/OrnamentPickDock";
@@ -14,8 +14,9 @@ import GiftOrnamentScene from "@/components/gift/GiftOrnamentScene";
 import Stage from "@/components/stage/Stage";
 import { useNotice } from "@/components/stage/useNotice";
 import { createGift } from "@/lib/api";
-import type { OrnamentShape } from "@/lib/snowglobe";
-import { DEFAULT_THEME, ORNAMENT_OPTIONS } from "@/lib/theme";
+import { backdropScene } from "@/components/stage/VillageBackdrop";
+import { shapesFor, type OrnamentShape } from "@/lib/snowglobe";
+import { defaultTheme, ORNAMENT_OPTIONS, toKind } from "@/lib/theme";
 
 type Step = "pick" | "write" | "done";
 
@@ -34,8 +35,18 @@ const pillClass =
 
 export default function GiftSendFlow() {
   const router = useRouter();
+  // 홈에 떠 있던 스노우볼의 주제(/gift/new?kind=newyear). 그 주제의 오너먼트 · 배경으로 고릅니다. 없으면 크리스마스 (차명근)
+  const kind = toKind(useSearchParams().get("kind"));
+  const theme = defaultTheme(kind);
   const [step, setStep] = useState<Step>("pick");
-  const [shape, setShape] = useState<OrnamentShape>("ball");
+  const [shape, setShape] = useState<OrnamentShape>(() => shapesFor(kind)[0]);
+  // 홈에서 다른 주제를 고르고 다시 오면 그 주제의 첫 모양 · 첫 단계부터 (떠난 화면이 그대로 남아 있기 때문)
+  const [startedKind, setStartedKind] = useState(kind);
+  if (kind !== startedKind) {
+    setStartedKind(kind);
+    setShape(shapesFor(kind)[0]);
+    setStep("pick");
+  }
   const [colorId, setColorId] = useState(ORNAMENT_OPTIONS[0].id);
   const [sender, setSender] = useState("");
   const [message, setMessage] = useState("");
@@ -72,7 +83,7 @@ export default function GiftSendFlow() {
     setStep("pick");
   };
 
-  const scene = <GiftOrnamentScene shape={shape} color={color} />;
+  const scene = <GiftOrnamentScene shape={shape} color={color} scene={backdropScene(kind)} />;
 
   const submit = async () => {
     if (busy) return;
@@ -91,9 +102,10 @@ export default function GiftSendFlow() {
 
   if (step === "pick") {
     return (
-      <Stage theme={DEFAULT_THEME} scene={scene} title="어떤 오너먼트로 보낼까요?" subtitle="1 / 2 단계" hint="고르는 대로 바로 바뀌어요" hintMobile="고르는 대로 바로 바뀌어요">
+      <Stage theme={theme} scene={scene} title="어떤 오너먼트로 보낼까요?" subtitle="1 / 2 단계" hint="고르는 대로 바로 바뀌어요" hintMobile="고르는 대로 바로 바뀌어요">
         <div key={step} className="flex w-full animate-rise justify-center">
           <OrnamentPickDock
+            kind={kind}
             shape={shape}
             onShape={setShape}
             colorId={colorId}
@@ -108,7 +120,7 @@ export default function GiftSendFlow() {
 
   if (step === "write") {
     return (
-      <Stage theme={DEFAULT_THEME} scene={scene} title="마음을 적어 주세요" subtitle="2 / 2 단계 · 링크를 받은 사람이 열어 볼 수 있어요" holdGlobe>
+      <Stage theme={theme} scene={scene} onBack={() => setStep("pick")} title="마음을 적어 주세요" subtitle="2 / 2 단계 · 링크를 받은 사람이 열어 볼 수 있어요" holdGlobe>
         <div key={step} className="flex min-h-0 w-full animate-rise justify-center">
           <MessageCard
             sender={sender}
@@ -130,7 +142,7 @@ export default function GiftSendFlow() {
   const url = `${window.location.origin}/gift/${giftId}`;
   return (
     <Stage
-      theme={DEFAULT_THEME}
+      theme={theme}
       scene={scene}
       title="마음을 오너먼트에 담았어요"
       subtitle={"링크를 보내면 받은 사람이 열어 보고\n자기 스노우볼에 달 수 있어요"}
@@ -141,7 +153,7 @@ export default function GiftSendFlow() {
             하나 더 보내기
           </button>
           {/* 링크를 보내기 전에는 글자 링크로 두고, 보낸 뒤에만 버튼 모양으로 강조합니다 (김미영) */}
-          <Link href="/new" className={shared ? pillClass : linkClass}>
+          <Link href={kind === "christmas" ? "/new" : `/new?kind=${kind}`} className={shared ? pillClass : linkClass}>
             내 스노우볼도 만들기
           </Link>
         </div>

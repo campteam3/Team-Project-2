@@ -6,6 +6,7 @@
 // UI 는 위쪽 띠와 아래쪽에만 두고, 스노우볼 위에 겹치지 않습니다.
 
 import dynamic from "next/dynamic";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import type { Ornament } from "@/lib/api";
@@ -16,6 +17,11 @@ import { Button, IconButton } from "@/components/ui/Button";
 import SavedImage from "./SavedImage";
 import StageFallback from "./StageFallback";
 import type { GlobeLayout } from "./StageScene";
+
+// 이 탭에서 사이트 안의 다른 화면으로 옮겨 간 적이 있는지. 링크로 바로 들어온 화면에서 뒤로 가기를 누르면
+// 브라우저 뒤로 가기는 사이트 밖(카카오톡 등)으로 나가므로, 그때는 홈으로 보냅니다 (차명근)
+let lastPath: string | null = null;
+let movedInSite = false;
 
 // 소리 버튼 (차명근 연결): 배경 음악을 켜고 끕니다. 재생은 lib/bgm.ts 가 맡습니다.
 const SHOW_SOUND = true;
@@ -80,6 +86,9 @@ export type StageProps = {
   layout?: { desktop?: Partial<GlobeLayout>; mobile?: Partial<GlobeLayout> };
   children?: ReactNode; // 아래쪽: 도크 · 버튼
   topLeft?: ReactNode; // 왼쪽 위 (PC 는 전체 화면 버튼 바로 아래): 스노우볼 고르기 버튼
+  // 홈이 아닌 화면(topLeft 가 없는 화면)에서는 그 자리에 뒤로 가기 버튼이 생깁니다 (차명근).
+  // onBack 을 주면 그 동작(예: 한 단계 앞으로)을, 안 주면 이 사이트 안에서 온 곳으로 돌아가고, 링크로 바로 들어왔으면 홈으로 갑니다.
+  onBack?: () => void;
   below?: ReactNode; // 도크 아래 작은 글자 링크
   // 값을 주면 위쪽에 "사진 찍기" 버튼이 생깁니다. 저장할 파일 이름으로 씁니다 (FEEDBACK E4, 차명근).
   // 누르면 사진 찍기 화면이 열려, 각도 · 크기를 맞춘 뒤 저장합니다 (이민정)
@@ -98,7 +107,21 @@ function supportsWebGL() {
 }
 
 export default function Stage(props: StageProps) {
-  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, topLeft, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
+  const { theme, ornaments, title, subtitle, display, hint, hintMobile, plate, plateText, pin, pinKey, pinId, morePinIds, highlightId, arrivingId, focusId, lockFront, holdGlobe, children, topLeft, onBack, below, notice, saveAs, onNotice, onSelectOrnament, extraShake = 0, scene } = props;
+  // 뒤로 가기 (홈이 아닌 화면의 왼쪽 위)
+  const router = useRouter();
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname !== lastPath) {
+      if (lastPath !== null) movedInSite = true;
+      lastPath = pathname;
+    }
+  }, [pathname]);
+  const goBack = () => {
+    if (onBack) return onBack();
+    if (movedInSite && window.history.length > 1) router.back();
+    else router.push("/");
+  };
   const hasScene = !!scene;
   // 명판에 새길 이름은 3D 명판 면에 직접 그립니다 (FEEDBACK B4: 글자가 명판에 붙어 함께 돌게).
   // 같은 글자를 보이지 않게 화면에도 두어 명판이 아래쪽 UI 와 겹치지 않게 재는 데 쓰고, 3D 를 못 쓰는 기기에서는 이 글자를 보여 줍니다.
@@ -583,7 +606,7 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
         {/* z-20: 왼쪽 위 스노우볼 고르기 목록이 펼쳐질 때 제목 위에 오게 합니다 (휴대폰에서 제목과 겹침, 차명근) */}
         <div className="pointer-events-auto absolute left-4 top-4 z-20 flex flex-col items-start gap-2 kb:hidden sm:left-8 sm:top-8">
           <IconButton icon="maximize" label="전체 화면" onClick={toggleFullscreen} className="max-sm:hidden" />
-          {topLeft}
+          {topLeft ?? <IconButton icon="arrow-left" label="뒤로 가기" onClick={goBack} />}
         </div>
         <div className="pointer-events-auto absolute right-4 top-4 flex gap-2 kb:hidden sm:right-8 sm:top-8">
           {saveAs && webgl && !scene && <IconButton icon="camera" label="사진 찍기" onClick={openPhoto} />}
@@ -609,8 +632,9 @@ main ${el.getBoundingClientRect().top.toFixed(0)} fixed ${origin.toFixed(0)}
             {title}
           </h1>
           {subtitle && (
+            // 부제 뒤에 양옆이 반원인 회색 반투명 띠를 깝니다. 생일(밝은 하늘) 같은 밝은 배경에서도 읽히게, 모든 화면에 똑같이 (차명근)
             <p className={`mt-2 whitespace-pre-line text-pretty text-ink-sub ${display ? "text-[15px] sm:mt-3.5 sm:text-[17px]" : "text-[15px]"}`}>
-              {subtitle}
+              <span className="inline-block rounded-full bg-[#2b2f3a]/60 px-4 py-1 backdrop-blur-sm">{subtitle}</span>
             </p>
           )}
         </header>

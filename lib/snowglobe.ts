@@ -22,6 +22,10 @@ const SHAPE_LISTS = [BASIC_SHAPES, NEWYEAR_SHAPES, BIRTHDAY_SHAPES];
 // 그 주제의 스노우볼에서 고를 수 있는 모양
 export const shapesFor = (kind: GlobeKind = "christmas"): readonly OrnamentShape[] => (kind === "newyear" ? NEWYEAR_SHAPES : kind === "birthday" ? BIRTHDAY_SHAPES : BASIC_SHAPES);
 
+// 모양이 어느 주제의 것인지 (기념 메시지는 주제를 따로 저장하지 않아서, 받는 화면의 배경을 모양으로 정합니다. 차명근)
+export const kindOfShape = (shape: string | undefined): GlobeKind =>
+  (NEWYEAR_SHAPES as readonly string[]).includes(shape ?? "") ? "newyear" : (BIRTHDAY_SHAPES as readonly string[]).includes(shape ?? "") ? "birthday" : "christmas";
+
 // 매다는 모양(볼 · 지팡이 사탕 · 선물 상자)인지. 별 · 하트는 경사면에 얹는 쿠키 모양이고, 새해 모양은 양털에 붙이는 브로치라 얹는 자리로 봅니다.
 // 생일 스노우볼에서는 케이크 윗면에 올리는 토핑(머랭 키스 · 사탕 구슬)이 hang 자리, 옆면에 붙이는 젤리 별이 slope 자리를 씁니다.
 const HANGING: readonly OrnamentShape[] = ["ball", "cane", "gift", "kiss", "candy"];
